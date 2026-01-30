@@ -16,12 +16,14 @@ class ProfileImage extends StatefulWidget {
   final String? photoUrl;
   final String fullName;
   final double radius;
+  final VoidCallback? onLongPress;
 
   const ProfileImage({
     super.key,
     this.photoUrl,
     required this.fullName,
     this.radius = 60,
+    this.onLongPress,
   });
 
   @override
@@ -36,28 +38,39 @@ class _ProfileImageState extends State<ProfileImage> {
     final photoUrl = widget.photoUrl ?? '';
     final hasValidUrl = photoUrl.isNotEmpty && photoUrl.startsWith('http');
 
+    Widget imageContent;
     if (!hasValidUrl || _hasError) {
-      // Show initials when no valid URL or error occurred
-      return CircleAvatar(
+      imageContent = CircleAvatar(
         radius: widget.radius,
-        backgroundColor: Colors.blue.shade900,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         child: Text(
           widget.fullName.isNotEmpty ? widget.fullName[0].toUpperCase() : '?',
-          style: TextStyle(fontSize: widget.radius * 0.6, color: Colors.white),
+          style: TextStyle(
+            fontSize: widget.radius * 0.6,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
+      );
+    } else {
+      imageContent = CircleAvatar(
+        radius: widget.radius,
+        backgroundColor: Colors.blue.shade900,
+        backgroundImage: NetworkImage(photoUrl),
+        onBackgroundImageError: (_, __) {
+          if (mounted) {
+            setState(() => _hasError = true);
+          }
+        },
       );
     }
 
-    return CircleAvatar(
-      radius: widget.radius,
-      backgroundColor: Colors.blue.shade900,
-      backgroundImage: NetworkImage(photoUrl),
-      onBackgroundImageError: (_, __) {
-        if (mounted) {
-          setState(() => _hasError = true);
-        }
-      },
-    );
+    if (widget.onLongPress != null) {
+      return GestureDetector(
+        onLongPress: widget.onLongPress,
+        child: imageContent,
+      );
+    }
+    return imageContent;
   }
 }
 
@@ -344,6 +357,44 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
     }
   }
 
+  void _showFullScreenImage(String? photoUrl, String fullName) {
+    if (photoUrl == null || photoUrl.isEmpty || !photoUrl.startsWith('http')) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (context) => Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white, size: 30),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: InteractiveViewer(
+            panEnabled: true,
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Hero(
+              tag: 'full_profile_$photoUrl',
+              child: Image.network(
+                photoUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const _LoadingSpinner();
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageService>(context);
@@ -354,10 +405,10 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _LoadingSpinner(),
+              const _LoadingSpinner(),
               const SizedBox(height: 24),
               Text(
-                'Loading...',
+                lang.translate('loading'),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade600,
@@ -370,431 +421,448 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
     }
 
     if (_member == null) {
-      return Scaffold(body: Center(child: Text(lang.translate('member_not_found'))));
+      return Scaffold(
+        appBar: AppBar(backgroundColor: Theme.of(context).colorScheme.primary),
+        body: Center(child: Text(lang.translate('member_not_found'))),
+      );
     }
 
     final member = _member!;
 
+    // Theme colors
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bgColor = isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF8FAFC);
+    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final primaryText = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF1E293B));
+    final secondaryText = theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? (isDark ? Colors.white70 : const Color(0xFF64748B));
+
     return Scaffold(
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: Text(lang.translate('member_details')),
-        backgroundColor: Colors.blue.shade900,
+        backgroundColor: cardColor,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          lang.translate('member_details'),
+          style: TextStyle(
+            color: primaryText,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new, color: secondaryText, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
-          // More options menu
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              switch (value) {
-                case 'call':
-                  _callPhone(member.phone);
-                  break;
-                case 'whatsapp':
-                  _openWhatsapp(member.whatsapp);
-                  break;
-                case 'message':
-                  _sendSms(member.phone);
-                  break;
-                case 'location':
-                  _openMap(member.googleMapLink);
-                  break;
-                case 'share':
-                  _showShareOptions();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              if (member.phone.isNotEmpty)
-                const PopupMenuItem(
-                  value: 'call',
-                  child: Row(
-                    children: [
-                      Icon(Icons.call, color: Colors.green, size: 20),
-                      SizedBox(width: 8),
-                      Text('Call'),
-                    ],
-                  ),
-                ),
-              if (member.whatsapp.isNotEmpty)
-                const PopupMenuItem(
-                  value: 'whatsapp',
-                  child: Row(
-                    children: [
-                      Icon(Icons.chat, color: Colors.green, size: 20),
-                      SizedBox(width: 8),
-                      Text('WhatsApp'),
-                    ],
-                  ),
-                ),
-              if (member.phone.isNotEmpty)
-                const PopupMenuItem(
-                  value: 'message',
-                  child: Row(
-                    children: [
-                      Icon(Icons.sms, color: Colors.blue, size: 20),
-                      SizedBox(width: 8),
-                      Text('Message'),
-                    ],
-                  ),
-                ),
-              if (member.googleMapLink.isNotEmpty)
-                const PopupMenuItem(
-                  value: 'location',
-                  child: Row(
-                    children: [
-                      Icon(Icons.location_on, color: Colors.red, size: 20),
-                      SizedBox(width: 8),
-                      Text('Location'),
-                    ],
-                  ),
-                ),
-              PopupMenuItem(
-                value: 'share',
-                child: Row(
-                  children: [
-                    const Icon(Icons.share, color: Colors.blue, size: 20),
-                    const SizedBox(width: 8),
-                    Text(lang.translate('share_profile')),
-                  ],
-                ),
-              ),
-            ],
+          IconButton(
+            icon: Icon(Icons.share_outlined, color: theme.colorScheme.primary),
+            onPressed: _showShareOptions,
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        physics: const BouncingScrollPhysics(),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Header
-            Center(
+            // Immersive Profile Header
+            _buildPremiumHeader(member, lang),
+            
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               child: Column(
                 children: [
-                  ProfileImage(
-                    photoUrl: member.photoUrl,
-                    fullName: member.fullName,
-                    radius: 60,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    member.fullName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Member ID: ${member.mid}',
-                    style: const TextStyle(fontSize: 16, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 8),
-                  if (member.role == 'manager')
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange),
+                  // Quick Action Row (Integrated style)
+                  _buildPremiumQuickActions(member, lang),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Personal Information Block
+                  _buildPremiumSection(
+                    title: lang.translate('personal_info'),
+                    icon: Icons.person_rounded,
+                    children: [
+                      _buildPremiumRow(
+                        lang.translate('full_name'), 
+                        member.surname.isNotEmpty 
+                          ? '${member.fullName} ${member.surname}' 
+                          : member.fullName, 
+                        Icons.person_outline
                       ),
-                      child: Text(
-                        lang.translate('manager').toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  // Digital ID Button directly on profile
-                  ElevatedButton.icon(
-                    onPressed: () {
-                       Navigator.pushNamed(
-                        context,
-                        '/user/digital-id',
-                        arguments: member,
-                      );
-                    },
-                    icon: const Icon(Icons.badge_rounded),
-                    label: Text(lang.translate('digital_id')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade900,
-                      foregroundColor: Colors.white,
-                    ),
+                      _buildPremiumRow(lang.translate('age'), '${member.age} ${lang.translate('years')}', Icons.cake_outlined),
+                      _buildPremiumRow(lang.translate('birth_date'), member.birthDate, Icons.calendar_today_rounded),
+                      if (member.bloodGroup.isNotEmpty)
+                        _buildPremiumRow(lang.translate('blood_group'), member.bloodGroup, Icons.bloodtype_outlined),
+                      _buildPremiumRow(lang.translate('marriage_status'), lang.translate(member.marriageStatus.toLowerCase()), Icons.favorite_border_rounded),
+                      if (member.education.isNotEmpty)
+                        _buildPremiumRow(lang.translate('education'), member.education, Icons.school_outlined),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  if (member.tags.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      children: member.tags.map((tag) {
-                        return Chip(label: Text(tag));
-                      }).toList(),
+
+                  const SizedBox(height: 20),
+
+                  // Heritage & Origins Block
+                  _buildPremiumSection(
+                    title: 'Heritage & Origins',
+                    icon: Icons.history_edu_rounded,
+                    children: [
+                      if (member.fatherName.isNotEmpty)
+                        _buildPremiumRow(lang.translate('father_name'), member.fatherName, Icons.person_pin_rounded),
+                      if (member.motherName.isNotEmpty)
+                        _buildPremiumRow(lang.translate('mother_name'), member.motherName, Icons.person_pin_rounded),
+                      if (member.nativeHome.isNotEmpty)
+                        _buildPremiumRow(lang.translate('native_home'), member.nativeHome, Icons.home_rounded),
+                      if (member.gotra.isNotEmpty)
+                        _buildPremiumRow(lang.translate('gotra'), member.gotra, Icons.account_tree_outlined),
+                      _buildPremiumRow('Surdhan', member.surdhan, Icons.auto_awesome_rounded),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Family Details Block
+                  _buildPremiumSection(
+                    title: lang.translate('Family Info'),
+                    icon: Icons.people_alt_rounded,
+                    children: [
+                      _buildPremiumRow(lang.translate('Family Name'), member.familyName, Icons.family_restroom_rounded),
+                      _buildPremiumRow('DKT Family ID', member.familyId, Icons.vpn_key_rounded),
+                      if (member.parentMid.isNotEmpty)
+                        _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
+                      if (member.tod.isNotEmpty)
+                        _buildPremiumRow(lang.translate('date_of_death'), member.tod, Icons.heart_broken_rounded, isDestructive: true),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Contact & Location Block
+                  _buildPremiumSection(
+                    title: lang.translate('contact_info'),
+                    icon: Icons.contact_mail_rounded,
+                    children: [
+                      _buildPremiumRow(lang.translate('phone'), member.phone, Icons.phone_enabled_rounded),
+                      if (member.email.isNotEmpty)
+                        _buildPremiumRow('Email Address', member.email, Icons.alternate_email_rounded),
+                      _buildPremiumLocationRow(
+                        lang.translate('address'),
+                        member.address,
+                        member.googleMapLink,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Social Presence Block
+                  _buildPremiumSection(
+                    title: 'Social Presence',
+                    icon: Icons.public_rounded,
+                    children: [
+                      if (member.whatsapp.isNotEmpty)
+                        _buildPremiumSocialRow('WhatsApp', member.whatsapp, Icons.chat_bubble_outline_rounded),
+                      if (member.instagram.isNotEmpty)
+                        _buildPremiumSocialRow('Instagram', member.instagram, Icons.camera_alt_outlined),
+                      if (member.facebook.isNotEmpty)
+                        _buildPremiumSocialRow('Facebook', member.facebook, Icons.facebook_rounded),
+                    ],
+                  ),
+
+                  if (member.firms.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _buildPremiumSection(
+                      title: 'Firms & Business',
+                      icon: Icons.business_center_rounded,
+                      children: member.firms.map((firm) => _buildPremiumFirmRow(firm)).toList(),
                     ),
+                  ],
+
+                  if (_isAdmin) ...[
+                    const SizedBox(height: 24),
+                    _buildAdminControlCard(member, lang),
+                  ],
+                  
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Personal Information
-            _buildSectionHeader(lang.translate('personal_info')),
-            _buildDetailCard([
-              _buildDetailRow(lang.translate('member_id'), member.mid),
-              _buildDetailRow(lang.translate('full_name'), member.fullName),
-              if (member.surname.isNotEmpty)
-                _buildDetailRow(lang.translate('surname'), member.surname),
-              if (member.fatherName.isNotEmpty)
-                _buildDetailRow(lang.translate('father_name'), member.fatherName),
-              if (member.motherName.isNotEmpty)
-                _buildDetailRow(lang.translate('mother_name'), member.motherName),
-              _buildDetailRow(lang.translate('age'), '${member.age} ${lang.translate('years')}'),
-              _buildDetailRow(lang.translate('birth_date'), member.birthDate),
-              if (member.education.isNotEmpty)
-                _buildDetailRow(lang.translate('education'), member.education),
-              if (member.tod.isNotEmpty)
-                _buildDetailRow(lang.translate('date_of_death'), member.tod),
-              if (member.bloodGroup.isNotEmpty)
-                _buildDetailRow(lang.translate('blood_group'), member.bloodGroup),
-              _buildDetailRow(lang.translate('marriage_status'), member.marriageStatus),
-              if (member.gotra.isNotEmpty)
-                _buildDetailRow(lang.translate('gotra'), member.gotra),
-              if (member.nativeHome.isNotEmpty)
-                _buildDetailRow(lang.translate('native_home'), member.nativeHome),
-              if (member.surdhan.isNotEmpty)
-                _buildDetailRow('Surdhan', member.surdhan),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // Family Information
-            _buildSectionHeader(lang.translate('family_info')),
-            _buildDetailCard([
-              _buildDetailRow(lang.translate('family_name'), member.familyName),
-              _buildDetailRow('DKT Family ID', member.familyId),
-              if (member.parentMid.isNotEmpty)
-                _buildDetailRow(lang.translate('parent_mid'), member.parentMid),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // Contact Information
-            _buildSectionHeader(lang.translate('contact_info')),
-            _buildDetailCard([
-              _buildDetailRow(lang.translate('phone'), member.phone),
-              if (member.email.isNotEmpty)
-                _buildDetailRow('E-mail ID', member.email),
-              _buildLocationRow(
-                lang.translate('address'),
-                member.address,
-                member.googleMapLink,
-              ),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // Social Media
-            _buildSectionHeader(lang.translate('social_media')),
-            _buildDetailCard([
-              if (member.whatsapp.isNotEmpty)
-                _buildSocialRow('WhatsApp', member.whatsapp, Icons.message),
-              if (member.instagram.isNotEmpty)
-                _buildSocialRow(
-                  'Instagram',
-                  member.instagram,
-                  Icons.camera_alt,
-                ),
-              if (member.facebook.isNotEmpty)
-                _buildSocialRow('Facebook', member.facebook, Icons.facebook),
-            ]),
-
-            const SizedBox(height: 16),
-
-            // Firms/Business
-            if (member.firms.isNotEmpty) ...[
-              _buildSectionHeader('Firms / Business'),
-              ...member.firms.map(
-                (firm) => Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    title: Text(firm['name'] ?? ''),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if ((firm['phone'] ?? '').isNotEmpty)
-                          Text('Phone: ${firm['phone']}'),
-                        if ((firm['mapLink'] ?? '').isNotEmpty)
-                          GestureDetector(
-                            onTap: () async {
-                              final url = firm['mapLink'];
-                              if (url != null && url.isNotEmpty) {
-                                final uri = Uri.parse(url);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri);
-                                }
-                              }
-                            },
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.map,
-                                  color: Colors.blue,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'View on Map',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    trailing: const Icon(Icons.business),
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 16),
-
-            // Social Media
-            const SizedBox(height: 24),
-
-            // Admin Actions
-            if (_isAdmin) ...[
-              _buildSectionHeader(lang.translate('admin_actions')),
-              _buildDetailCard([
-                ListTile(
-                  leading: Icon(
-                    member.role == 'manager' ? Icons.person_remove : Icons.person_add,
-                    color: member.role == 'manager' ? Colors.red : Colors.green,
-                  ),
-                  title: Text(member.role == 'manager' ? lang.translate('demote_to_member') : lang.translate('promote_to_manager')),
-                  subtitle: Text(member.role == 'manager' ? lang.translate('demote_subtitle') : lang.translate('promote_subtitle')),
-                  onTap: _toggleManagerRole,
-                ),
-              ]),
-              const SizedBox(height: 32),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildQuickActions() {
-    if (_member == null) return const SizedBox.shrink();
-    final member = _member!;
-
-    if (member.phone.isEmpty &&
-        member.whatsapp.isEmpty &&
-        member.googleMapLink.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (member.phone.isNotEmpty) ...[
-          _buildQuickActionFab(
-            icon: Icons.call,
-            label: 'Call',
-            color: Colors.green,
-            onPressed: () => _callPhone(member.phone),
+  Widget _buildPremiumHeader(MemberModel member, LanguageService lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final primaryText = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF1E293B));
+    final secondaryText = theme.textTheme.bodyMedium?.color?.withOpacity(0.6) ?? (isDark ? Colors.white60 : const Color(0xFF64748B));
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFF1F5F9);
+    
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : const Color(0x08000000),
+            offset: const Offset(0, 4),
+            blurRadius: 20,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.only(bottom: 32, top: 16),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor, width: 4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark ? Colors.black38 : const Color(0x10000000),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ProfileImage(
+                  photoUrl: member.photoUrl,
+                  fullName: member.fullName,
+                  radius: 60,
+                  onLongPress: () => _showFullScreenImage(member.photoUrl, member.fullName),
+                ),
+              ),
+              if (member.role == 'manager')
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.verified_rounded, color: theme.colorScheme.onPrimary, size: 20),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            member.fullName,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: primaryText,
+              letterSpacing: -0.5,
+            ),
           ),
           const SizedBox(height: 8),
-        ],
-        if (member.whatsapp.isNotEmpty) ...[
-          _buildQuickActionFab(
-            icon: Icons.chat,
-            label: 'WhatsApp',
-            color: const Color(0xFF25D366),
-            onPressed: () => _openWhatsapp(member.whatsapp),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (member.relationToHead.toLowerCase() != 'none') ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDark ? theme.colorScheme.primary.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    lang.translate(member.relationToHead.toLowerCase()),
+                    style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                'MID: ${member.mid}',
+                style: TextStyle(
+                  color: secondaryText,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
         ],
-        if (member.googleMapLink.isNotEmpty) ...[
-          _buildQuickActionFab(
-            icon: Icons.location_on,
-            label: 'Map',
-            color: Colors.red,
-            onPressed: () => _openMap(member.googleMapLink),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
-  Widget _buildQuickActionFab({
+  Widget _buildPremiumQuickActions(MemberModel member, LanguageService lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? theme.cardColor : Colors.white;
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : const Color(0x06000000),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildPremiumActionButton(
+            onPressed: () => _callPhone(member.phone),
+            icon: Icons.phone,
+            label: 'Call',
+            color: const Color(0xFF10B981),
+            enabled: member.phone.isNotEmpty,
+          ),
+          _buildPremiumActionButton(
+            onPressed: () => _openWhatsapp(member.whatsapp),
+            icon: Icons.chat_bubble_rounded,
+            label: 'WhatsApp',
+            color: const Color(0xFF25D366),
+            enabled: member.whatsapp.isNotEmpty,
+          ),
+          _buildPremiumActionButton(
+            onPressed: () {
+              Navigator.pushNamed(
+                context,
+                '/user/digital-id',
+                arguments: member,
+              );
+            },
+            icon: Icons.badge_rounded,
+            label: 'ID Card',
+            color: const Color(0xFF4F46E5),
+          ),
+          _buildPremiumActionButton(
+            onPressed: () => _openMap(member.googleMapLink),
+            icon: Icons.location_on_rounded,
+            label: 'Map',
+            color: const Color(0xFFEF4444),
+            enabled: member.googleMapLink.isNotEmpty,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumActionButton({
+    required VoidCallback onPressed,
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback onPressed,
+    bool enabled = true,
   }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(right: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.black54,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ),
-        FloatingActionButton.small(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          onPressed: onPressed,
-          child: Icon(icon),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _buildDetailCard(List<Widget> children) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final disabledColor = isDark ? Colors.grey.shade700 : Colors.grey.shade50;
+    final disabledIconColor = isDark ? Colors.grey.shade600 : const Color(0xFFCBD5E1);
+    final labelColor = enabled ? (isDark ? Colors.white70 : const Color(0xFF475569)) : (isDark ? Colors.grey.shade600 : const Color(0xFF94A3B8));
+    
+    return InkWell(
+      onTap: enabled ? onPressed : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: enabled ? color.withOpacity(0.08) : disabledColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: enabled ? color : disabledIconColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: labelColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+  Widget _buildPremiumSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? theme.cardColor : Colors.white;
+    final iconBgColor = isDark ? Colors.white.withOpacity(0.1) : const Color(0xFFF1F5F9);
+    final iconColor = isDark ? Colors.white70 : const Color(0xFF475569);
+    final primaryText = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF1E293B));
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.transparent, width: 0),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : const Color(0x04000000),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(label, style: TextStyle(color: Colors.grey.shade600)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 18, color: iconColor),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: primaryText,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              children: children,
             ),
           ),
         ],
@@ -802,37 +870,116 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
     );
   }
 
-  Widget _buildLocationRow(String label, String address, String mapLink) {
+  Widget _buildPremiumRow(String label, String value, IconData icon, {bool isDestructive = false}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final iconColor = isDestructive ? const Color(0xFFEF4444) : (isDark ? Colors.white38 : const Color(0xFF94A3B8));
+    final labelColor = isDark ? Colors.white54 : const Color(0xFF94A3B8);
+    final valueColor = isDestructive ? const Color(0xFFEF4444) : (theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF334155)));
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: iconColor),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: labelColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value.isEmpty ? '-' : value,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: valueColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumLocationRow(String label, String address, String mapLink) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final displayAddress = address.isEmpty ? '-' : address;
     final hasMapLink = mapLink.isNotEmpty;
+    final labelColor = isDark ? Colors.white54 : const Color(0xFF94A3B8);
+    final valueColor = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF334155));
+    final iconColor = isDark ? Colors.white38 : const Color(0xFF94A3B8);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(label, style: TextStyle(color: Colors.grey.shade600)),
-          ),
+          Icon(Icons.location_on_rounded, size: 18, color: iconColor),
+          const SizedBox(width: 16),
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    displayAddress,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: labelColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  displayAddress,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: valueColor,
+                    height: 1.4,
                   ),
                 ),
                 if (hasMapLink)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.location_on,
-                      color: Colors.red,
-                      size: 24,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: InkWell(
+                      onTap: () => _openMap(mapLink),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? theme.colorScheme.primary.withOpacity(0.2) : const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.map_outlined, color: theme.colorScheme.primary, size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              'View on Map',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    onPressed: () => _openMap(mapLink),
-                    tooltip: 'Open in Google Maps',
                   ),
               ],
             ),
@@ -842,40 +989,168 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
     );
   }
 
-  Widget _buildSocialRow(String platform, String value, IconData icon) {
-    final hasValue = value.isNotEmpty;
+  Widget _buildPremiumSocialRow(String platform, String value, IconData icon) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryText = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF334155));
+    final secondaryText = isDark ? Colors.white54 : const Color(0xFF94A3B8);
+    final arrowColor = isDark ? Colors.white24 : const Color(0xFFCBD5E1);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: InkWell(
-        onTap: hasValue ? () => _openSocialMedia(platform, value) : null,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
+        onTap: () => _openSocialMedia(platform, value),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: _getSocialColor(platform)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    platform,
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: primaryText),
+                  ),
+                  Text(
+                    value,
+                    style: TextStyle(color: secondaryText, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: arrowColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumFirmRow(Map<String, String> firm) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryText = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF334155));
+    final secondaryText = isDark ? Colors.white60 : const Color(0xFF64748B);
+    final iconColor = isDark ? Colors.white38 : const Color(0xFF64748B);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Icon(icon, size: 24, color: _getSocialColor(platform)),
-              const SizedBox(width: 12),
-              Text(platform),
-              const Spacer(),
-              Text(
-                value,
-                style: TextStyle(
-                  color: hasValue ? Colors.blue : null,
-                  decoration: hasValue
-                      ? TextDecoration.underline
-                      : TextDecoration.none,
+              Icon(Icons.business_center_rounded, color: iconColor, size: 18),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  firm['name'] ?? '',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: primaryText),
                 ),
               ),
-              const SizedBox(width: 4),
-              if (hasValue)
-                Icon(Icons.open_in_new, size: 16, color: Colors.grey.shade500),
             ],
+          ),
+          if ((firm['phone'] ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 34, top: 4),
+              child: Text(
+                'Phone: ${firm['phone']}',
+                style: TextStyle(color: secondaryText, fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ),
+          if ((firm['mapLink'] ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 34, top: 8),
+              child: InkWell(
+                onTap: () => _openMap(firm['mapLink']!),
+                child: Text(
+                  'View Location',
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminControlCard(MemberModel member, LanguageService lang) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bgColor = isDark ? theme.cardColor : const Color(0xFFF8FAFC);
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE2E8F0);
+    final titleColor = member.role == 'manager' ? const Color(0xFFB91C1C) : (isDark ? Colors.greenAccent : const Color(0xFF15803D)); // Keep manager red distinct
+    final subtitleColor = isDark ? Colors.white60 : const Color(0xFF64748B);
+    final arrowColor = isDark ? Colors.white24 : const Color(0xFF94A3B8);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _toggleManagerRole,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: (member.role == 'manager' ? const Color(0xFFFEE2E2) : (isDark ? Colors.green.withOpacity(0.2) : const Color(0xFFDCFCE7))),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    member.role == 'manager' ? Icons.person_remove_rounded : Icons.person_add_rounded,
+                    color: member.role == 'manager' ? const Color(0xFFB91C1C) : (isDark ? Colors.greenAccent : const Color(0xFF15803D)),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        member.role == 'manager' ? lang.translate('demote_to_member') : lang.translate('promote_to_manager'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: titleColor,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        member.role == 'manager' ? lang.translate('demote_subtitle') : lang.translate('promote_subtitle'),
+                        style: TextStyle(fontSize: 12, color: subtitleColor, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: arrowColor),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+
+
+
+
+
 
   Color _getSocialColor(String platform) {
     switch (platform.toLowerCase()) {
@@ -893,7 +1168,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
   void _callPhone(String phone) async {
     final uri = Uri.parse('tel:$phone');
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 

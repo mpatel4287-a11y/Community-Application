@@ -21,6 +21,7 @@ class EventService {
     String visibilityType = 'all',
     List<String> visibleToMemberIds = const [],
     List<String> visibleToGroupIds = const [],
+    int attendanceTimeLimit = 60,
   }) async {
     final eventRef = _firestore.collection('events').doc();
 
@@ -38,6 +39,7 @@ class EventService {
       visibilityType: visibilityType,
       visibleToMemberIds: visibleToMemberIds,
       visibleToGroupIds: visibleToGroupIds,
+      attendanceTimeLimit: attendanceTimeLimit,
     );
 
     await eventRef.set(event.toMap());
@@ -97,6 +99,7 @@ class EventService {
     String? visibilityType,
     List<String>? visibleToMemberIds,
     List<String>? visibleToGroupIds,
+    int? attendanceTimeLimit,
   }) async {
     final updates = <String, dynamic>{};
 
@@ -108,7 +111,9 @@ class EventService {
     if (type != null) updates['type'] = type;
     if (visibilityType != null) updates['visibilityType'] = visibilityType;
     if (visibleToMemberIds != null) updates['visibleToMemberIds'] = visibleToMemberIds;
+    if (visibleToMemberIds != null) updates['visibleToMemberIds'] = visibleToMemberIds;
     if (visibleToGroupIds != null) updates['visibleToGroupIds'] = visibleToGroupIds;
+    if (attendanceTimeLimit != null) updates['attendanceTimeLimit'] = attendanceTimeLimit;
 
     if (updates.isNotEmpty) {
       await _firestore.collection('events').doc(eventId).update(updates);

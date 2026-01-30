@@ -263,7 +263,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     if (_userRole == 'admin') return true;
     final now = DateTime.now();
     final difference = now.difference(attendance.markedAt);
-    return difference.inHours < 12;
+    return difference.inMinutes < widget.event.attendanceTimeLimit;
   }
 
   Future<void> _updateCount(AttendanceModel attendance) async {

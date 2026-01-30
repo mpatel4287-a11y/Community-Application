@@ -28,6 +28,18 @@
             <data android:scheme="https" android:host="wa.me" />
         </intent>
 
+        <!-- Phone calls (tel:) -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+
+        <!-- SMS -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="sms" />
+        </intent>
+
         <!-- Existing Flutter text processing (KEEP THIS) -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

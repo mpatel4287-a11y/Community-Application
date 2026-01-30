@@ -118,8 +118,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(),
                 SwitchListTile(
-                  title: Text(lang.translate('dark_mode')),
-                  subtitle: Text(lang.translate('use_dark_theme')),
+                  title: Text(lang.translate('Dark Mode')),
+                  subtitle: Text(lang.translate('Use Dark Theme')),
                   value: theme.isDarkMode,
                   onChanged: (_) {
                     theme.toggleTheme();
@@ -311,6 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const Divider(),
                 ],
+                const Divider(),
                 ListTile(
                   leading: const Icon(Icons.restore),
                   title: Text(lang.translate('reset_settings')),
@@ -420,5 +421,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Navigator.pushReplacementNamed(context, '/login');
     }
   }
+
 }
 

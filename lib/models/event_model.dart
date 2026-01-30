@@ -17,6 +17,9 @@ class EventModel {
   final List<String> visibleToMemberIds; // Member IDs who can see this event
   final List<String> visibleToGroupIds; // Group IDs who can see this event
 
+  // Attendance Settings
+  final int attendanceTimeLimit; // Minutes to allow editing/deleting attendance
+
   EventModel({
     required this.id,
     required this.title,
@@ -31,6 +34,7 @@ class EventModel {
     this.visibilityType = 'all',
     this.visibleToMemberIds = const [],
     this.visibleToGroupIds = const [],
+    this.attendanceTimeLimit = 60,
   });
 
   // ---------------- TO MAP ----------------
@@ -49,6 +53,7 @@ class EventModel {
       'visibilityType': visibilityType,
       'visibleToMemberIds': visibleToMemberIds,
       'visibleToGroupIds': visibleToGroupIds,
+      'attendanceTimeLimit': attendanceTimeLimit,
     };
   }
 
@@ -68,6 +73,7 @@ class EventModel {
       visibilityType: data['visibilityType'] ?? 'all',
       visibleToMemberIds: List<String>.from(data['visibleToMemberIds'] ?? []),
       visibleToGroupIds: List<String>.from(data['visibleToGroupIds'] ?? []),
+      attendanceTimeLimit: data['attendanceTimeLimit'] ?? 60,
     );
   }
 }

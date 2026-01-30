@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/attendance_model.dart';
 import '../models/member_model.dart';
 import 'member_service.dart';
-
 class AttendanceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final MemberService _memberService = MemberService();
@@ -171,7 +170,11 @@ class AttendanceService {
     if (newCount < memberIds.length) {
       throw Exception('Count cannot be less than members in group (${memberIds.length})');
     }
-    
+
+    if (newCount < memberIds.length) {
+      throw Exception('Count cannot be less than members in group (${memberIds.length})');
+    }
+
     await doc.reference.update({
       'memberCount': newCount,
       'isCustomCount': true,
@@ -181,11 +184,17 @@ class AttendanceService {
 
   // ---------------- DELETE ATTENDANCE ----------------
   Future<void> deleteAttendance(String eventId, String attendanceId) async {
-    await _firestore
+    final doc = await _firestore
         .collection('events')
         .doc(eventId)
         .collection('attendance')
         .doc(attendanceId)
-        .delete();
+        .get();
+
+    if (!doc.exists) return;
+
+    if (!doc.exists) return;
+
+    await doc.reference.delete();
   }
 }

@@ -23,7 +23,8 @@ class FamilyTreeView extends StatefulWidget {
 class _FamilyTreeViewState extends State<FamilyTreeView> {
   final MemberService _memberService = MemberService();
   bool _loading = true;
-  List<List<Person>> _generations = [];
+  // List of maps: { 'id': String, 'name': String, 'generations': List<List<Person>> }
+  List<Map<String, dynamic>> _subFamilyTrees = [];
 
   @override
   void initState() {
@@ -41,30 +42,66 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
       // Filter members for this specific family
       final familyMembers = allMembers.where((member) {
         return member.familyDocId == widget.mainFamilyDocId &&
-            (widget.subFamilyDocId == null ||
-                member.subFamilyDocId == widget.subFamilyDocId) &&
             member.isActive;
       }).toList();
 
       if (familyMembers.isEmpty) {
         setState(() {
-          _generations = [];
+          _subFamilyTrees = [];
           _loading = false;
         });
         return;
       }
 
-      // Convert MemberModel to Person and build tree structure
-      final generations = _buildFamilyTree(familyMembers);
+      // Group by subFamilyId
+      final Map<String, List<MemberModel>> subFamilyGroups = {};
+      
+      // If widget.subFamilyDocId is provided, purely filter by it (behavior preserved if needed, 
+      // though user asked for "separate trees", likely implying viewing all of them)
+      // If the user INTENDS to see ALL sub-families, we shouldn't filter by subFamilyDocId rigidly 
+      // unless passed specifically to viewing ONE.
+      // However, usually "Separate trees for all sub families" means showing all.
+      // I will assume if subFamilyDocId is passed, we show just that one (or maybe the user enters from a context where they want all).
+      // Given the request "view seperate seperate family trees for all sub families", I will group ALL members of the main family.
+
+      for (var member in familyMembers) {
+        // If we want to support filtering by specific subFamilyDocId if provided:
+        if (widget.subFamilyDocId != null && member.subFamilyDocId != widget.subFamilyDocId) {
+             continue;
+        }
+
+        final subId = member.subFamilyId.isEmpty ? 'Main' : member.subFamilyId;
+        if (!subFamilyGroups.containsKey(subId)) {
+          subFamilyGroups[subId] = [];
+        }
+        subFamilyGroups[subId]!.add(member);
+      }
+
+      final List<Map<String, dynamic>> builtTrees = [];
+      
+      // Sort keys to have "Main" or "01", "02" in order
+      final sortedKeys = subFamilyGroups.keys.toList()..sort();
+
+      for (final subId in sortedKeys) {
+        final members = subFamilyGroups[subId]!;
+        final generations = _buildFamilyTree(members);
+        if (generations.isNotEmpty) {
+           builtTrees.add({
+             'id': subId,
+             'name': subId == 'Main' ? 'Main Family' : 'Sub Family $subId',
+             'generations': generations,
+           });
+        }
+      }
 
       setState(() {
-        _generations = generations;
+        _subFamilyTrees = builtTrees;
         _loading = false;
       });
     } catch (e) {
       debugPrint('Error loading family tree: $e');
       setState(() {
-        _generations = [];
+        _subFamilyTrees = [];
         _loading = false;
       });
     }
@@ -305,7 +342,7 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
       backgroundColor: const Color(0xFFE8E8E8),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _generations.isEmpty
+          : _subFamilyTrees.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -326,8 +363,47 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
                     ],
                   ),
                 )
-              : FamilyTree(
-                  generations: _generations,
+              : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 40),
+                  itemCount: _subFamilyTrees.length,
+                  itemBuilder: (context, index) {
+                    final treeData = _subFamilyTrees[index];
+                    final generations = treeData['generations'] as List<List<Person>>;
+                    final subFamilyName = treeData['name'] as String;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                          color: Colors.white,
+                          child: Text(
+                            subFamilyName,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: 600, // Fixed height for each tree section, or arguably better to be dynamic but FamilyTree widget has internal scrolls.
+                          // Since FamilyTree is interactive (panning/zooming logic inside CustomPaint usually?), wait, the previous implementation 
+                          // had SingleChildScrollView in both directions. 
+                          // Nesting scrollable views can be tricky.
+                          // Let's wrap each FamilyTree in a Container with constrained height to ensure they are viewable.
+                          // Ideally FamilyTree should just facilitate drawing.
+                          // The previous FamilyTree widget used SingleChildScrollView internally. 
+                          // It will conflict with ListView.builder unless we handle it.
+                          // Giving it a fixed height is a safe bet for a "list of trees".
+                          child: FamilyTree(
+                            generations: generations,
+                          ),
+                        ),
+                        const Divider(height: 1, thickness: 1),
+                      ],
+                    );
+                  },
                 ),
     );
   }

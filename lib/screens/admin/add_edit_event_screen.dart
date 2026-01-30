@@ -28,6 +28,7 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
   late TextEditingController _descriptionCtrl;
   late TextEditingController _locationCtrl;
   late TextEditingController _searchCtrl;
+  late TextEditingController _attendanceLimitCtrl;
 
   String _selectedType = 'general';
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
@@ -50,7 +51,9 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.event?.title ?? '');
     _descriptionCtrl = TextEditingController(text: widget.event?.description ?? '');
+    _descriptionCtrl = TextEditingController(text: widget.event?.description ?? '');
     _locationCtrl = TextEditingController(text: widget.event?.location ?? '');
+    _attendanceLimitCtrl = TextEditingController(text: widget.event?.attendanceTimeLimit.toString() ?? '60');
     _searchCtrl = TextEditingController();
     _searchCtrl.addListener(_filterMembers);
 
@@ -62,12 +65,24 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
       _selectedMemberIds = List.from(widget.event!.visibleToMemberIds);
       _selectedGroupIds = List.from(widget.event!.visibleToGroupIds);
       
-      // If time string exists in model, try to parse it (fallback if needed)
+      // If time string exists, try to parse. Supports "10:30" (24h) or "10:30 AM" (12h)
       if (widget.event!.time.isNotEmpty) {
         try {
-          final parts = widget.event!.time.split(':');
-          if (parts.length == 2) {
-            _selectedTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+          final t = widget.event!.time.trim();
+          if (t.contains('M')) { // AM/PM case
+             // Simple parse attempt for "10:30 AM"
+             final spaceParts = t.split(' ');
+             final timeParts = spaceParts[0].split(':');
+             int h = int.parse(timeParts[0]);
+             int m = int.parse(timeParts[1]);
+             if (spaceParts[1] == 'PM' && h != 12) h += 12;
+             if (spaceParts[1] == 'AM' && h == 12) h = 0;
+             _selectedTime = TimeOfDay(hour: h, minute: m);
+          } else {
+            final parts = t.split(':');
+            if (parts.length == 2) {
+              _selectedTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+            }
           }
         } catch (e) {
           debugPrint('Error parsing time: $e');
@@ -83,6 +98,7 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
     _titleCtrl.dispose();
     _descriptionCtrl.dispose();
     _locationCtrl.dispose();
+    _attendanceLimitCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -139,9 +155,11 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
   }
 
   String _formatTime(TimeOfDay time) {
-    final hour = time.hour.toString().padLeft(2, '0');
+    // 12-hour format with AM/PM
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
     final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
   }
 
   Future<void> _saveEvent() async {
@@ -174,6 +192,7 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
           visibilityType: _visibilityType,
           visibleToMemberIds: _visibilityType == 'selected' ? _selectedMemberIds : [],
           visibleToGroupIds: _visibilityType == 'selected' ? _selectedGroupIds : [],
+          attendanceTimeLimit: int.tryParse(_attendanceLimitCtrl.text.trim()) ?? 60,
         );
       } else {
         await _eventService.updateEvent(
@@ -187,6 +206,7 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
           visibilityType: _visibilityType,
           visibleToMemberIds: _visibilityType == 'selected' ? _selectedMemberIds : [],
           visibleToGroupIds: _visibilityType == 'selected' ? _selectedGroupIds : [],
+          attendanceTimeLimit: int.tryParse(_attendanceLimitCtrl.text.trim()) ?? 60,
         );
       }
       if (mounted) Navigator.pop(context);
@@ -253,6 +273,22 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
                                 labelText: 'Location',
                                 prefixIcon: Icon(Icons.location_on),
                               ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _attendanceLimitCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Attendance Edit Limit (Minutes)',
+                                prefixIcon: Icon(Icons.timer_off),
+                                helperText: 'Time window to edit/delete attendance',
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return 'Required';
+                                final n = int.tryParse(v);
+                                if (n == null || n < 1) return 'Must be > 0';
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
