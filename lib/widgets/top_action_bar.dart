@@ -8,6 +8,7 @@ import '../services/theme_service.dart';
 import '../services/session_manager.dart';
 import '../services/member_service.dart';
 import 'animated_theme_toggle.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Top action bar widget with notification, theme toggle, and profile
 /// Designed for top-right placement in app bars
@@ -176,10 +177,10 @@ class _TopActionBarState extends State<TopActionBar> {
               _profileImageUrl != null &&
                   _profileImageUrl!.isNotEmpty &&
                   _profileImageUrl!.startsWith('http')
-              ? Image.network(
-                  _profileImageUrl!,
+              ? CachedNetworkImage(
+                  imageUrl: _profileImageUrl!,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
+                  errorWidget: (context, url, error) {
                     return _buildProfilePlaceholder();
                   },
                 )

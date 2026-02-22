@@ -6,10 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../models/member_model.dart';
+import '../../../models/organizational_role_model.dart';
 import '../../../services/member_service.dart';
+import '../../../services/role_service.dart';
 import '../../../services/session_manager.dart';
 import '../../../services/language_service.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../admin/member_list_screen.dart';
 
 // Helper widget to handle profile images with error handling
 class ProfileImage extends StatefulWidget {
@@ -55,7 +59,7 @@ class _ProfileImageState extends State<ProfileImage> {
       imageContent = CircleAvatar(
         radius: widget.radius,
         backgroundColor: Colors.blue.shade900,
-        backgroundImage: NetworkImage(photoUrl),
+        backgroundImage: CachedNetworkImageProvider(photoUrl),
         onBackgroundImageError: (_, __) {
           if (mounted) {
             setState(() => _hasError = true);
@@ -179,7 +183,9 @@ class MemberDetailScreen extends StatefulWidget {
 
 class _MemberDetailScreenState extends State<MemberDetailScreen> {
   final MemberService _memberService = MemberService();
+  final RoleService _roleService = RoleService();
   MemberModel? _member;
+  List<OrganizationalRoleModel> _memberRoles = [];
   bool _loading = true;
   String? _familyDocId;
   String? _currentUserRole;
@@ -193,13 +199,30 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
 
   Future<void> _loadMember() async {
     setState(() => _loading = true);
-    
+
+    try {
+      // Set a 15-second timeout for the load operation
+      await _performLoad().timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('Error loading member: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _performLoad() async {
     try {
       MemberModel? member;
-      
+      final isAdmin = await SessionManager.getIsAdmin() ?? false;
+      final userRole = await SessionManager.getRole() ?? 'member';
+
       // If familyDocId and subFamilyDocId are provided, use them
-      if (widget.familyDocId != null && widget.familyDocId!.isNotEmpty &&
-          widget.subFamilyDocId != null && widget.subFamilyDocId!.isNotEmpty) {
+      if (widget.familyDocId != null &&
+          widget.familyDocId!.isNotEmpty &&
+          widget.subFamilyDocId != null &&
+          widget.subFamilyDocId!.isNotEmpty) {
         member = await _memberService.getMember(
           mainFamilyDocId: widget.familyDocId!,
           subFamilyDocId: widget.subFamilyDocId!,
@@ -209,12 +232,14 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           setState(() {
             _member = member;
             _familyDocId = widget.familyDocId;
+            _isAdmin = isAdmin;
+            _currentUserRole = userRole;
             _loading = false;
           });
           return;
         }
       }
-      
+
       // If not found or IDs not provided, search across all families
       final allMembers = await _memberService.getAllMembers();
       member = allMembers.firstWhere(
@@ -224,24 +249,23 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           orElse: () => throw Exception('Member not found'),
         ),
       );
-      
-      final isAdmin = await SessionManager.getIsAdmin() ?? false;
-      final userRole = await SessionManager.getRole() ?? 'member';
 
-      setState(() {
-        _member = member;
-        _familyDocId = member?.familyDocId ?? widget.familyDocId ?? '';
-        _isAdmin = isAdmin;
-        _currentUserRole = userRole;
-        _loading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading member: $e');
+      // Fetch member roles before updating state
+      final roles = await _roleService.getMemberRoles(member.mid);
+
       if (mounted) {
         setState(() {
+          _member = member;
+          _memberRoles = roles;
+          _familyDocId = member?.familyDocId ?? widget.familyDocId ?? '';
+          _isAdmin = isAdmin;
+          _currentUserRole = userRole;
           _loading = false;
         });
       }
+    } catch (e) {
+      debugPrint('Error loading member in performLoad: $e');
+      rethrow;
     }
   }
 
@@ -380,13 +404,11 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
             maxScale: 4.0,
             child: Hero(
               tag: 'full_profile_$photoUrl',
-              child: Image.network(
-                photoUrl,
+              child: CachedNetworkImage(
+                imageUrl: photoUrl,
                 fit: BoxFit.contain,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const _LoadingSpinner();
-                },
+                placeholder: (context, url) => const _LoadingSpinner(),
+                errorWidget: (context, url, error) => const Icon(Icons.error),
               ),
             ),
           ),
@@ -460,6 +482,22 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
             icon: Icon(Icons.share_outlined, color: theme.colorScheme.primary),
             onPressed: _showShareOptions,
           ),
+          if (_isAdmin || _currentUserRole == 'manager')
+            IconButton(
+              icon: Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditMemberScreen(
+                      memberId: member.id,
+                      familyDocId: member.familyDocId,
+                      subFamilyDocId: member.subFamilyDocId,
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -693,8 +731,99 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          // Role Badges and Tags
+          _buildRoleBadgesAndTags(member, isDark, theme),
         ],
       ),
+    );
+  }
+
+  Widget _buildRoleBadgesAndTags(MemberModel member, bool isDark, ThemeData theme) {
+    return Column(
+      children: [
+        // Organizational Role Badges (e.g., President - Samaj)
+        if (_memberRoles.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: _memberRoles.map((role) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.teal.shade800, Colors.teal.shade500],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.teal.withOpacity(0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.stars_rounded, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${role.roleTitle} - ${role.category}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          
+        if (_memberRoles.isNotEmpty && member.tags.isNotEmpty) const SizedBox(height: 16),
+
+        // Custom Tags (e.g., Student, Business)
+        if (member.tags.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: member.tags.map((tag) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.blueGrey.shade800 : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.blueGrey.shade700 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Text(
+                    tag.toUpperCase(),
+                    style: TextStyle(
+                      color: isDark ? Colors.blueGrey.shade200 : const Color(0xFF475569),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+      ],
     );
   }
 

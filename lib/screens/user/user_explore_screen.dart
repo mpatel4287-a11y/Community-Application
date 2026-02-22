@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import '../../models/member_model.dart';
 import '../../services/member_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'member_detail_screen.dart';
 
 // Helper widget to handle profile images with error handling
@@ -45,7 +46,7 @@ class __ProfileImageState extends State<_ProfileImage> {
     return CircleAvatar(
       radius: widget.radius,
       backgroundColor: Colors.blue.shade900,
-      backgroundImage: NetworkImage(photoUrl),
+      backgroundImage: CachedNetworkImageProvider(photoUrl),
       onBackgroundImageError: (_, __) {
         if (mounted) {
           setState(() => _hasError = true);

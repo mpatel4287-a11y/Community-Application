@@ -63,9 +63,9 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
             padding: const EdgeInsets.all(12),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.85,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 0.9, 
             ),
             itemCount: families.length,
             itemBuilder: (context, index) {
@@ -210,7 +210,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                             decoration: BoxDecoration(
                               color: (isBlocked
                                       ? Colors.grey
-                                      : Colors.blue)
+                                      : Colors.teal)
                                   .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -219,7 +219,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                               style: TextStyle(
                                 color: isBlocked
                                     ? Colors.grey.shade600
-                                    : Colors.blue.shade700,
+                                    : Colors.teal.shade700,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.5,
@@ -230,7 +230,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                           const Spacer(),
 
                           // ACTIONS
-                          if (_userRole == 'admin')
+                          if (_userRole == 'admin' || _userRole == 'manager')
                             Container(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               decoration: BoxDecoration(
@@ -255,53 +255,55 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                       );
                                     },
                                   ),
-                                  _buildCompactAction(
-                                    icon: isBlocked
-                                        ? Icons.lock_open
-                                        : Icons.block,
-                                    color: isBlocked
-                                        ? Colors.green
-                                        : Colors.orange,
-                                    onTap: () async {
-                                      await FamilyService()
-                                          .toggleBlockFamily(doc.id);
-                                    },
-                                  ),
-                                  _buildCompactAction(
-                                    icon: Icons.delete,
-                                    color: Colors.red,
-                                    onTap: () async {
-                                      final ok = await showDialog<bool>(
-                                        context: context,
-                                        builder: (c) => AlertDialog(
-                                          title: const Text('Delete Family'),
-                                          content: const Text(
-                                            'Are you sure? This deletes all members.',
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(c, false),
-                                              child: const Text('Cancel'),
-                                            ),
-                                            ElevatedButton(
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red,
-                                              ),
-                                              onPressed: () =>
-                                                  Navigator.pop(c, true),
-                                              child: const Text('Delete'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-
-                                      if (ok == true) {
+                                  if (_userRole == 'admin')
+                                    _buildCompactAction(
+                                      icon: isBlocked
+                                          ? Icons.lock_open
+                                          : Icons.block,
+                                      color: isBlocked
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      onTap: () async {
                                         await FamilyService()
-                                            .deleteFamily(doc.id);
-                                      }
-                                    },
-                                  ),
+                                            .toggleBlockFamily(doc.id);
+                                      },
+                                    ),
+                                  if (_userRole == 'admin')
+                                    _buildCompactAction(
+                                      icon: Icons.delete,
+                                      color: Colors.red,
+                                      onTap: () async {
+                                        final ok = await showDialog<bool>(
+                                          context: context,
+                                          builder: (c) => AlertDialog(
+                                            title: const Text('Delete Family'),
+                                            content: const Text(
+                                              'Are you sure? This deletes all members.',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(c, false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                                onPressed: () =>
+                                                    Navigator.pop(c, true),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+
+                                        if (ok == true) {
+                                          await FamilyService()
+                                              .deleteFamily(doc.id);
+                                        }
+                                      },
+                                    ),
                                 ],
                               ),
                             ),

@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 import '../../models/member_model.dart';
 import '../../services/imagekit_config.dart';
 import 'package:provider/provider.dart';
@@ -308,7 +310,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                                 _profilePhotoUrl != null &&
                                     _profilePhotoUrl!.isNotEmpty
                                 ? (_profilePhotoUrl!.startsWith('http')
-                                      ? NetworkImage(_profilePhotoUrl!)
+                                      ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
                                       : FileImage(File(_profilePhotoUrl!)))
                                 : null,
                             child:
@@ -1016,7 +1018,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                             _profilePhotoUrl != null &&
                                 _profilePhotoUrl!.isNotEmpty
                             ? (_profilePhotoUrl!.startsWith('http')
-                                  ? NetworkImage(_profilePhotoUrl!)
+                                  ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
                                   : FileImage(File(_profilePhotoUrl!)))
                             : null,
                         child:
@@ -1219,7 +1221,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                         onPressed: _whatsappCtrl.text.trim().isNotEmpty
                             ? _launchWhatsApp
                             : null,
-                        icon: const Icon(Icons.message, color: Colors.green),
+                        icon: const Icon(Icons.message, color: Colors.teal),
                         iconSize: 40,
                       ),
                       const Text('WhatsApp', style: TextStyle(fontSize: 12)),
@@ -1956,15 +1958,18 @@ class _MemberListScreenState extends State<MemberListScreen>
 
                   final fullName = (data['fullName'] ?? '').toLowerCase();
                   final mid = (data['mid'] ?? '').toLowerCase();
+                  final rawTags = data['tags'];
+                  final tagsList = (rawTags is List) ? List<String>.from(rawTags) : <String>[];
                   final searchLower = _searchQuery.toLowerCase();
                   
-                  // Search by Name or MID
-                  final matchesSearch = fullName.contains(searchLower) || mid.contains(searchLower);
+                  // Search by Name, MID, or Tags
+                  final matchesSearch = fullName.contains(searchLower) || 
+                                      mid.contains(searchLower) || 
+                                      tagsList.any((tag) => tag.toString().toLowerCase().contains(searchLower));
                   
-                  final tags = List<String>.from(data['tags'] ?? []);
-                  final matchesTag =
-                      _selectedTag.isEmpty || tags.contains(_selectedTag);
-                  return matchesSearch && matchesTag;
+                  final matchesTagChip =
+                      _selectedTag.isEmpty || tagsList.contains(_selectedTag);
+                  return matchesSearch && matchesTagChip;
                 }).toList()
                   ..sort((a, b) {
                     // Sort by createdAt descending in memory
@@ -1986,9 +1991,9 @@ class _MemberListScreenState extends State<MemberListScreen>
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.68, // Reduced to fix overflow
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.72, 
                   ),
                   itemCount: members.length,
                   itemBuilder: (context, index) {
@@ -2034,7 +2039,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      Colors.green.shade50,
+                                       Colors.teal.shade50,
                                       Colors.white,
                                     ],
                                   )
@@ -2049,13 +2054,13 @@ class _MemberListScreenState extends State<MemberListScreen>
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isActive
-                                  ? Colors.green.shade200
+                                  ? Colors.teal.shade200
                                   : Colors.grey.shade400,
                               width: 1.5,
                             ),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
@@ -2065,14 +2070,14 @@ class _MemberListScreenState extends State<MemberListScreen>
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                       color: isActive
-                                          ? Colors.green.shade400
+                                          ? Colors.teal.shade400
                                           : Colors.grey.shade400,
                                       width: 3,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
                                         color: (isActive
-                                                ? Colors.green
+                                                ? Colors.teal
                                                 : Colors.grey)
                                             .withOpacity(0.3),
                                         blurRadius: 8,
@@ -2086,13 +2091,13 @@ class _MemberListScreenState extends State<MemberListScreen>
                                           data['photoUrl'] as String? ?? '';
                                       if (photoUrl.isNotEmpty &&
                                           photoUrl.startsWith('http')) {
-                                        return Image.network(
-                                          photoUrl,
-                                          width: 60,
-                                          height: 60,
+                                        return CachedNetworkImage(
+                                          imageUrl: photoUrl,
+                                          width: 50,
+                                          height: 50,
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
+                                          errorWidget:
+                                              (context, url, error) {
                                                 return _buildInitials(data);
                                               },
                                         );
@@ -2197,122 +2202,40 @@ class _MemberListScreenState extends State<MemberListScreen>
                                           MainAxisAlignment.spaceAround,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Flexible(
-                                          child: _buildCompactAction(
-                                            icon: Icons.edit,
-                                            color: Colors.blue,
-                                            onTap: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) => EditMemberScreen(
-                                                    memberId: doc.id,
-                                                    familyDocId: widget.familyDocId ??
-                                                        data['familyDocId'],
-                                                    subFamilyDocId: widget
-                                                            .subFamilyDocId ??
-                                                        data['subFamilyDocId'],
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        Flexible(
-                                          child: _buildCompactAction(
-                                            icon: isActive
-                                                ? Icons.block
-                                                : Icons.lock_open,
-                                            color: isActive
-                                                ? Colors.orange
-                                                : Colors.green,
-                                            onTap: () async {
-                                              await MemberService()
-                                                  .toggleMemberStatus(
-                                                mainFamilyDocId: widget.familyDocId ??
-                                                    data['familyDocId'] ??
-                                                    '',
-                                                subFamilyDocId: widget
-                                                        .subFamilyDocId ??
-                                                    data['subFamilyDocId'] ??
-                                                    '',
-                                                memberId: doc.id,
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        Flexible(
-                                          child: _buildCompactAction(
-                                            icon: data['role'] == 'manager'
-                                                ? Icons.admin_panel_settings
-                                                : Icons.admin_panel_settings_outlined,
-                                            color: data['role'] == 'manager'
-                                                ? Colors.purple
-                                                : Colors.grey,
-                                            onTap: () async {
-                                              final isCurrentlyManager = data['role'] == 'manager';
-                                              final confirm = await showDialog<bool>(
-                                                context: context,
-                                                builder: (_) => AlertDialog(
-                                                  title: Text(isCurrentlyManager ? 'Demote Manager' : 'Promote to Manager'),
-                                                  content: Text('Are you sure you want to ${isCurrentlyManager ? 'demote' : 'promote'} this member to ${isCurrentlyManager ? 'member' : 'manager'}?'),
-                                                  actions: [
-                                                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                                                    ElevatedButton(
-                                                      onPressed: () => Navigator.pop(context, true),
-                                                      child: const Text('Confirm'),
+                                        if (_userRole == 'admin' || _userRole == 'manager')
+                                          Flexible(
+                                            child: _buildCompactAction(
+                                              icon: Icons.edit,
+                                              color: Colors.blue,
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => EditMemberScreen(
+                                                      memberId: doc.id,
+                                                      familyDocId: widget.familyDocId ??
+                                                          data['familyDocId'],
+                                                      subFamilyDocId: widget
+                                                              .subFamilyDocId ??
+                                                          data['subFamilyDocId'],
                                                     ),
-                                                  ],
-                                                ),
-                                              );
-                                              if (confirm == true) {
-                                                String famId = widget.familyDocId ?? data['familyDocId'] ?? '';
-                                                String subFamId = widget.subFamilyDocId ?? data['subFamilyDocId'] ?? '';
-                                                
-                                                await MemberService().updateMemberRole(
-                                                  mainFamilyDocId: famId,
-                                                  subFamilyDocId: subFamId,
-                                                  memberId: doc.id,
-                                                  newRole: isCurrentlyManager ? 'member' : 'manager',
+                                                  ),
                                                 );
-                                              }
-                                            },
+                                              },
+                                            ),
                                           ),
-                                        ),
-                                        Flexible(
-                                          child: _buildCompactAction(
-                                            icon: Icons.delete,
-                                            color: Colors.red,
-                                            onTap: () async {
-                                              final confirm =
-                                                  await showDialog<bool>(
-                                                context: context,
-                                                builder: (_) => AlertDialog(
-                                                  title: const Text('Delete Member'),
-                                                  content: const Text(
-                                                    'Are you sure you want to delete this member?',
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                              context, false),
-                                                      child: const Text('Cancel'),
-                                                    ),
-                                                    ElevatedButton(
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: Colors.red,
-                                                      ),
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                              context, true),
-                                                      child: const Text('Delete'),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                              if (confirm == true) {
-                                                await MemberService().deleteMember(
+                                        if (_userRole == 'admin')
+                                          Flexible(
+                                            child: _buildCompactAction(
+                                              icon: isActive
+                                                  ? Icons.block
+                                                  : Icons.lock_open,
+                                              color: isActive
+                                                  ? Colors.orange
+                                                  : Colors.teal,
+                                              onTap: () async {
+                                                await MemberService()
+                                                    .toggleMemberStatus(
                                                   mainFamilyDocId: widget.familyDocId ??
                                                       data['familyDocId'] ??
                                                       '',
@@ -2322,10 +2245,96 @@ class _MemberListScreenState extends State<MemberListScreen>
                                                       '',
                                                   memberId: doc.id,
                                                 );
-                                              }
-                                            },
+                                              },
+                                            ),
                                           ),
-                                        ),
+                                        if (_userRole == 'admin')
+                                          Flexible(
+                                            child: _buildCompactAction(
+                                              icon: data['role'] == 'manager'
+                                                  ? Icons.admin_panel_settings
+                                                  : Icons.admin_panel_settings_outlined,
+                                              color: data['role'] == 'manager'
+                                                  ? Colors.purple
+                                                  : Colors.grey,
+                                              onTap: () async {
+                                                final isCurrentlyManager = data['role'] == 'manager';
+                                                final confirm = await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (_) => AlertDialog(
+                                                    title: Text(isCurrentlyManager ? 'Demote Manager' : 'Promote to Manager'),
+                                                    content: Text('Are you sure you want to ${isCurrentlyManager ? 'demote' : 'promote'} this member to ${isCurrentlyManager ? 'member' : 'manager'}?'),
+                                                    actions: [
+                                                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                                      ElevatedButton(
+                                                        onPressed: () => Navigator.pop(context, true),
+                                                        child: const Text('Confirm'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                                if (confirm == true) {
+                                                  String famId = widget.familyDocId ?? data['familyDocId'] ?? '';
+                                                  String subFamId = widget.subFamilyDocId ?? data['subFamilyDocId'] ?? '';
+                                                  
+                                                  await MemberService().updateMemberRole(
+                                                    mainFamilyDocId: famId,
+                                                    subFamilyDocId: subFamId,
+                                                    memberId: doc.id,
+                                                    newRole: isCurrentlyManager ? 'member' : 'manager',
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        if (_userRole == 'admin')
+                                          Flexible(
+                                            child: _buildCompactAction(
+                                              icon: Icons.delete,
+                                              color: Colors.red,
+                                              onTap: () async {
+                                                final confirm =
+                                                    await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (_) => AlertDialog(
+                                                    title: const Text('Delete Member'),
+                                                    content: const Text(
+                                                      'Are you sure you want to delete this member?',
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                context, false),
+                                                        child: const Text('Cancel'),
+                                                      ),
+                                                      ElevatedButton(
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor: Colors.red,
+                                                        ),
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                context, true),
+                                                        child: const Text('Delete'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                                if (confirm == true) {
+                                                  await MemberService().deleteMember(
+                                                    mainFamilyDocId: widget.familyDocId ??
+                                                        data['familyDocId'] ??
+                                                        '',
+                                                    subFamilyDocId: widget
+                                                            .subFamilyDocId ??
+                                                        data['subFamilyDocId'] ??
+                                                        '',
+                                                    memberId: doc.id,
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),

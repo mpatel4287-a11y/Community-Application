@@ -1,4 +1,7 @@
-<!DOCTYPE html><html><head>
+<!DOCTYPE html>
+<html>
+
+<head>
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.
@@ -29,18 +32,19 @@
 
   <title>Ramanagara Patidar Samaj</title>
   <link rel="manifest" href="manifest.json">
-  
+
   <!-- Beautiful Animated Splash Screen Styles -->
   <style>
     /* Reset and base styles */
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       height: 100%;
       overflow: hidden;
-      background-color: #FF9933;
+      background-color: #FFFFFF;
     }
-    
+
     /* Splash screen container */
     #splash-container {
       position: fixed;
@@ -52,11 +56,11 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      background: #FF9933;
+      background: #FFFFFF;
       z-index: 9999;
       transition: opacity 0.6s ease-out;
     }
-    
+
     /* App icon styling with animation */
     #splash-icon {
       width: 120px;
@@ -64,88 +68,93 @@
       border-radius: 50%;
       animation: pulse 2s ease-in-out infinite, fadeIn 0.5s ease-out;
     }
-    
+
     /* App name styling */
     #splash-title {
       margin-top: 24px;
       font-family: 'Segoe UI', 'Roboto', sans-serif;
       font-size: 24px;
       font-weight: 600;
-      color: #FFFFFF;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      color: #333333;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       text-align: center;
       padding: 0 20px;
       animation: slideUp 0.5s ease-out 0.2s both;
     }
-    
+
     /* Tagline styling */
     #splash-subtitle {
       margin-top: 8px;
       font-family: 'Segoe UI', 'Roboto', sans-serif;
       font-size: 14px;
-      color: rgba(255, 255, 255, 0.9);
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      color: #666666;
+      text-shadow: none;
       animation: slideUp 0.5s ease-out 0.3s both;
     }
-    
+
     /* Loading spinner with animation */
     #loading-spinner {
       margin-top: 32px;
       width: 40px;
       height: 40px;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #FFFFFF;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-top-color: #FF9933;
       border-radius: 50%;
       animation: spin 1s linear infinite, fadeIn 0.5s ease-out 0.4s both;
     }
-    
+
     /* Animations */
     @keyframes pulse {
-      0%, 100% {
+
+      0%,
+      100% {
         transform: scale(1);
       }
+
       50% {
         transform: scale(1.05);
       }
     }
-    
+
     @keyframes spin {
       to {
         transform: rotate(360deg);
       }
     }
-    
+
     @keyframes fadeIn {
       from {
         opacity: 0;
       }
+
       to {
         opacity: 1;
       }
     }
-    
+
     @keyframes slideUp {
       from {
         opacity: 0;
         transform: translateY(20px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
-    
+
     /* Fade out splash */
     .splash-fade-out {
       opacity: 0 !important;
       pointer-events: none !important;
     }
   </style>
-  
+
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
-  
-  
-  
+
+
+
   <style id="splash-screen-style">
     html {
       height: 100%
@@ -154,8 +163,8 @@
     body {
       margin: 0;
       min-height: 100%;
-      background-color: #FF9933;
-          background-size: 100% 100%;
+      background-color: #FFFFFF;
+      background-size: 100% 100%;
     }
 
     .center {
@@ -168,19 +177,22 @@
     }
 
     .contain {
-      display:block;
-      width:100%; height:100%;
+      display: block;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
     }
 
     .stretch {
-      display:block;
-      width:100%; height:100%;
+      display: block;
+      width: 100%;
+      height: 100%;
     }
 
     .cover {
-      display:block;
-      width:100%; height:100%;
+      display: block;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
     }
 
@@ -212,15 +224,20 @@
     }
   </script>
 </head>
+
 <body>
   <picture id="splash">
-      <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
-      <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
-      <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
+    <source
+      srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x"
+      media="(prefers-color-scheme: light)">
+    <source
+      srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x"
+      media="(prefers-color-scheme: dark)">
+    <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
-  
-  
-  
+
+
+
   <!-- Splash Screen -->
   <div id="splash-container">
     <img id="splash-icon" src="assets/icon/app_icon.png" alt="App Icon" onerror="this.src='icons/Icon-192.png'">
@@ -234,26 +251,26 @@
 
   <!-- Flutter App -->
   <script src="flutter_bootstrap.js" async=""></script>
-  
+
   <!-- Splash Screen Removal Script -->
   <script>
     // Remove splash screen when Flutter is ready
-    window.addEventListener('flutter-first-frame', function() {
+    window.addEventListener('flutter-first-frame', function () {
       var splashContainer = document.getElementById('splash-container');
       if (splashContainer) {
         splashContainer.classList.add('splash-fade-out');
-        setTimeout(function() {
+        setTimeout(function () {
           splashContainer.style.display = 'none';
         }, 600);
       }
     });
-    
+
     // Fallback: remove splash after 5 seconds even if flutter-first-frame doesn't fire
-    setTimeout(function() {
+    setTimeout(function () {
       var splashContainer = document.getElementById('splash-container');
       if (splashContainer && splashContainer.style.display !== 'none') {
         splashContainer.classList.add('splash-fade-out');
-        setTimeout(function() {
+        setTimeout(function () {
           splashContainer.style.display = 'none';
         }, 600);
       }
@@ -262,4 +279,6 @@
 
 
 
-</body></html>
+</body>
+
+</html>

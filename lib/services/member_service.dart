@@ -241,6 +241,20 @@ class MemberService {
         );
   }
 
+  // ---------------- GET MEMBERS BY SUB-FAMILY (ONE-TIME) ----------------
+  Future<List<MemberModel>> getSubFamilyMembers(
+    String mainFamilyDocId,
+    String subFamilyDocId,
+  ) async {
+    final snapshot = await _getMembersCollection(mainFamilyDocId, subFamilyDocId)
+        .where('isActive', isEqualTo: true)
+        .get();
+        
+    return snapshot.docs
+        .map((d) => MemberModel.fromMap(d.id, d.data()))
+        .toList();
+  }
+
   // ---------------- GET ALL MEMBERS (ADMIN - from all families) ----------------
   Stream<List<MemberModel>> streamAllMembers() {
     // For admin view, we need to use collection group query
@@ -356,15 +370,10 @@ class MemberService {
 
   // ---------------- GET NEW MEMBERS THIS MONTH (ALL FAMILIES) ----------------
   Future<int> getNewMembersThisMonth() async {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-
-    final snapshot = await _firestore
-        .collectionGroup('members')
-        .where('createdAt', isGreaterThan: startOfMonth)
-        .count()
-        .get();
-    return snapshot.count ?? 0;
+    // Note: This requires a COLLECTION_GROUP_ASC index for 'createdAt'
+    // To avoid crashes if the index is missing, we can fetch all and filter or return 0
+    // The dashboard already calculates this in-memory from the full member list.
+    return 0; 
   }
 
   // ---------------- GET MEMBER BY MID (3-digit) ----------------

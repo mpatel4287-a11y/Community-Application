@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'member_list_screen.dart';
+import 'role_management_screen.dart';
 import '../../services/auth_service.dart';
 import '../../services/session_manager.dart';
 import '../../services/theme_service.dart';
@@ -130,7 +131,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 icon: Icons.groups_2,
                 title: lang.translate('members'),
                 subtitle: lang.translate('manage_members'),
-                color: Colors.green,
+                color: Colors.teal,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -153,6 +154,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 12),
             SlideInAnimation(
               delay: const Duration(milliseconds: 350),
+              beginOffset: const Offset(-0.2, 0),
+              child: _buildDashboardCard(
+                context,
+                icon: Icons.badge_outlined,
+                title: 'Organizational Roles',
+                subtitle: 'Manage Samaj & Mandal roles',
+                color: Colors.teal,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RoleManagementScreen()),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SlideInAnimation(
+              delay: const Duration(milliseconds: 380),
               beginOffset: const Offset(-0.2, 0),
               child: _buildDashboardCard(
                 context,
@@ -292,7 +309,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       borderRadius: 8,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             ScaleAnimation(

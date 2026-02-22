@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../models/person.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/animation_utils.dart';
 
 class PersonDetailDialog extends StatelessWidget {
@@ -76,7 +77,7 @@ class PersonDetailDialog extends StatelessWidget {
       radius: 40,
       backgroundColor: backgroundColor,
       backgroundImage: person.photoUrl != null
-          ? NetworkImage(person.photoUrl!)
+          ? CachedNetworkImageProvider(person.photoUrl!)
           : null,
       child: person.photoUrl == null
           ? Text(

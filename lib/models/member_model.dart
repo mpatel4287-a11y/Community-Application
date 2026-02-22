@@ -329,4 +329,47 @@ class MemberModel {
       createdAt: createdAt,
     );
   }
+
+  static MemberModel empty() {
+    return MemberModel(
+      id: '',
+      mid: '',
+      familyDocId: '',
+      subFamilyDocId: '',
+      subFamilyId: '',
+      familyId: '',
+      familyName: '',
+      fullName: '',
+      surname: '',
+      fatherName: '',
+      motherName: '',
+      gotra: '',
+      gender: 'male',
+      birthDate: '',
+      age: 0,
+      education: '',
+      bloodGroup: '',
+      marriageStatus: 'unmarried',
+      nativeHome: '',
+      phone: '',
+      email: '',
+      address: '',
+      googleMapLink: '',
+      surdhan: '',
+      firms: [],
+      whatsapp: '',
+      instagram: '',
+      facebook: '',
+      photoUrl: '',
+      password: '',
+      role: 'member',
+      tags: [],
+      isActive: true,
+      parentMid: '',
+      relationToHead: 'none',
+      subFamilyHeadRelationToMainHead: '',
+      tod: '',
+      createdAt: DateTime.now(),
+    );
+  }
 }

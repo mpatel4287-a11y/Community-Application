@@ -43,6 +43,9 @@ dependencies:
   mobile_scanner: ^3.5.2
   timeago: ^3.7.1
   rxdart: ^0.28.0
+  screenshot: ^3.0.0
+  cached_network_image: ^3.4.1
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

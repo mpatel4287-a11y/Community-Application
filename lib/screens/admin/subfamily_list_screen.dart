@@ -129,9 +129,9 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.85,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.85, 
                   ),
                   itemCount: subFamilies.length,
                   itemBuilder: (context, index) {
@@ -338,7 +338,7 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                 const Spacer(),
 
                                 // ACTIONS
-                                if (_userRole == 'admin')
+                                if (_userRole == 'admin' || _userRole == 'manager')
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 4,
@@ -368,63 +368,65 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                             );
                                           },
                                         ),
-                                        _buildCompactAction(
-                                          icon: isActive
-                                              ? Icons.check_circle
-                                              : Icons.block,
-                                          color: isActive
-                                              ? Colors.green
-                                              : Colors.grey,
-                                          onTap: () async {
-                                            await _subFamilyService
-                                                .toggleSubFamilyStatus(
-                                              mainFamilyDocId:
-                                                  widget.mainFamilyDocId,
-                                              subFamilyDocId: subFamily.id,
-                                            );
-                                          },
-                                        ),
-                                        _buildCompactAction(
-                                          icon: Icons.delete,
-                                          color: Colors.red,
-                                          onTap: () async {
-                                            final ok = await showDialog<bool>(
-                                              context: context,
-                                              builder: (c) => AlertDialog(
-                                                title: const Text(
-                                                    'Delete Sub Family'),
-                                                content: const Text(
-                                                  'Are you sure? This deletes all members.',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, false),
-                                                    child: const Text('Cancel'),
-                                                  ),
-                                                  ElevatedButton(
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor:
-                                                          Colors.red,
-                                                    ),
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, true),
-                                                    child: const Text('Delete'),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-
-                                            if (ok == true) {
+                                        if (_userRole == 'admin')
+                                          _buildCompactAction(
+                                            icon: isActive
+                                                ? Icons.check_circle
+                                                : Icons.block,
+                                            color: isActive
+                                                ? Colors.green
+                                                : Colors.grey,
+                                            onTap: () async {
                                               await _subFamilyService
-                                                  .deleteSubFamily(
+                                                  .toggleSubFamilyStatus(
                                                 mainFamilyDocId:
                                                     widget.mainFamilyDocId,
                                                 subFamilyDocId: subFamily.id,
                                               );
-                                            }
-                                          },
-                                        ),
+                                            },
+                                          ),
+                                        if (_userRole == 'admin')
+                                          _buildCompactAction(
+                                            icon: Icons.delete,
+                                            color: Colors.red,
+                                            onTap: () async {
+                                              final ok = await showDialog<bool>(
+                                                context: context,
+                                                builder: (c) => AlertDialog(
+                                                  title: const Text(
+                                                      'Delete Sub Family'),
+                                                  content: const Text(
+                                                    'Are you sure? This deletes all members.',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(c, false),
+                                                      child: const Text('Cancel'),
+                                                    ),
+                                                    ElevatedButton(
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
+                                                      onPressed: () =>
+                                                          Navigator.pop(c, true),
+                                                      child: const Text('Delete'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+
+                                              if (ok == true) {
+                                                await _subFamilyService
+                                                    .deleteSubFamily(
+                                                  mainFamilyDocId:
+                                                      widget.mainFamilyDocId,
+                                                  subFamilyDocId: subFamily.id,
+                                                );
+                                              }
+                                            },
+                                          ),
                                       ],
                                     ),
                                   ),

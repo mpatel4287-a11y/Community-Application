@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../models/member_model.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/member_service.dart';
 import '../../services/session_manager.dart';
 import '../../services/theme_service.dart';
@@ -23,6 +24,7 @@ import 'user_notification_screen.dart';
 import 'settings_screen.dart';
 import 'user_search_tab.dart'; 
 import '../admin/family_list_screen.dart';
+import 'organizational_structure_screen.dart';
 import 'dart:math';
 
 class EnhancedUserDashboard extends StatefulWidget {
@@ -88,8 +90,8 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
         );
       }
 
-      // Load all members
-      _allMembers = await _memberService.getAllMembers();
+      // Load all members with 15-second timeout safety
+      _allMembers = await _memberService.getAllMembers().timeout(const Duration(seconds: 15), onTimeout: () => []);
 
       // Generate random suggestions
       _generateRandomSuggestions();
@@ -423,7 +425,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                     radius: 18,
                     backgroundColor: Colors.white,
                     backgroundImage: _currentUser?.photoUrl.isNotEmpty == true
-                        ? NetworkImage(_currentUser!.photoUrl)
+                        ? CachedNetworkImageProvider(_currentUser!.photoUrl)
                         : null,
                     child: _currentUser?.photoUrl.isEmpty ?? true
                         ? Text(
@@ -459,6 +461,24 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                   ),
                   const SizedBox(height: 16),
                 ],
+
+                // Section: Organizational Structure
+                SlideInAnimation(
+                  delay: const Duration(milliseconds: 220),
+                  beginOffset: const Offset(0.1, 0),
+                  child: _buildSectionHeader(
+                    'Committees & Roles',
+                    'Samaj, Yuvak & Mahila Mandal',
+                    Icons.badge_outlined,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const OrganizationalStructureScreen()),
+                    ),
+                    lang,
+                    isDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 
                 // Section: Firms with animation
                 SlideInAnimation(
@@ -787,12 +807,12 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(20),
                             ),
-                            child: Image.network(
-                              member.photoUrl,
+                            child: CachedNetworkImage(
+                              imageUrl: member.photoUrl,
                               width: double.infinity,
                               height: 120,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
+                              errorWidget: (_, __, ___) =>
                                   _buildAvatarPlaceholder(member),
                             ),
                           )

@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import '../models/person.dart';
 import 'person_card.dart';
 import 'person_detail_dialog.dart';
-import 'animation_utils.dart';
 
 class FamilyTree extends StatefulWidget {
   final List<List<Person>> generations;
@@ -44,41 +43,27 @@ class _FamilyTreeState extends State<FamilyTree> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFE8E8E8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 40,
-                  minWidth: constraints.maxWidth - 40,
-                ),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 40),
-                    child: CustomPaint(
-                      key: _contentKey,
-                      painter: _FamilyTreePainter(
-                        generations: widget.generations,
-                        cardPositions: _cardPositions,
-                        generationSpacing: widget.generationSpacing,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: _buildGenerations(context),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+      color: Colors.transparent, 
+      child: InteractiveViewer(
+        boundaryMargin: const EdgeInsets.all(1000), 
+        minScale: 0.1,
+        maxScale: 3.0,
+        constrained: false, 
+        child: Padding(
+          padding: const EdgeInsets.all(200), 
+          child: CustomPaint(
+            key: _contentKey,
+            painter: _FamilyTreePainter(
+              generations: widget.generations,
+              cardPositions: _cardPositions,
+              generationSpacing: widget.generationSpacing,
             ),
-          );
-        }
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _buildGenerations(context),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -109,7 +94,7 @@ class _FamilyTreeState extends State<FamilyTree> {
     if (treeBox == null) return;
 
     final Map<String, Rect> newPositions = {};
-    bool changed = false;
+    bool significantChange = false;
 
     for (final entry in _cardKeys.entries) {
       final RenderBox? cardBox = entry.value.currentContext?.findRenderObject() as RenderBox?;
@@ -118,17 +103,25 @@ class _FamilyTreeState extends State<FamilyTree> {
         final size = cardBox.size;
         final rect = Rect.fromLTWH(position.dx, position.dy, size.width, size.height);
         
-        if (!_cardPositions.containsKey(entry.key) || _cardPositions[entry.key] != rect) {
-          changed = true;
+        // Small threshold to avoid floating point noise triggering rebuilds
+        if (!_cardPositions.containsKey(entry.key) || 
+            (newPositions[entry.key] != null && (newPositions[entry.key]!.topLeft - rect.topLeft).distance > 0.5)) {
+          significantChange = true;
         }
         newPositions[entry.key] = rect;
       }
     }
     
-    if (changed && mounted) {
-      setState(() {
-        _cardPositions.clear();
-        _cardPositions.addAll(newPositions);
+    // Check if lengths are different or significantChange detected
+    if ((significantChange || newPositions.length != _cardPositions.length) && mounted) {
+      // Use future.microtask to avoid triggering during current build
+      Future.microtask(() {
+        if (mounted) {
+          setState(() {
+            _cardPositions.clear();
+            _cardPositions.addAll(newPositions);
+          });
+        }
       });
     }
   }
@@ -216,11 +209,9 @@ class _FamilyTreeState extends State<FamilyTree> {
   }
 
   Widget _buildAnimatedPerson(BuildContext context, Person person, int generationIndex, int index) {
-    return SlideInAnimation(
-      delay: Duration(milliseconds: 100 + (generationIndex * 50) + (index * 30)),
-      beginOffset: const Offset(0, 0.2),
-      child: _buildPersonCard(context, person),
-    );
+    // Remove SlideInAnimation here as it triggers continuous layout updates 
+    // during the animation period, causing infinite rebuild cycles with CustomPainter.
+    return _buildPersonCard(context, person);
   }
 
   Widget _buildPersonCard(BuildContext context, Person person) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/person.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class PersonCard extends StatefulWidget {
   final Person person;
@@ -139,7 +140,11 @@ class _PersonCardState extends State<PersonCard>
       radius: 25,
       backgroundColor: _photoBackgroundColor,
       backgroundImage: widget.person.photoUrl != null
-          ? NetworkImage(widget.person.photoUrl!)
+          ? ResizeImage(
+              CachedNetworkImageProvider(widget.person.photoUrl!),
+              width: 150, // Optimize memory: 50 * 3 (pixel density)
+              policy: ResizeImagePolicy.fit,
+            ) as ImageProvider
           : null,
       child: widget.person.photoUrl == null
           ? Text(

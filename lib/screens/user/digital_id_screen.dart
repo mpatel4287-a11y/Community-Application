@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gal/gal.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -186,7 +187,7 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                     ],
                     image: widget.member.photoUrl.isNotEmpty
                         ? DecorationImage(
-                            image: NetworkImage(widget.member.photoUrl),
+                            image: CachedNetworkImageProvider(widget.member.photoUrl),
                             fit: BoxFit.cover,
                           )
                         : null,

@@ -111,6 +111,17 @@ class SubFamilyService {
     return null;
   }
 
+  // ---------------- GET SUB-FAMILIES BY MAIN FAMILY (ONE-TIME) ----------------
+  Future<List<SubFamilyModel>> getSubFamilies(String mainFamilyDocId) async {
+    final snapshot = await _getSubFamiliesCollection(mainFamilyDocId)
+        .orderBy('subFamilyName')
+        .get();
+    
+    return snapshot.docs
+        .map((d) => SubFamilyModel.fromMap(d.id, d.data()))
+        .toList();
+  }
+
   // ---------------- GET SUB-FAMILIES BY MAIN FAMILY ----------------
   Stream<List<SubFamilyModel>> streamSubFamilies(String mainFamilyDocId) {
     return _getSubFamiliesCollection(mainFamilyDocId)

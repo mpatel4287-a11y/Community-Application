@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'firebase_options.dart';
 import 'auth/login_screen.dart';
@@ -34,6 +35,8 @@ import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/fcm_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'services/connectivity_service.dart';
+import 'widgets/offline_banner.dart';
 
 // Top-level background message handler
 @pragma('vm:entry-point')
@@ -138,12 +141,43 @@ class MyApp extends StatelessWidget {
       ],
       builder: (context, child) {
         final scale = themeService.textScale;
-        return MediaQuery(
+        
+        Widget mainContent = MediaQuery(
           data: MediaQuery.of(
             context,
           ).copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         );
+
+        if (kIsWeb) {
+          return Container(
+            color: themeService.isDarkMode ? Colors.black : Colors.grey.shade200,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const OfflineBanner(),
+                      Expanded(child: mainContent),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+        
+        return mainContent;
       },
       // Start with initial route - it will check session and redirect
       home: const InitialRoute(),

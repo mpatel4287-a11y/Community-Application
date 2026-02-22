@@ -3,6 +3,7 @@
 // ignore_for_file: deprecated_member_use, avoid_print, unnecessary_underscores
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/theme_service.dart';
 import '../../services/language_service.dart';
 import '../../services/session_manager.dart';
@@ -52,7 +53,7 @@ class _ProfileImageState extends State<ProfileImage> {
     return CircleAvatar(
       radius: widget.radius,
       backgroundColor: Colors.blue.shade900,
-      backgroundImage: NetworkImage(photoUrl),
+      backgroundImage: CachedNetworkImageProvider(photoUrl),
       onBackgroundImageError: (_, __) {
         if (mounted) {
           setState(() => _hasError = true);

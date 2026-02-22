@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/member_model.dart';
 import '../../services/language_service.dart';
 import '../../services/theme_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'member_detail_screen.dart';
 
 class AdvancedSearchScreen extends StatefulWidget {
@@ -461,7 +462,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
           backgroundColor: Colors.blue.shade900,
           backgroundImage: member.photoUrl.isNotEmpty &&
                   member.photoUrl.startsWith('http')
-              ? NetworkImage(member.photoUrl)
+              ? CachedNetworkImageProvider(member.photoUrl)
               : null,
           child: member.photoUrl.isEmpty ||
                   !member.photoUrl.startsWith('http')
