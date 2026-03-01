@@ -80,8 +80,8 @@ Consisting of over **25,000+ lines of native Dart code**, this application imple
 This application was engineered to handle robust, complex community networking similar to high-end SaaS platforms. The codebase is immense, modular, and built for immense data scaling.
 
 * **Development Effort Estimate**: ~800 Development Hours
-* **Enterprise Value / Exclusive IP Sale**: **$30,000 – $60,000 USD** (₹25,000,000 - ₹50,000,000 INR) depending on market exclusivity rights.
-* **White-Label / Local Licensing potential**: Extremely viable for $5,000 - $12,000 USD (₹400,000 - ₹10,000,000 INR) per local community client, with recurring maintenance fees.
+* **Enterprise Value / Exclusive IP Sale**: **$30,000 – $60,000 USD** (₹25,000,000 - ₹54,00,000 INR) depending on market exclusivity rights.
+* **White-Label / Local Licensing potential**: Extremely viable for $5,000 - $12,000 USD (₹400,000 - ₹12,00,000 INR) per local community client, with recurring maintenance fees.
 
 ---
 <div align="center">
