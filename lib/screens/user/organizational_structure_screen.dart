@@ -1,6 +1,8 @@
 // lib/screens/user/organizational_structure_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../services/language_service.dart';
 import '../../services/role_service.dart';
 import '../../services/member_service.dart';
 import '../../models/organizational_role_model.dart';
@@ -66,7 +68,7 @@ class _OrganizationalStructureScreenState extends State<OrganizationalStructureS
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Committees & Roles', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: Text(Provider.of<LanguageService>(context).translate('committees_roles'), style: const TextStyle(fontWeight: FontWeight.w800)),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1E293B),
         elevation: 0,
@@ -76,19 +78,26 @@ class _OrganizationalStructureScreenState extends State<OrganizationalStructureS
           unselectedLabelColor: Colors.grey,
           indicatorColor: Colors.teal,
           isScrollable: true,
-          tabs: RoleService.defaultCategories.map((c) => Tab(text: c)).toList(),
+          tabs: RoleService.defaultCategories.map((c) {
+            // Translate category name for tabs
+            final tabLang = Provider.of<LanguageService>(context, listen: false);
+            final key = c.toLowerCase().replaceAll(' ', '_');
+            final translated = tabLang.translate(key);
+            return Tab(text: translated == key ? c : translated);
+          }).toList(),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: RoleService.defaultCategories.map((category) {
-          return _buildRoleView(category);
+          final lang = Provider.of<LanguageService>(context);
+          return _buildRoleView(category, lang);
         }).toList(),
       ),
     );
   }
 
-  Widget _buildRoleView(String category) {
+  Widget _buildRoleView(String category, LanguageService lang) {
     return StreamBuilder<List<OrganizationalRoleModel>>(
       stream: _roleService.streamRolesByCategory(category),
       builder: (context, snapshot) {
@@ -119,7 +128,7 @@ class _OrganizationalStructureScreenState extends State<OrganizationalStructureS
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         if (snapshot.data!.isEmpty) {
           return Center(
-            child: Text('Coming soon for $category', style: const TextStyle(color: Colors.grey)),
+            child: Text('${lang.translate('coming_soon_for')} $category', style: const TextStyle(color: Colors.grey)),
           );
         }
 
@@ -129,14 +138,14 @@ class _OrganizationalStructureScreenState extends State<OrganizationalStructureS
           itemCount: roles.length,
           itemBuilder: (context, index) {
             final role = roles[index];
-            return _buildRoleRow(role, index);
+            return _buildRoleRow(role, index, lang);
           },
         );
       },
     );
   }
 
-  Widget _buildRoleRow(OrganizationalRoleModel role, int index) {
+  Widget _buildRoleRow(OrganizationalRoleModel role, int index, LanguageService lang) {
     final assignedMembers = _allMembers.where((m) => role.memberMids.contains(m.mid)).toList();
 
     return SlideInAnimation(
@@ -159,6 +168,7 @@ class _OrganizationalStructureScreenState extends State<OrganizationalStructureS
                 ),
                 const SizedBox(width: 8),
                 Text(
+                  // Show the raw role title — don't try to look it up by key
                   role.roleTitle.toUpperCase(),
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
@@ -171,9 +181,9 @@ class _OrganizationalStructureScreenState extends State<OrganizationalStructureS
             ),
           ),
           if (assignedMembers.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(left: 20, bottom: 20),
-              child: Text('To be announced', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 13)),
+            Padding(
+              padding: const EdgeInsets.only(left: 20, bottom: 20),
+              child: Text(lang.translate('to_be_announced'), style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 13)),
             )
           else
             GridView.builder(

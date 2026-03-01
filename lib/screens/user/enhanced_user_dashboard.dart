@@ -12,7 +12,6 @@ import '../../services/session_manager.dart';
 import '../../services/theme_service.dart';
 import '../../services/language_service.dart';
 import '../../services/notification_service.dart';
-import '../../services/family_service.dart';
 import '../../services/group_service.dart';
 import '../../widgets/animation_utils.dart';
 
@@ -100,7 +99,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
       _loadNewMembers();
 
       // Load statistics
-      await _loadStatistics();
+      _calculateStats();
 
       setState(() => _loading = false);
     } catch (e) {
@@ -154,8 +153,9 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
     final newThisMonth = _allMembers.where((m) => m.createdAt.isAfter(startOfMonth)).length;
 
     int myFamilyCount = 0;
-    if (_familyDocId != null) {
-      myFamilyCount = _allMembers.where((m) => m.familyDocId == _familyDocId).length;
+    final familyId = _familyDocId ?? _currentUser?.familyDocId;
+    if (familyId != null && familyId.isNotEmpty) {
+      myFamilyCount = _allMembers.where((m) => m.familyDocId == familyId).length;
     }
 
     // Calculate firm stats
@@ -212,23 +212,6 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
     }
   }
 
-  Future<void> _loadStatistics() async {
-    final total = await _memberService.getMemberCount();
-    final active = await _memberService.getActiveMemberCount();
-    final newThisMonth = await _memberService.getNewMembersThisMonth();
-    final totalFamilies = await FamilyService().getFamilyCount();
-    final totalGroups = await GroupService().getGroupCount(_familyDocId ?? '');
-
-    setState(() {
-      _stats = {
-        'total': total,
-        'active': active,
-        'newThisMonth': newThisMonth,
-        'totalFamilies': totalFamilies,
-        'totalGroups': totalGroups,
-      };
-    });
-  }
 
   void _navigateToMember(MemberModel member) {
     Navigator.push(
@@ -252,6 +235,10 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Provider.of<LanguageService>(context);
+    final themeService = Provider.of<ThemeService>(context);
+    final isDark = themeService.isDarkMode;
+
     if (_loading) {
       return Scaffold(
         body: Center(
@@ -281,7 +268,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
               const SizedBox(height: 16),
               FadeInAnimation(
                 child: Text(
-                  'Loading dashboard...',
+                  lang.translate('loading'),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey.shade600,
@@ -293,10 +280,6 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
         ),
       );
     }
-
-    final lang = Provider.of<LanguageService>(context);
-    final themeService = Provider.of<ThemeService>(context);
-    final isDark = themeService.isDarkMode;
 
     return PopScope(
       canPop: _selectedIndex == 2,
@@ -467,8 +450,8 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                   delay: const Duration(milliseconds: 220),
                   beginOffset: const Offset(0.1, 0),
                   child: _buildSectionHeader(
-                    'Committees & Roles',
-                    'Samaj, Yuvak & Mahila Mandal',
+                    lang.translate('committees_roles'),
+                    '${lang.translate('samaj')}, ${lang.translate('yuvak_mandal')} & ${lang.translate('mahila_mandal')}',
                     Icons.badge_outlined,
                     () => Navigator.push(
                       context,
@@ -486,7 +469,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                   beginOffset: const Offset(0.1, 0),
                   child: _buildSectionHeader(
                     lang.translate('firms'),
-                    'View all firms and members',
+                    lang.translate('view_firms_subtitle'),
                     Icons.store_outlined,
                     () => Navigator.pushNamed(context, '/admin/firms'),
                     lang,
@@ -557,7 +540,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                   ),
                 ],
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 90),
               ]),
             ),
           ),
@@ -997,7 +980,8 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
           itemBuilder: (context, index) {
             final doc = events[index];
             final data = doc.data() as Map<String, dynamic>;
-            final title = data['title'] ?? 'Event';
+            final lang = Provider.of<LanguageService>(context, listen: false);
+            final title = data['title'] ?? lang.translate('events');
             final date = (data['date'] as Timestamp?)?.toDate() ?? DateTime.now();
 
             return SlideInAnimation(
@@ -1077,6 +1061,15 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
   }
 
   String _getMonth(int month) {
+    // These should ideally be in LanguageService but for now we handle here
+    final locale = Provider.of<LanguageService>(context, listen: false).currentLanguage;
+    if (locale == 'gu') {
+      const gmonths = [
+        'જાન્યુ', 'ફેબ્રુ', 'માર્ચ', 'એપ્રિલ', 'મે', 'જૂન',
+        'જુલાઈ', 'ઓગસ્ટ', 'સપ્ટે', 'ઓક્ટો', 'નવે', 'ડિસે'
+      ];
+      return gmonths[month - 1];
+    }
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -1091,7 +1084,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Manager Tools',
+            '${lang.translate('manager')} ${lang.translate('settings')}',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,

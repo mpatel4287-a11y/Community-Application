@@ -1954,7 +1954,8 @@ class _MemberListScreenState extends State<MemberListScreen>
                   
                   // Role Filter
                   if (widget.showOnlyManagers && role != 'manager') return false;
-                  if (!widget.showOnlyManagers && widget.isGlobal && role == 'manager') return false;
+                  // Allow managers in global search so they can be assigned roles
+                  // if (!widget.showOnlyManagers && widget.isGlobal && role == 'manager') return false;
 
                   final fullName = (data['fullName'] ?? '').toLowerCase();
                   final mid = (data['mid'] ?? '').toLowerCase();
@@ -2262,20 +2263,36 @@ class _MemberListScreenState extends State<MemberListScreen>
                                                 final confirm = await showDialog<bool>(
                                                   context: context,
                                                   builder: (_) => AlertDialog(
-                                                    title: Text(isCurrentlyManager ? 'Demote Manager' : 'Promote to Manager'),
-                                                    content: Text('Are you sure you want to ${isCurrentlyManager ? 'demote' : 'promote'} this member to ${isCurrentlyManager ? 'member' : 'manager'}?'),
+                                                    title: Text(isCurrentlyManager 
+                                                      ? lang.translate('demote_member') 
+                                                      : lang.translate('promote_member')),
+                                                    content: Text('${lang.translate('are_you_sure_role')} ${isCurrentlyManager 
+                                                      ? lang.translate('demote').toLowerCase() 
+                                                      : lang.translate('promote').toLowerCase()} ${lang.translate('member').toLowerCase()}?'),
                                                     actions: [
-                                                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                                      TextButton(onPressed: () => Navigator.pop(context, false), child: Text(lang.translate('cancel'))),
                                                       ElevatedButton(
                                                         onPressed: () => Navigator.pop(context, true),
-                                                        child: const Text('Confirm'),
+                                                        child: Text(lang.translate('confirmation')),
                                                       ),
                                                     ],
                                                   ),
                                                 );
                                                 if (confirm == true) {
-                                                  String famId = widget.familyDocId ?? data['familyDocId'] ?? '';
-                                                  String subFamId = widget.subFamilyDocId ?? data['subFamilyDocId'] ?? '';
+                                                  // More robust way to get parent IDs: Parse from document path
+                                                  // Path format: families/{famId}/subfamilies/{subFamId}/members/{memberId}
+                                                  final pathSegments = doc.reference.path.split('/');
+                                                  String famId = '';
+                                                  String subFamId = '';
+                                                  
+                                                  if (pathSegments.length >= 4) {
+                                                    famId = pathSegments[1];
+                                                    subFamId = pathSegments[3];
+                                                  } else {
+                                                    // Fallback to data but only if path parsing fails
+                                                    famId = widget.familyDocId ?? data['familyDocId'] ?? '';
+                                                    subFamId = widget.subFamilyDocId ?? data['subFamilyDocId'] ?? '';
+                                                  }
                                                   
                                                   await MemberService().updateMemberRole(
                                                     mainFamilyDocId: famId,
@@ -2283,6 +2300,13 @@ class _MemberListScreenState extends State<MemberListScreen>
                                                     memberId: doc.id,
                                                     newRole: isCurrentlyManager ? 'member' : 'manager',
                                                   );
+
+                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                    content: Text(isCurrentlyManager 
+                                                      ? lang.translate('demoted_success') 
+                                                      : lang.translate('promoted_success')),
+                                                    backgroundColor: Colors.green,
+                                                  ));
                                                 }
                                               },
                                             ),
@@ -2297,16 +2321,16 @@ class _MemberListScreenState extends State<MemberListScreen>
                                                     await showDialog<bool>(
                                                   context: context,
                                                   builder: (_) => AlertDialog(
-                                                    title: const Text('Delete Member'),
-                                                    content: const Text(
-                                                      'Are you sure you want to delete this member?',
+                                                    title: Text(lang.translate('delete')),
+                                                    content: Text(
+                                                      lang.translate('confirm_delete_role'),
                                                     ),
                                                     actions: [
                                                       TextButton(
                                                         onPressed: () =>
                                                             Navigator.pop(
                                                                 context, false),
-                                                        child: const Text('Cancel'),
+                                                        child: Text(lang.translate('cancel')),
                                                       ),
                                                       ElevatedButton(
                                                         style: ElevatedButton.styleFrom(
@@ -2315,7 +2339,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                                         onPressed: () =>
                                                             Navigator.pop(
                                                                 context, true),
-                                                        child: const Text('Delete'),
+                                                        child: Text(lang.translate('delete')),
                                                       ),
                                                     ],
                                                   ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/member_model.dart';
 import '../../services/language_service.dart';
+import '../../services/role_service.dart';
 import '../../services/theme_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'member_detail_screen.dart';
@@ -38,6 +39,10 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   List<String> _cities = [];
   List<String> _families = [];
 
+  // Role lookup: mid -> list of role titles this member holds
+  final RoleService _roleService = RoleService();
+  Map<String, List<String>> _memberRoleMap = {};
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +50,22 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
     _filteredMembers = widget.allMembers;
     _displayedMembers = widget.allMembers;
     _searchController.addListener(_onSearchChanged);
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    try {
+      final allRoles = await _roleService.getAllRoles();
+      final map = <String, List<String>>{};
+      for (final role in allRoles) {
+        for (final mid in role.memberMids) {
+          map[mid] = (map[mid] ?? [])..add(role.roleTitle);
+        }
+      }
+      if (mounted) setState(() => _memberRoleMap = map);
+    } catch (e) {
+      debugPrint('Could not load roles for search badges: $e');
+    }
   }
 
   @override
@@ -326,7 +347,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
                     itemCount: _displayedMembers.length,
                     itemBuilder: (context, index) {
                       final member = _displayedMembers[index];
@@ -453,62 +474,12 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   }
 
   Widget _buildMemberCard(MemberModel member, LanguageService lang, bool isDark) {
+    final memberRoles = _memberRoleMap[member.mid] ?? [];
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: isDark ? Colors.grey.shade800 : Colors.white,
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor: Colors.blue.shade900,
-          backgroundImage: member.photoUrl.isNotEmpty &&
-                  member.photoUrl.startsWith('http')
-              ? CachedNetworkImageProvider(member.photoUrl)
-              : null,
-          child: member.photoUrl.isEmpty ||
-                  !member.photoUrl.startsWith('http')
-              ? Text(
-                  member.fullName.isNotEmpty
-                      ? member.fullName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(color: Colors.white),
-                )
-              : null,
-        ),
-        title: Text(
-          member.fullName,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${member.surname} • ${member.mid}'),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                if (member.bloodGroup.isNotEmpty) ...[
-                  Icon(Icons.bloodtype, size: 14, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Text(member.bloodGroup,
-                      style: TextStyle(color: Colors.grey.shade600)),
-                  const SizedBox(width: 12),
-                ],
-                if (member.nativeHome.isNotEmpty) ...[
-                  Icon(Icons.location_on, size: 14, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(member.nativeHome,
-                        style: TextStyle(color: Colors.grey.shade600),
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-        trailing: Icon(Icons.chevron_right, color: Colors.grey.shade400),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.push(
             context,
@@ -521,6 +492,105 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
             ),
           );
         },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: Colors.blue.shade900,
+                backgroundImage: member.photoUrl.isNotEmpty &&
+                        member.photoUrl.startsWith('http')
+                    ? CachedNetworkImageProvider(member.photoUrl)
+                    : null,
+                child: member.photoUrl.isEmpty ||
+                        !member.photoUrl.startsWith('http')
+                    ? Text(
+                        member.fullName.isNotEmpty
+                            ? member.fullName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(color: Colors.white),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      member.fullName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${member.surname} • ${member.mid}',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (member.bloodGroup.isNotEmpty) ...[
+                          Icon(Icons.bloodtype, size: 13, color: Colors.grey.shade500),
+                          const SizedBox(width: 3),
+                          Text(member.bloodGroup,
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                          const SizedBox(width: 10),
+                        ],
+                        if (member.nativeHome.isNotEmpty) ...[
+                          Icon(Icons.location_on, size: 13, color: Colors.grey.shade500),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(member.nativeHome,
+                                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ],
+                      ],
+                    ),
+                    // Role badges
+                    if (memberRoles.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: memberRoles.map((roleTitle) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.stars_rounded, color: Colors.white, size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                roleTitle,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
       ),
     );
   }

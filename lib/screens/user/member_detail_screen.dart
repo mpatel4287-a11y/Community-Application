@@ -218,7 +218,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       final isAdmin = await SessionManager.getIsAdmin() ?? false;
       final userRole = await SessionManager.getRole() ?? 'member';
 
-      // If familyDocId and subFamilyDocId are provided, use them
+      // If familyDocId and subFamilyDocId are provided, try the fast path first
       if (widget.familyDocId != null &&
           widget.familyDocId!.isNotEmpty &&
           widget.subFamilyDocId != null &&
@@ -228,29 +228,21 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           subFamilyDocId: widget.subFamilyDocId!,
           memberId: widget.memberId,
         );
-        if (member != null) {
-          setState(() {
-            _member = member;
-            _familyDocId = widget.familyDocId;
-            _isAdmin = isAdmin;
-            _currentUserRole = userRole;
-            _loading = false;
-          });
-          return;
-        }
       }
 
-      // If not found or IDs not provided, search across all families
-      final allMembers = await _memberService.getAllMembers();
-      member = allMembers.firstWhere(
-        (m) => m.id == widget.memberId,
-        orElse: () => allMembers.firstWhere(
-          (m) => m.mid == widget.memberId,
-          orElse: () => throw Exception('Member not found'),
-        ),
-      );
+      // If not found via fast path, search across all families
+      if (member == null) {
+        final allMembers = await _memberService.getAllMembers();
+        member = allMembers.firstWhere(
+          (m) => m.id == widget.memberId,
+          orElse: () => allMembers.firstWhere(
+            (m) => m.mid == widget.memberId,
+            orElse: () => throw Exception('Member not found'),
+          ),
+        );
+      }
 
-      // Fetch member roles before updating state
+      // ALWAYS fetch member roles (badge display) after finding the member
       final roles = await _roleService.getMemberRoles(member.mid);
 
       if (mounted) {
@@ -1142,7 +1134,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: primaryText),
                   ),
                   Text(
-                    value,
+                    _extractSocialHandle(platform, value),
                     style: TextStyle(color: secondaryText, fontSize: 12),
                   ),
                 ],
@@ -1153,6 +1145,34 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
         ),
       ),
     );
+  }
+
+  /// Extract a clean display handle from a raw value (URL or username)
+  String _extractSocialHandle(String platform, String value) {
+    String trimmed = value.trim();
+    if (trimmed.isEmpty) return '-';
+    
+    // Remove query params if it's a URL
+    if (trimmed.contains('?')) {
+      trimmed = trimmed.split('?').first;
+    }
+    
+    // If it's a URL, pull the path segment as username
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      try {
+        final uri = Uri.parse(trimmed);
+        final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+        if (segments.isNotEmpty) return '@${segments.last}';
+      } catch (_) {}
+    }
+    
+    // Strip trailing slashes and spaces
+    trimmed = trimmed.replaceAll(RegExp(r'/+$'), '').trim();
+    
+    // Strip leading @ so we can re-add it consistently
+    final handle = trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
+    // Replace any remaining spaces (usernames don't have spaces)
+    return '@${handle.replaceAll(' ', '')}';
   }
 
   Widget _buildPremiumFirmRow(Map<String, String> firm) {
@@ -1302,11 +1322,24 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
   }
 
   void _openWhatsapp(String phone) async {
+    if (phone.trim().isEmpty) return;
+    
     // Remove any non-digit characters except +
-    final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final cleanPhone = phone.trim().replaceAll(RegExp(r'[^\d+]'), '');
     final uri = Uri.parse('https://wa.me/$cleanPhone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('Error launching WhatsApp: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
     }
   }
 
@@ -1318,55 +1351,110 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
   }
 
   void _openMap(String url) async {
-    if (url.isEmpty) return;
+    if (url.trim().isEmpty) return;
+    
+    final trimmedUrl = url.trim();
+    Uri? uri;
 
     // Check if URL is a valid URL format
-    final uri = Uri.tryParse(url);
-    if (uri != null && (uri.scheme.isNotEmpty || url.startsWith('http'))) {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+    final parsedUri = Uri.tryParse(trimmedUrl);
+    if (parsedUri != null && (parsedUri.scheme.isNotEmpty || trimmedUrl.startsWith('http'))) {
+      uri = parsedUri;
     } else {
       // If it's not a full URL, search on Google Maps
-      final searchUrl = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(url)}',
+      uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(trimmedUrl)}',
       );
-      if (await canLaunchUrl(searchUrl)) {
-        await launchUrl(searchUrl, mode: LaunchMode.externalApplication);
+    }
+
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('Error launching Maps: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Maps')),
+        );
       }
     }
   }
 
   void _openSocialMedia(String platform, String value) async {
-    String? url;
+    if (value.trim().isEmpty) return;
+
+    final trimmedValue = value.trim();
+    String url;
+    String? appScheme;
 
     switch (platform.toLowerCase()) {
       case 'whatsapp':
-        final cleanPhone = value.replaceAll(RegExp(r'[^\d+]'), '');
+        final cleanPhone = trimmedValue.replaceAll(RegExp(r'[^\d+]'), '');
         url = 'https://wa.me/$cleanPhone';
         break;
       case 'instagram':
-        // Handle both username and URL
-        if (value.startsWith('http')) {
-          url = value;
-        } else {
-          url = 'https://instagram.com/$value';
+        String handle = trimmedValue;
+        if (handle.startsWith('http://') || handle.startsWith('https://')) {
+          try {
+            final uri = Uri.parse(handle);
+            final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+            if (segments.isNotEmpty) handle = segments.last;
+          } catch (_) {}
         }
+        if (handle.startsWith('@')) handle = handle.substring(1);
+        handle = handle.split('?').first.trim().replaceAll(' ', '');
+        
+        url = 'https://www.instagram.com/$handle/';
+        appScheme = 'instagram://user?username=$handle';
         break;
       case 'facebook':
-        // Handle both username and URL
-        if (value.startsWith('http')) {
-          url = value;
-        } else {
-          url = 'https://facebook.com/$value';
+        String handle = trimmedValue;
+        if (handle.startsWith('http://') || handle.startsWith('https://')) {
+          try {
+            final uri = Uri.parse(handle);
+            final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+            if (segments.isNotEmpty) handle = segments.last;
+          } catch (_) {}
         }
+        if (handle.startsWith('@')) handle = handle.substring(1);
+        handle = handle.split('?').first.trim().replaceAll(' ', '');
+        
+        url = 'https://www.facebook.com/$handle';
+        appScheme = 'fb://facewebmodal/f?href=$url';
         break;
+      default:
+        url = trimmedValue.startsWith('http') ? trimmedValue : 'https://$trimmedValue';
     }
 
-    if (url != null) {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final webUri = Uri.parse(url);
+    
+    try {
+      if (appScheme != null) {
+        final appUri = Uri.parse(appScheme);
+        // Try native app scheme first
+        final launched = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        if (launched) return;
+      }
+
+      // Fallback to web URL with external application choice (let OS decide)
+      final launched = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        // Absolute fallback: system browser
+        await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('Error launching $platform: $e');
+      // Final attempt: platform default
+      try {
+        await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not open $platform profile.')),
+          );
+        }
       }
     }
   }

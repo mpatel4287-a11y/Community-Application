@@ -158,8 +158,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: _buildDashboardCard(
                 context,
                 icon: Icons.badge_outlined,
-                title: 'Organizational Roles',
-                subtitle: 'Manage Samaj & Mandal roles',
+                title: lang.translate('organizational_roles'),
+                subtitle: lang.translate('manage_roles_subtitle'),
                 color: Colors.teal,
                 onTap: () => Navigator.push(
                   context,
@@ -201,7 +201,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 context,
                 icon: Icons.store,
                 title: lang.translate('firms'),
-                subtitle: 'View all firms and members',
+                subtitle: lang.translate('view_firms_subtitle'),
                 color: Colors.orange,
                 onTap: () => Navigator.pushNamed(context, '/admin/firms'),
               ),

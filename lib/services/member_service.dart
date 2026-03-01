@@ -1,6 +1,7 @@
 // lib/services/member_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/member_model.dart';
 import 'subfamily_service.dart'; // Added import
 
@@ -272,19 +273,41 @@ class MemberService {
 
   // ---------------- SEARCH MEMBERS ----------------
   Stream<List<MemberModel>> searchMembers(String query) {
-    // Use collection group for cross-family search
-    return _firestore
-        .collectionGroup('members')
-        .where('fullName', isGreaterThanOrEqualTo: query)
-        .where('fullName', isLessThanOrEqualTo: '$query\uf8ff')
-        .limit(20)
+    if (query.isEmpty) return Stream.value([]);
+    
+    final q = query.trim();
+    final upperQ = q.toUpperCase();
 
-        .snapshots()
-        .map(
-          (snap) => snap.docs
-              .map((d) => MemberModel.fromMap(d.id, d.data()))
-              .toList(),
-        );
+    // Prefix search for name (Firestore is case-sensitive)
+    final nameStream = _firestore
+        .collectionGroup('members')
+        .where('fullName', isGreaterThanOrEqualTo: q)
+        .where('fullName', isLessThanOrEqualTo: '$q\uf8ff')
+        .limit(20)
+        .snapshots();
+
+    // Prefix search for MID
+    final midStream = _firestore
+        .collectionGroup('members')
+        .where('mid', isGreaterThanOrEqualTo: upperQ)
+        .where('mid', isLessThanOrEqualTo: '$upperQ\uf8ff')
+        .limit(20)
+        .snapshots();
+
+    return Rx.combineLatest2<QuerySnapshot<Map<String, dynamic>>, QuerySnapshot<Map<String, dynamic>>, List<MemberModel>>(
+      nameStream,
+      midStream,
+      (snap1, snap2) {
+        final results = <String, MemberModel>{};
+        for (var d in snap1.docs) {
+          results[d.id] = MemberModel.fromMap(d.id, d.data());
+        }
+        for (var d in snap2.docs) {
+          results[d.id] = MemberModel.fromMap(d.id, d.data());
+        }
+        return results.values.toList();
+      },
+    );
   }
 
   // ---------------- TAG FILTER ----------------
@@ -355,6 +378,29 @@ class MemberService {
     return snapshot.docs
         .map((d) => MemberModel.fromMap(d.id, d.data()))
         .toList();
+  }
+
+  // ---------------- GET MEMBERS BY MULTIPLE MIDs ----------------
+  Future<List<MemberModel>> getMembersByMids(List<String> mids) async {
+    if (mids.isEmpty) return [];
+    
+    // Firestore whereIn has a limit of 30 elements
+    // Split into chunks of 30
+    List<List<String>> chunks = [];
+    for (var i = 0; i < mids.length; i += 30) {
+      chunks.add(mids.sublist(i, i + 30 > mids.length ? mids.length : i + 30));
+    }
+
+    List<MemberModel> allFound = [];
+    for (var chunk in chunks) {
+      final snapshot = await _firestore
+          .collectionGroup('members')
+          .where('mid', whereIn: chunk)
+          .get();
+      allFound.addAll(snapshot.docs.map((d) => MemberModel.fromMap(d.id, d.data())));
+    }
+    
+    return allFound;
   }
 
 
