@@ -14,6 +14,8 @@ import '../../services/member_service.dart';
 import 'family_tree_view.dart';
 import 'digital_id_screen.dart';
 import '../admin/member_list_screen.dart';
+import 'help_faq_screen.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -263,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: Text(lang.translate('help_faq')),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    // Open help / FAQ page
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpFaqScreen()));
                   },
                 ),
                 const Divider(),
@@ -272,11 +274,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: Text(lang.translate('about')),
                   subtitle: const Text('Community App'),
                   onTap: () {
-                    showAboutDialog(
-                      context: context,
-                      applicationName: 'Community App',
-                      applicationVersion: '1.2.0',
-                    );
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
                   },
                 ),
               ],
@@ -337,9 +335,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Version Info
           Center(
-            child: Text(
-              'Version 1.0.0',
-              style: TextStyle(color: Colors.grey.shade500),
+            child: Column(
+              children: [
+                Text(
+                  'Version 1.0.0',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Created by Meet Patel',
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

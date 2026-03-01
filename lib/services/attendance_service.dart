@@ -35,20 +35,7 @@ class AttendanceService {
     // 2. Get members based on attendance type
     List<MemberModel> members = [];
     
-    if (attendanceType == 'family') {
-      final allMembers = await _memberService.getAllMembers();
-      members = allMembers.where((m) => m.familyDocId == entityId).toList();
-    } else if (attendanceType == 'subfamily') {
-      final pathParts = entityId.split('/');
-      if (pathParts.length >= 2) {
-        final familyDocId = pathParts[0];
-        final subFamilyDocId = pathParts[1];
-        final allMembers = await _memberService.getAllMembers();
-        members = allMembers.where((m) => 
-          m.familyDocId == familyDocId && m.subFamilyDocId == subFamilyDocId
-        ).toList();
-      }
-    } else if (attendanceType == 'firm') {
+    if (attendanceType == 'firm' || attendanceType == 'custom') {
       final allMembers = await _memberService.getAllMembers();
       members = allMembers.where((m) => 
         m.firms.any((firm) => firm['name'] == entityId)
@@ -134,9 +121,8 @@ class AttendanceService {
         .get();
     
     final Map<String, int> counts = {
-      'family': 0,
-      'subfamily': 0,
       'firm': 0,
+      'custom': 0,
     };
     
     for (final doc in snapshot.docs) {
@@ -171,10 +157,6 @@ class AttendanceService {
       throw Exception('Count cannot be less than members in group (${memberIds.length})');
     }
 
-    if (newCount < memberIds.length) {
-      throw Exception('Count cannot be less than members in group (${memberIds.length})');
-    }
-
     await doc.reference.update({
       'memberCount': newCount,
       'isCustomCount': true,
@@ -190,8 +172,6 @@ class AttendanceService {
         .collection('attendance')
         .doc(attendanceId)
         .get();
-
-    if (!doc.exists) return;
 
     if (!doc.exists) return;
 

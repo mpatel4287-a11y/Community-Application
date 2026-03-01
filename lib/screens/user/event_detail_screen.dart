@@ -24,9 +24,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final MemberService _memberService = MemberService();
   String? _currentMemberId;
   String? _currentMemberName;
-  String? _familyDocId;
-  String? _subFamilyDocId;
-  String? _familyName;
   String? _userRole;
   int _totalAttendance = 0;
   bool _loading = false;
@@ -41,9 +38,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   Future<void> _loadUserData() async {
     final memberId = await SessionManager.getMemberId();
-    final familyDocId = await SessionManager.getFamilyDocId();
-    final subFamilyDocId = await SessionManager.getSubFamilyDocId();
-    final familyName = await SessionManager.getFamilyName();
     final role = await SessionManager.getRole();
     
     if (memberId != null) {
@@ -59,9 +53,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         setState(() {
           _currentMemberId = memberId;
           _currentMemberName = member.fullName;
-          _familyDocId = familyDocId ?? member.familyDocId;
-          _subFamilyDocId = subFamilyDocId ?? member.subFamilyDocId;
-          _familyName = familyName ?? member.familyName;
           _userRole = role;
         });
       } catch (e) {
@@ -104,13 +95,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       String entityId = '';
       String entityName = '';
 
-      if (type == 'family') {
-        entityId = _familyDocId ?? '';
-        entityName = _familyName ?? 'Family';
-      } else if (type == 'subfamily') {
-        entityId = '$_familyDocId/$_subFamilyDocId';
-        entityName = 'Sub-Family';
-      } else if (type == 'firm') {
+      if (type == 'firm' || type == 'custom') {
         final firm = await _showFirmSelectionDialog();
         if (firm == null) {
           setState(() => _loading = false);
@@ -159,46 +144,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   Future<void> _showCustomCountDialog() async {
     final controller = TextEditingController();
-    final type = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Mark Custom Attendance'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Choose group type for custom count:'),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.family_restroom, color: Colors.blue),
-              title: const Text('For Family'),
-              onTap: () => Navigator.pop(context, 'family'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home_work, color: Colors.purple),
-              title: const Text('For Sub-Family'),
-              onTap: () => Navigator.pop(context, 'subfamily'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.business, color: Colors.orange),
-              title: const Text('For Firm'),
-              onTap: () => Navigator.pop(context, 'firm'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (type == null) return;
 
     final count = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Custom Count for ${type.toUpperCase()}'),
+        title: const Text('Custom Firm Count'),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
-            labelText: 'Number of members',
+            labelText: 'Total Number of members',
             hintText: 'Should be >= registered members',
           ),
         ),
@@ -218,7 +173,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
 
     if (count != null) {
-      _confirmAndMarkAttendance(type, customCount: count);
+      _confirmAndMarkAttendance('custom', customCount: count);
     }
   }
 
@@ -445,14 +400,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           children: [
                             _buildStatCard('Total', _totalAttendance.toString(), Colors.blue),
                             const SizedBox(width: 12),
-                            _buildStatCard('Family', (_countsByType['family'] ?? 0).toString(), Colors.indigo),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _buildStatCard('Sub-Fam', (_countsByType['subfamily'] ?? 0).toString(), Colors.purple),
-                            const SizedBox(width: 12),
                             _buildStatCard('Firm', (_countsByType['firm'] ?? 0).toString(), Colors.orange),
                           ],
                         ),
@@ -478,7 +425,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
-                          GridView.count(
+                        GridView.count(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             crossAxisCount: 2,
@@ -486,8 +433,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             crossAxisSpacing: 12,
                             childAspectRatio: 2.5,
                             children: [
-                              _buildAttendanceAction('Family', Icons.family_restroom, Colors.blue, 'family'),
-                              _buildAttendanceAction('Sub-Fam', Icons.home_work, Colors.purple, 'subfamily'),
                               _buildAttendanceAction('Firm', Icons.business, Colors.orange, 'firm'),
                               _buildAttendanceAction('Custom', Icons.edit_note, Colors.teal, 'custom'),
                             ],

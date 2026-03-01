@@ -43,7 +43,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
   List<MemberModel> _randomSuggestions = [];
   List<MemberModel> _newMembers = [];
 
-  Map<String, dynamic> _stats = {};
+  final Map<String, dynamic> _stats = {};
   bool _loading = true;
   String? _familyDocId;
   // String? _familyName;
