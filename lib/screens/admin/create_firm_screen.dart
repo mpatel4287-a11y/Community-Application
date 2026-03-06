@@ -1,10 +1,10 @@
-// lib/screens/admin/create_firm_screen.dart
-
 import 'package:flutter/material.dart';
+import '../../models/firm_model.dart';
 import '../../services/firm_service.dart';
 
 class CreateFirmScreen extends StatefulWidget {
-  const CreateFirmScreen({super.key});
+  final FirmModel? editFirm;
+  const CreateFirmScreen({super.key, this.editFirm});
 
   @override
   State<CreateFirmScreen> createState() => _CreateFirmScreenState();
@@ -17,22 +17,37 @@ class _CreateFirmScreenState extends State<CreateFirmScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.editFirm != null) {
+      _nameController.text = widget.editFirm!.name;
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
   }
 
-  Future<void> _createFirm() async {
+  Future<void> _saveFirm() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      await _firmService.createFirm(name: _nameController.text.trim());
+      if (widget.editFirm != null) {
+        await _firmService.updateFirm(widget.editFirm!.id, name: _nameController.text.trim());
+      } else {
+        await _firmService.createFirm(name: _nameController.text.trim());
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Firm created successfully'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text(widget.editFirm != null ? 'Firm updated successfully' : 'Firm created successfully'), 
+            backgroundColor: Colors.green
+          ),
         );
         Navigator.pop(context);
       }
@@ -51,7 +66,7 @@ class _CreateFirmScreenState extends State<CreateFirmScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Firm', style: TextStyle(color: Colors.white)),
+        title: Text(widget.editFirm != null ? 'Edit Firm' : 'Create Firm', style: const TextStyle(color: Colors.white)),
         backgroundColor: Colors.blue.shade900,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -91,10 +106,11 @@ class _CreateFirmScreenState extends State<CreateFirmScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: _isLoading ? null : _createFirm,
+                onPressed: _isLoading ? null : _saveFirm,
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Create Firm', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    : Text(widget.editFirm != null ? 'Update Firm' : 'Create Firm', 
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

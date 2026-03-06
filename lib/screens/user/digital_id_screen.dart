@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/member_model.dart';
 import '../../services/language_service.dart';
+import '../../config/app_config.dart';
 
 class DigitalIdScreen extends StatefulWidget {
   final MemberModel member;
@@ -277,15 +278,10 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                   child: Column(
                     children: [
                       QrImageView(
-                        data: jsonEncode({
-                          'type': 'member',
-                          'mid': widget.member.mid,
-                          'memberId': widget.member.id,
-                          'familyDocId': widget.member.familyDocId,
-                          'subFamilyDocId': widget.member.subFamilyDocId,
-                          'fullName': widget.member.fullName,
-                          'phone': widget.member.phone,
-                        }),
+                        data: AppConfig.getMemberUrl(
+                          widget.member.id,
+                          familyDocId: widget.member.familyDocId,
+                        ),
 
                         version: QrVersions.auto,
                         size: 140.0,

@@ -8,6 +8,7 @@ import '../../models/sub_firm_model.dart';
 import '../../services/member_service.dart';
 import '../../services/firm_service.dart';
 import '../../services/language_service.dart';
+import '../../services/session_manager.dart';
 import '../../widgets/animation_utils.dart';
 import 'create_firm_screen.dart';
 import 'firm_detail_screen.dart';
@@ -24,6 +25,49 @@ class _FirmsListScreenState extends State<FirmsListScreen> {
   final MemberService _memberService = MemberService();
   String _searchQuery = '';
 
+  String _userRole = 'member';
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await SessionManager.getRole();
+    final isAdmin = await SessionManager.getIsAdmin();
+    if (mounted) {
+      setState(() {
+        _userRole = role ?? 'member';
+        _isAdmin = isAdmin ?? false;
+      });
+    }
+  }
+
+  void _deleteFirm(FirmModel firm) async {
+    final lang = Provider.of<LanguageService>(context, listen: false);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(lang.translate('delete_firm')),
+        content: Text('Are you sure you want to delete ${firm.name}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(lang.translate('cancel'))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(lang.translate('delete')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _firmService.deleteFirm(firm.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageService>(context);
@@ -33,16 +77,17 @@ class _FirmsListScreenState extends State<FirmsListScreen> {
         title: Text(lang.translate('firms')),
         backgroundColor: Colors.blue.shade900,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Create Firm',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CreateFirmScreen()),
-              );
-            },
-          ),
+          if (_isAdmin)
+            IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: 'Create Firm',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CreateFirmScreen()),
+                );
+              },
+            ),
         ],
       ),
       body: Column(
@@ -282,6 +327,25 @@ class _FirmsListScreenState extends State<FirmsListScreen> {
                                           ],
                                         ),
                                       ),
+                                      
+                                      // Actions
+                                      if (_isAdmin || _userRole == 'manager')
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => CreateFirmScreen(editFirm: firm),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      if (_isAdmin)
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                          onPressed: () => _deleteFirm(firm),
+                                        ),
                                       
                                       // Arrow
                                       Icon(

@@ -553,13 +553,15 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
 
                   // Family Details Block
                   _buildPremiumSection(
-                    title: lang.translate('Family Info'),
+                    title: lang.translate('family_info'),
                     icon: Icons.people_alt_rounded,
                     children: [
-                      _buildPremiumRow(lang.translate('Family Name'), member.familyName, Icons.family_restroom_rounded),
+                      _buildPremiumRow(lang.translate('family_name'), member.familyName, Icons.family_restroom_rounded),
                       _buildPremiumRow('DKT Family ID', member.familyId, Icons.vpn_key_rounded),
                       if (member.parentMid.isNotEmpty)
                         _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
+                      if (member.spouseMid.isNotEmpty)
+                        _buildPremiumSpouseRow(lang, member.spouseMid),
                       if (member.tod.isNotEmpty)
                         _buildPremiumRow(lang.translate('date_of_death'), member.tod, Icons.heart_broken_rounded, isDestructive: true),
                     ],
@@ -695,7 +697,11 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (member.relationToHead.toLowerCase() != 'none') ...[
+              if (member.relationToHead.toLowerCase() != 'none' && 
+                  member.relationToHead.toLowerCase() != 'wife' && 
+                  member.relationToHead.toLowerCase() != 'husband' &&
+                  member.relationToHead.toLowerCase() != 'wife_of' &&
+                  member.relationToHead.toLowerCase() != 'husband_of') ...[
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -1457,5 +1463,64 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
         }
       }
     }
+  }
+
+  Widget _buildPremiumSpouseRow(LanguageService lang, String spouseMid) {
+    return FutureBuilder<MemberModel?>(
+      future: _memberService.getMemberByMid(spouseMid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) return const SizedBox.shrink();
+        final spouse = snapshot.data!;
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MemberDetailScreen(
+                  memberId: spouse.id,
+                  familyDocId: spouse.familyDocId,
+                  subFamilyDocId: spouse.subFamilyDocId,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(Icons.favorite_border_rounded, color: Colors.red, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lang.translate('spouse'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        spouse.fullName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

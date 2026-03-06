@@ -6,6 +6,7 @@ import '../../models/sub_firm_model.dart';
 import '../../models/member_model.dart';
 import '../../services/firm_service.dart';
 import '../../services/member_service.dart';
+import '../../services/session_manager.dart';
 
 class FirmDetailScreen extends StatefulWidget {
   final FirmModel firm;
@@ -19,6 +20,103 @@ class FirmDetailScreen extends StatefulWidget {
 class _FirmDetailScreenState extends State<FirmDetailScreen> {
   final FirmService _firmService = FirmService();
   final MemberService _memberService = MemberService();
+  String _userRole = 'member';
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await SessionManager.getRole();
+    final isAdmin = await SessionManager.getIsAdmin();
+    if (mounted) {
+      setState(() {
+        _userRole = role ?? 'member';
+        _isAdmin = isAdmin ?? false;
+      });
+    }
+  }
+
+  void _showEditSubFirmDialog(SubFirmModel subFirm) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(text: subFirm.name);
+    final locationCtrl = TextEditingController(text: subFirm.location);
+    final contactNumberCtrl = TextEditingController(text: subFirm.contactNumber);
+    final contactNameCtrl = TextEditingController(text: subFirm.contactName);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Sub-Firm'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Sub-Firm Name'),
+                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: locationCtrl,
+                  decoration: const InputDecoration(labelText: 'Location'),
+                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: contactNameCtrl,
+                  decoration: const InputDecoration(labelText: 'Contact Person Name'),
+                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: contactNumberCtrl,
+                  decoration: const InputDecoration(labelText: 'Contact Number'),
+                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(context);
+                try {
+                  await _firmService.updateSubFirm(
+                    widget.firm.id,
+                    subFirm.id,
+                    name: nameCtrl.text.trim(),
+                    location: locationCtrl.text.trim(),
+                    contactName: contactNameCtrl.text.trim(),
+                    contactNumber: contactNumberCtrl.text.trim(),
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sub-Firm updated successfully'), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showAddSubFirmDialog() {
     final formKey = GlobalKey<FormState>();
@@ -170,13 +268,15 @@ class _FirmDetailScreenState extends State<FirmDetailScreen> {
         backgroundColor: Colors.blue.shade900,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddSubFirmDialog,
-        backgroundColor: Colors.blue.shade900,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Sub-Firm'),
-      ),
+      floatingActionButton: _isAdmin 
+        ? FloatingActionButton.extended(
+            onPressed: _showAddSubFirmDialog,
+            backgroundColor: Colors.blue.shade900,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Sub-Firm'),
+          )
+        : null,
       body: StreamBuilder<List<SubFirmModel>>(
         stream: _firmService.getSubFirmsStream(widget.firm.id),
         builder: (context, snapshot) {
@@ -234,7 +334,7 @@ class _FirmDetailScreenState extends State<FirmDetailScreen> {
                     child: subFirms.isEmpty
                       ? const Center(
                           child: Text(
-                            'No sub-firms found. Add one!',
+                            'No sub-firms found.',
                             style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                         )
@@ -268,11 +368,24 @@ class _FirmDetailScreenState extends State<FirmDetailScreen> {
                                             ),
                                           ),
                                         ),
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                          onPressed: () => _deleteSubFirm(subFirm),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (_isAdmin || _userRole == 'manager')
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
+                                                icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                                                onPressed: () => _showEditSubFirmDialog(subFirm),
+                                              ),
+                                            if (_isAdmin)
+                                              IconButton(
+                                                padding: const EdgeInsets.only(left: 12),
+                                                constraints: const BoxConstraints(),
+                                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                                onPressed: () => _deleteSubFirm(subFirm),
+                                              ),
+                                          ],
                                         )
                                       ],
                                     ),

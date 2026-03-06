@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart' as qr_flutter;
 import '../../services/session_manager.dart';
+import '../../config/app_config.dart';
 
 class QRShareScreen extends StatefulWidget {
   final String? memberId;
@@ -53,22 +54,12 @@ class _QRShareScreenState extends State<QRShareScreen> {
         widget.memberId != null && widget.memberId!.isNotEmpty;
 
     // Create share data
-    final shareData = isMemberShare
-        ? {
-            'type': 'member',
-            'memberId': widget.memberId,
-            'memberMid': widget.memberMid ?? '',
-            'memberName': widget.memberName ?? '',
-            'familyId': _familyId,
-            'app': 'CommunityApp',
-          }
-        : {
-            'type': 'family',
-            'familyId': _familyId,
-            'familyName': _familyName,
-            'app': 'CommunityApp',
-          };
-    final qrData = shareData.toString();
+    final qrData = isMemberShare
+        ? AppConfig.getMemberUrl(
+            widget.memberId!,
+            familyDocId: _familyId,
+          )
+        : '${AppConfig.webBaseUrl}/family?id=$_familyId';
 
     return Scaffold(
       appBar: AppBar(

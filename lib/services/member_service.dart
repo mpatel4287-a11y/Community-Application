@@ -13,6 +13,12 @@ class MemberService {
     String mainFamilyDocId,
     String subFamilyDocId,
   ) {
+    if (subFamilyDocId.isEmpty) {
+      return _firestore
+          .collection('families')
+          .doc(mainFamilyDocId)
+          .collection('members');
+    }
     return _firestore
         .collection('families')
         .doc(mainFamilyDocId)
@@ -22,7 +28,7 @@ class MemberService {
   }
 
   // ---------------- ADD MEMBER ----------------
-  Future<void> addMember({
+  Future<String> addMember({
     required String mainFamilyDocId,
     required String subFamilyDocId,
     required String subFamilyId,
@@ -33,27 +39,28 @@ class MemberService {
     required String fatherName,
     required String motherName,
     required String gotra,
-    required String gender, // Added
+    required String gender,
     required String birthDate,
-    required String education, // Added
+    required String education,
     required String bloodGroup,
     required String marriageStatus,
     required String nativeHome,
     required String phone,
-    required String email, // Added
+    required String email,
     required String address,
     required String googleMapLink,
-    required String surdhan, // Added
+    required String surdhan,
     required List<Map<String, String>> firms,
     required String whatsapp,
     required String instagram,
     required String facebook,
     required List<String> tags,
     required String parentMid,
-    required String password, // Added
+    required String password,
     String photoUrl = '',
     String relationToHead = 'none',
     String subFamilyHeadRelationToMainHead = '',
+    String spouseMid = '',
   }) async {
     final age = MemberModel.calculateAge(birthDate);
 
@@ -97,35 +104,34 @@ class MemberService {
       fatherName: fatherName.trim(),
       motherName: motherName.trim(),
       gotra: gotra.trim(),
-      gender: gender, // Added
+      gender: gender,
       birthDate: birthDate.trim(),
       age: age,
-      education: education.trim(), // Added
+      education: education.trim(),
       bloodGroup: bloodGroup.trim(),
       marriageStatus: marriageStatus,
       nativeHome: nativeHome.trim(),
       phone: phone.trim(),
-      email: email.trim(), // Added
+      email: email.trim(),
       address: address.trim(),
       googleMapLink: googleMapLink.trim(),
-      surdhan: surdhan.trim(), // Added
+      surdhan: surdhan.trim(),
       firms: cleanedFirms,
       whatsapp: whatsapp.trim(),
       instagram: instagram.trim(),
       facebook: facebook.trim(),
       photoUrl: photoUrl.trim(),
-      password: password, // Added
+      password: password,
       role: 'member',
       tags: cleanedTags,
       isActive: true,
       parentMid: parentMid.trim(),
       relationToHead: relationToHead,
       subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead,
+      spouseMid: spouseMid,
       createdAt: DateTime.now(),
     );
 
-    // Batch write to ensure consistency (optional but recommended)
-    // For now, sequential await to keep it simple and reuse existing services
     await memberRef.set(member.toMap());
 
     // Update member count in sub-family
@@ -133,7 +139,78 @@ class MemberService {
       mainFamilyDocId: mainFamilyDocId,
       subFamilyDocId: subFamilyDocId,
     );
+
+    return memberRef.id;
   }
+
+  // Alias for backward compatibility or direct ID return
+  Future<String> addMemberWithId({
+    required String mainFamilyDocId,
+    required String subFamilyDocId,
+    required String subFamilyId,
+    required String familyId,
+    required String familyName,
+    required String fullName,
+    required String surname,
+    required String fatherName,
+    required String motherName,
+    required String gotra,
+    required String gender,
+    required String birthDate,
+    required String education,
+    required String bloodGroup,
+    required String marriageStatus,
+    required String nativeHome,
+    required String phone,
+    required String email,
+    required String address,
+    required String googleMapLink,
+    required String surdhan,
+    required List<Map<String, String>> firms,
+    required String whatsapp,
+    required String instagram,
+    required String facebook,
+    required List<String> tags,
+    required String parentMid,
+    required String password,
+    String photoUrl = '',
+    String relationToHead = 'none',
+    String subFamilyHeadRelationToMainHead = '',
+    String spouseMid = '',
+  }) => addMember(
+    mainFamilyDocId: mainFamilyDocId,
+    subFamilyDocId: subFamilyDocId,
+    subFamilyId: subFamilyId,
+    familyId: familyId,
+    familyName: familyName,
+    fullName: fullName,
+    surname: surname,
+    fatherName: fatherName,
+    motherName: motherName,
+    gotra: gotra,
+    gender: gender,
+    birthDate: birthDate,
+    education: education,
+    bloodGroup: bloodGroup,
+    marriageStatus: marriageStatus,
+    nativeHome: nativeHome,
+    phone: phone,
+    email: email,
+    address: address,
+    googleMapLink: googleMapLink,
+    surdhan: surdhan,
+    firms: firms,
+    whatsapp: whatsapp,
+    instagram: instagram,
+    facebook: facebook,
+    tags: tags,
+    parentMid: parentMid,
+    password: password,
+    photoUrl: photoUrl,
+    relationToHead: relationToHead,
+    subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead,
+    spouseMid: spouseMid,
+  );
 
   // ---------------- UPDATE MEMBER ----------------
   Future<void> updateMember({
@@ -254,6 +331,48 @@ class MemberService {
     return snapshot.docs
         .map((d) => MemberModel.fromMap(d.id, d.data()))
         .toList();
+  }
+
+  Future<List<MemberModel>> getFamilyMembers(String mainFamilyDocId) async {
+    // Robust fetch across all sub-family collections to avoid collectionGroup index requirements
+    List<MemberModel> all = [];
+    try {
+      // 1. Fetch from root member collection
+      final rootSnap = await _firestore
+          .collection('families')
+          .doc(mainFamilyDocId)
+          .collection('members')
+          .where('isActive', isEqualTo: true)
+          .get();
+      all.addAll(rootSnap.docs.map((d) => MemberModel.fromMap(d.id, d.data())));
+
+      // 2. Fetch all sub-families
+      final subSnap = await _firestore
+          .collection('families')
+          .doc(mainFamilyDocId)
+          .collection('subfamilies')
+          .get();
+          
+      for (var subDoc in subSnap.docs) {
+        final memSnap = await subDoc.reference
+            .collection('members')
+            .where('isActive', isEqualTo: true)
+            .get();
+        all.addAll(memSnap.docs.map((d) => MemberModel.fromMap(d.id, d.data())));
+      }
+    } catch (e) {
+      print('Error in getFamilyMembers: $e');
+      // Fallback to collection group if available, or just return empty
+      try {
+        final snapshot = await _firestore
+            .collectionGroup('members')
+            .where('familyDocId', isEqualTo: mainFamilyDocId)
+            .where('isActive', isEqualTo: true)
+            .get();
+        return snapshot.docs.map((d) => MemberModel.fromMap(d.id, d.data())).toList();
+      } catch (_) {}
+    }
+    return all;
   }
 
   // ---------------- GET ALL MEMBERS (ADMIN - from all families) ----------------
@@ -477,5 +596,38 @@ class MemberService {
       }
     }
     return allFirms.toList()..sort();
+  }
+
+  // ---------------- UPDATE SPOUSE LINK ----------------
+  Future<void> updateSpouseLink({
+    required String mainFamilyDocId,
+    required String member1Id,
+    String? member1SubFamilyDocId,
+    required String member2Id,
+    String? member2SubFamilyDocId,
+    String relation = 'none', // wife_of or husband_of
+    bool clear = false,
+  }) async {
+    final member1Ref = _getMembersCollection(mainFamilyDocId, member1SubFamilyDocId ?? '').doc(member1Id);
+    final member2Ref = _getMembersCollection(mainFamilyDocId, member2SubFamilyDocId ?? '').doc(member2Id);
+
+    if (clear) {
+      await member1Ref.update({'spouseMid': '', 'spouseRelation': 'none'});
+      await member2Ref.update({'spouseMid': '', 'spouseRelation': 'none'});
+    } else {
+      // Get MIDs from the documents
+      final m1Snap = await member1Ref.get();
+      final m2Snap = await member2Ref.get();
+      
+      if (m1Snap.exists && m2Snap.exists) {
+        final m1Mid = m1Snap.data()?['mid'] ?? '';
+        final m2Mid = m2Snap.data()?['mid'] ?? '';
+        
+        final reciprocalRelation = (relation == 'wife_of') ? 'husband_of' : (relation == 'husband_of' ? 'wife_of' : 'none');
+        
+        await member1Ref.update({'spouseMid': m2Mid, 'spouseRelation': relation});
+        await member2Ref.update({'spouseMid': m1Mid, 'spouseRelation': reciprocalRelation});
+      }
+    }
   }
 }

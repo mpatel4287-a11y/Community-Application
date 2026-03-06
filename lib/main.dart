@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:app_links/app_links.dart';
+import 'dart:async';
 
 import 'firebase_options.dart';
 import 'auth/login_screen.dart';
@@ -46,19 +48,22 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  final themeService = ThemeService();
+  final languageService = LanguageService();
+
+  // Initialize core services in parallel to speed up startup
+  await Future.wait([
+    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+    themeService.initialize(),
+    languageService.initialize(),
+  ]);
 
   // Enable offline persistence
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
-
-  final themeService = ThemeService();
-  await themeService.initialize();
-
-  final languageService = LanguageService();
-  await languageService.initialize();
 
   // Initialize FCM (non-blocking - don't let it prevent app startup)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -120,8 +125,65 @@ class _InitialRouteState extends State<InitialRoute> {
   }
 }
 
-class MyApp extends StatelessWidget {
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initDeepLinks() {
+    _appLinks = AppLinks();
+
+    // Check initial link if app was opened via link
+    _appLinks.getInitialAppLink().then((uri) {
+      if (uri != null) _handleDeepLink(uri);
+    });
+
+    // Listen to incoming links while app is running
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    });
+  }
+
+  void _handleDeepLink(Uri uri) {
+    debugPrint('Received Deep Link: $uri');
+
+    // Expected format: https://domain.com/member?id=MEMBER_ID&family=FAMILY_ID
+    if (uri.path == '/member') {
+      final memberId = uri.queryParameters['id'];
+      final familyDocId = uri.queryParameters['family'];
+
+      if (memberId != null && memberId.isNotEmpty) {
+        // Navigate to Member Detail screen
+        navigatorKey.currentState?.pushNamed(
+          '/user/member-detail',
+          arguments: {
+            'memberId': memberId,
+            'familyDocId': familyDocId,
+          },
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +191,7 @@ class MyApp extends StatelessWidget {
     final languageService = Provider.of<LanguageService>(context);
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Ramanagara Patidar Samaj',
       theme: themeService.getTheme(),
@@ -196,8 +259,17 @@ class MyApp extends StatelessWidget {
         '/user/profile': (_) => const UserProfileScreen(),
         '/user/notifications': (_) => const UserNotificationScreen(),
         '/user/qr-scanner': (_) => const QRScannerScreen(),
-        '/user/member-detail': (_) =>
-            const MemberDetailScreen(memberId: '', familyDocId: null),
+        '/user/member-detail': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          if (args is Map<String, dynamic>) {
+            return MemberDetailScreen(
+              memberId: args['memberId'] ?? '',
+              familyDocId: args['familyDocId'],
+              subFamilyDocId: args['subFamilyDocId'],
+            );
+          }
+          return const MemberDetailScreen(memberId: '', familyDocId: null);
+        },
       },
       onGenerateRoute: (settings) {
         // Custom animated page route

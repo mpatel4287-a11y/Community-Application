@@ -39,6 +39,101 @@ class AddMemberScreen extends StatefulWidget {
 }
 
 class _AddMemberScreenState extends State<AddMemberScreen> {
+  Widget _buildSectionHeader(String title, IconData icon) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0, top: 24.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: primaryColor, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: primaryColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    String? hint,
+    IconData? prefixIcon,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    int? maxLength,
+    bool obscureText = false,
+    String? Function(String?)? validator,
+    FocusNode? focusNode,
+    void Function(String)? onChanged,
+    void Function(String)? onFieldSubmitted,
+    bool enabled = true,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.colorScheme.primary;
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      maxLength: maxLength,
+      obscureText: obscureText,
+      enabled: enabled,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: primaryColor) : null,
+        filled: true,
+        fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+        labelStyle: TextStyle(
+          color: isDark ? Colors.grey.shade400 : Colors.blueGrey.shade700, 
+          fontWeight: FontWeight.w400
+        ),
+        floatingLabelStyle: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, 
+            width: 1
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      ),
+      validator: validator,
+      onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted,
+    );
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _fullNameCtrl = TextEditingController();
   final _surnameCtrl = TextEditingController();
@@ -76,15 +171,41 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   List<Map<String, String>> _firms = [];
   List<String> _allFirmNames = [];
   bool _loading = false;
+  String? _selectedSpouseMid;
+  String _spouseRelation = 'none';
+  List<MemberModel> _familyMembers = [];
+  String _currentUserRole = 'member';
 
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     if (widget.initialParentMid != null) {
       _parentMidCtrl.text = widget.initialParentMid!;
     }
     _checkExistingHead();
     _loadFirmNames();
+    _loadFamilyMembers();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await SessionManager.getRole();
+    if (mounted) {
+      setState(() => _currentUserRole = role ?? 'member');
+    }
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    // Fetch members from the current sub-family as requested by user
+    final members = await MemberService().getSubFamilyMembers(
+      widget.familyDocId,
+      widget.subFamilyDocId ?? '',
+    );
+    if (mounted) {
+      setState(() {
+        _familyMembers = members;
+      });
+    }
   }
 
   Future<void> _loadFirmNames() async {
@@ -223,7 +344,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         }
       }
 
-      await MemberService().addMember(
+      final newMemberId = await MemberService().addMemberWithId(
         mainFamilyDocId: widget.familyDocId,
         subFamilyDocId: widget.subFamilyDocId ?? '',
         subFamilyId: subFamilyId,
@@ -236,28 +357,42 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         fatherName: _fatherNameCtrl.text.trim(),
         motherName: _motherNameCtrl.text.trim(),
         gotra: _gotraCtrl.text.trim(),
-        gender: _gender, // Added
+        gender: _gender,
         birthDate: _birthDateCtrl.text.trim(),
-        education: _educationCtrl.text.trim(), // Added
+        education: _educationCtrl.text.trim(),
         bloodGroup: _bloodGroup,
         marriageStatus: _marriageStatus,
         nativeHome: _nativeHomeCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
-        email: _emailCtrl.text.trim(), // Added
+        email: _emailCtrl.text.trim(),
         address: _addressCtrl.text.trim(),
         googleMapLink: _googleMapLinkCtrl.text.trim(),
-        surdhan: _surdhanCtrl.text.trim(), // Added
+        surdhan: _surdhanCtrl.text.trim(),
         firms: _firms,
         whatsapp: _whatsappCtrl.text.trim(),
         instagram: _instagramCtrl.text.trim(),
         facebook: _facebookCtrl.text.trim(),
         tags: _tags,
         parentMid: _parentMidCtrl.text.trim(),
-        password: _passwordCtrl.text.trim().isEmpty ? '123456' : _passwordCtrl.text.trim(), // Added
+        password: _passwordCtrl.text.trim().isEmpty ? '123456' : _passwordCtrl.text.trim(),
         photoUrl: photoUrl,
         relationToHead: _relationToHead,
         subFamilyHeadRelationToMainHead: _subFamilyHeadRelation,
+        spouseMid: _selectedSpouseMid ?? '',
       );
+
+      // If a spouse was selected, link them
+      if (_selectedSpouseMid != null && _selectedSpouseMid!.isNotEmpty) {
+        final spouseMember = _familyMembers.firstWhere((m) => m.mid == _selectedSpouseMid);
+        await MemberService().updateSpouseLink(
+          mainFamilyDocId: widget.familyDocId,
+          member1Id: newMemberId,
+          member1SubFamilyDocId: widget.subFamilyDocId ?? '',
+          member2Id: spouseMember.id,
+          member2SubFamilyDocId: spouseMember.subFamilyDocId,
+          relation: _spouseRelation,
+        );
+      }
 
       if (mounted) {
         Navigator.pop(context);
@@ -298,478 +433,676 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Profile Photo
-                  Center(
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: _pickProfilePhoto,
-                          child: CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.blue.shade900,
-                            backgroundImage:
-                                _profilePhotoUrl != null &&
-                                    _profilePhotoUrl!.isNotEmpty
-                                ? (_profilePhotoUrl!.startsWith('http')
-                                      ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
-                                      : FileImage(File(_profilePhotoUrl!)))
-                                : null,
-                            child:
-                                _profilePhotoUrl == null ||
-                                    _profilePhotoUrl!.isEmpty
-                                ? const Icon(
-                                    Icons.camera_alt,
-                                    size: 36,
-                                    color: Colors.white,
-                                  )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          lang.translate('tap_to_add_photo'),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
+                  _buildSectionHeader(lang.translate('profile_photo'), Icons.camera_alt),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Colors.grey.shade100, width: 1),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Personal Info
-                  Text(
-                    lang.translate('personal_information'),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _fullNameCtrl,
-                    decoration: InputDecoration(labelText: '${lang.translate('full_name')} *'),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? lang.translate('required') : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _surnameCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('surname')),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _fatherNameCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('father_name')),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _motherNameCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('mother_name')),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _gotraCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('gotra')),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    decoration: InputDecoration(
-                      labelText: '${lang.translate('member_login_password')} *',
-                      prefixIcon: const Icon(Icons.lock),
-                    ),
-                    obscureText: true,
-                    validator: (v) => (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v)) 
-                      ? lang.translate('must_be_8_chars') : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _gender,
-                    decoration: InputDecoration(labelText: lang.translate('gender')),
-                    items: ['male', 'female']
-                        .map((g) => DropdownMenuItem(value: g, child: Text(lang.translate(g))))
-                        .toList(),
-                    onChanged: (v) => setState(() => _gender = v ?? 'male'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _educationCtrl,
-                    decoration: InputDecoration(
-                      labelText: lang.translate('education'),
-                      hintText: 'e.g., B.Tech, MBA',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _birthDateCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Birth Date (dd/MM/yyyy) *',
-                      hintText: '15/08/1990',
-                    ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _bloodGroup.isEmpty ? null : _bloodGroup,
-                    decoration: const InputDecoration(labelText: 'Blood Group'),
-                    items:
-                        ['', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
-                            .map(
-                              (bg) => DropdownMenuItem(
-                                value: bg,
-                                child: Text(bg.isEmpty ? 'Select' : bg),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (v) => setState(() => _bloodGroup = v ?? ''),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _marriageStatus,
-                    decoration: const InputDecoration(
-                      labelText: 'Marriage Status',
-                    ),
-                    items: ['unmarried', 'married']
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _marriageStatus = v ?? 'unmarried'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _nativeHomeCtrl,
-                    decoration: const InputDecoration(labelText: 'Native Home'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _surdhanCtrl,
-                    decoration: const InputDecoration(labelText: 'Surdhan'),
-                  ),
-
-                  // Contact Info
-                  const SizedBox(height: 20),
-                  Text(
-                    lang.translate('contact_information'),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _phoneCtrl,
-                    decoration: InputDecoration(labelText: '${lang.translate('phone')} *'),
-                    keyboardType: TextInputType.phone,
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    decoration: const InputDecoration(labelText: 'E-mail ID'),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _addressCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('address')),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _googleMapLinkCtrl,
-                    decoration: InputDecoration(
-                      labelText: lang.translate('google_map_link'),
-                      hintText: 'https://maps.google.com/...',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _whatsappCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('whatsapp')),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _instagramCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('instagram')),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _facebookCtrl,
-                    decoration: InputDecoration(labelText: lang.translate('facebook')),
-                  ),
-
-                  // Firms/Business Details
-                  const SizedBox(height: 20),
-                  Text(
-                    lang.translate('firms_business'),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._firms.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final firm = entry.value;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.04),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
+                      padding: const EdgeInsets.all(20.0),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: _pickProfilePhoto,
+                              child: CircleAvatar(
+                                radius: 60,
+                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                backgroundImage: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
+                                    ? (_profilePhotoUrl!.startsWith('http')
+                                        ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
+                                        : FileImage(File(_profilePhotoUrl!)))
+                                    : null,
+                                child: _profilePhotoUrl == null || _profilePhotoUrl!.isEmpty
+                                    ? Icon(Icons.add_a_photo, size: 40, color: Theme.of(context).colorScheme.primary)
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              lang.translate('tap_to_add_photo'),
+                              style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Personal Information
+                  _buildSectionHeader(lang.translate('personal_information'), Icons.person),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Colors.grey.shade100, width: 1),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.04),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20.0),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTextField(_fullNameCtrl, '${lang.translate('full_name')} *',
+                              validator: (v) => v == null || v.isEmpty ? lang.translate('required') : null),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(child: _buildTextField(_surnameCtrl, lang.translate('surname'))),
+                              const SizedBox(width: 12),
+                              Expanded(child: _buildTextField(_gotraCtrl, lang.translate('gotra'))),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildTextField(_fatherNameCtrl, lang.translate('father_name')),
+                          const SizedBox(height: 12),
+                          _buildTextField(_motherNameCtrl, lang.translate('mother_name')),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _gender,
+                                  decoration: InputDecoration(
+                                    labelText: lang.translate('gender'),
+                                    filled: true,
+                                    fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                  ),
+                                  items: ['male', 'female']
+                                      .map((g) => DropdownMenuItem(value: g, child: Text(lang.translate(g))))
+                                      .toList(),
+                                  onChanged: (v) => setState(() => _gender = v ?? 'male'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildTextField(_birthDateCtrl, 'Birth Date (dd/MM/yyyy) *',
+                                    hint: '15/08/1990',
+                                    validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _bloodGroup.isEmpty ? null : _bloodGroup,
+                                  decoration: InputDecoration(
+                                    labelText: lang.translate('blood_group'),
+                                    filled: true,
+                                    fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                  ),
+                                  items: ['', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
+                                      .map((bg) => DropdownMenuItem(
+                                            value: bg,
+                                            child: Text(bg.isEmpty ? 'Select' : bg),
+                                          ))
+                                      .toList(),
+                                  onChanged: (v) => setState(() => _bloodGroup = v ?? ''),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _marriageStatus,
+                                  decoration: InputDecoration(
+                                    labelText: lang.translate('marriage_status'),
+                                    filled: true,
+                                    fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                  ),
+                                  items: ['unmarried', 'married']
+                                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                      .toList(),
+                                  onChanged: (v) => setState(() => _marriageStatus = v ?? 'unmarried'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Contact Information
+                  _buildSectionHeader(lang.translate('contact_information'), Icons.contact_mail),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Colors.grey.shade100, width: 1),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.04),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
                               Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return Autocomplete<String>(
-                                      optionsBuilder: (TextEditingValue textEditingValue) {
-                                        if (textEditingValue.text.isEmpty) {
-                                          return const Iterable<String>.empty();
-                                        }
-                                        return _allFirmNames.where((String option) {
-                                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                                        });
-                                      },
-                                      onSelected: (String selection) {
-                                        setState(() {
-                                          _firms[index]['name'] = selection;
-                                        });
-                                      },
-                                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                                        if (controller.text != firm['name']) {
-                                          controller.text = firm['name'] ?? '';
-                                        }
-                                        return TextFormField(
-                                          controller: controller,
-                                          focusNode: focusNode,
-                                          decoration: InputDecoration(
-                                            labelText: lang.translate('firm_name'),
-                                            border: InputBorder.none,
-                                          ),
-                                          onChanged: (value) {
-                                            _firms[index]['name'] = value;
-                                          },
-                                          onFieldSubmitted: (value) => onFieldSubmitted(),
-                                        );
-                                      },
-                                      optionsViewBuilder: (context, onSelected, options) {
-                                        return Align(
-                                          alignment: Alignment.topLeft,
-                                          child: Material(
-                                            elevation: 4.0,
-                                            child: Container(
-                                              width: constraints.maxWidth,
-                                              constraints: const BoxConstraints(maxHeight: 200),
-                                              color: Colors.white,
-                                              child: ListView.builder(
-                                                padding: EdgeInsets.zero,
-                                                shrinkWrap: true,
-                                                itemCount: options.length,
-                                                itemBuilder: (BuildContext context, int index) {
-                                                  final String option = options.elementAt(index);
-                                                  return ListTile(
-                                                    title: Text(option),
-                                                    onTap: () => onSelected(option),
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
+                                child: _buildTextField(_phoneCtrl, '${lang.translate('phone')} *',
+                                    keyboardType: TextInputType.phone,
+                                    validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildTextField(_emailCtrl, 'E-mail ID',
+                                    keyboardType: TextInputType.emailAddress),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildTextField(_addressCtrl, lang.translate('address'), maxLines: 2),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(child: _buildTextField(_nativeHomeCtrl, 'Native Home')),
+                              const SizedBox(width: 12),
+                              Expanded(child: _buildTextField(_surdhanCtrl, 'Surdhan')),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildTextField(_googleMapLinkCtrl, lang.translate('google_map_link'),
+                              hint: 'https://maps.google.com/...', prefixIcon: Icons.map),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Social Media Section
+                  _buildSectionHeader(lang.translate('social_media'), Icons.share),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Colors.grey.shade100, width: 1),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.04),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          _buildTextField(_whatsappCtrl, lang.translate('whatsapp'),
+                              keyboardType: TextInputType.phone, prefixIcon: Icons.chat_bubble_outline),
+                          const SizedBox(height: 12),
+                          _buildTextField(_instagramCtrl, lang.translate('instagram'), prefixIcon: Icons.camera_alt_outlined),
+                          const SizedBox(height: 12),
+                          _buildTextField(_facebookCtrl, lang.translate('facebook'), prefixIcon: Icons.facebook),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Professional & Account Section
+                  _buildSectionHeader(lang.translate('professional_account'), Icons.business_center),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Colors.grey.shade100, width: 1),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.04),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTextField(_educationCtrl, lang.translate('education'), hint: 'e.g., B.Tech, MBA'),
+                          const SizedBox(height: 12),
+                          _buildTextField(_passwordCtrl, '${lang.translate('member_login_password')} *',
+                              prefixIcon: Icons.lock,
+                              obscureText: true,
+                              validator: (v) => (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v))
+                                  ? lang.translate('must_be_8_chars')
+                                  : null),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                lang.translate('firms_business'),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade900,
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
+                              if (_currentUserRole == 'admin')
+                                TextButton.icon(
+                                  onPressed: () => setState(() {
+                                    _firms.add({'name': '', 'phone': '', 'mapLink': ''});
+                                  }),
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: Text(lang.translate('add_firm')),
                                 ),
-                                onPressed: () {
+                            ],
+                          ),
+                          ..._firms.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final firm = entry.value;
+                            return Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                border: Border.all(color: Colors.grey.shade200),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: LayoutBuilder(
+                                          builder: (context, constraints) {
+                                            return Autocomplete<String>(
+                                              optionsBuilder: (TextEditingValue textEditingValue) {
+                                                if (textEditingValue.text.isEmpty) {
+                                                  return const Iterable<String>.empty();
+                                                }
+                                                return _allFirmNames.where((String option) {
+                                                  return option
+                                                      .toLowerCase()
+                                                      .contains(textEditingValue.text.toLowerCase());
+                                                });
+                                              },
+                                              onSelected: (String selection) =>
+                                                  _currentUserRole != 'member'
+                                                      ? setState(() => _firms[index]['name'] = selection)
+                                                      : null,
+                                              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                                if (controller.text != firm['name']) {
+                                                  controller.text = firm['name'] ?? '';
+                                                }
+                                                return TextFormField(
+                                                  controller: controller,
+                                                  focusNode: focusNode,
+                                                  enabled: _currentUserRole != 'member',
+                                                  decoration: InputDecoration(
+                                                    labelText: lang.translate('firm_name'),
+                                                    isDense: true,
+                                                  ),
+                                                  onChanged: (value) => _firms[index]['name'] = value,
+                                                  onFieldSubmitted: (value) => onFieldSubmitted(),
+                                                );
+                                              },
+                                              optionsViewBuilder: (context, onSelected, options) {
+                                                return Align(
+                                                  alignment: Alignment.topLeft,
+                                                  child: Material(
+                                                    elevation: 4.0,
+                                                    child: Container(
+                                                      width: constraints.maxWidth,
+                                                      constraints: const BoxConstraints(maxHeight: 200),
+                                                      color: Theme.of(context).cardColor,
+                                                      child: ListView.builder(
+                                                        padding: EdgeInsets.zero,
+                                                        shrinkWrap: true,
+                                                        itemCount: options.length,
+                                                        itemBuilder: (BuildContext context, int index) {
+                                                          final String option = options.elementAt(index);
+                                                          return ListTile(
+                                                            title: Text(option),
+                                                            onTap: () => onSelected(option),
+                                                          );
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      if (_currentUserRole == 'admin')
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                          onPressed: () => setState(() => _firms.removeAt(index)),
+                                        ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextFormField(
+                                          initialValue: firm['phone'],
+                                          enabled: _currentUserRole != 'member',
+                                          decoration: InputDecoration(
+                                            labelText: 'Phone',
+                                            filled: true,
+                                            fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                            isDense: true,
+                                          ),
+                                          onChanged: (value) => _firms[index]['phone'] = value,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: TextFormField(
+                                          initialValue: firm['mapLink'],
+                                          enabled: _currentUserRole != 'member',
+                                          decoration: InputDecoration(
+                                        labelText: 'Map Link',
+                                        filled: true,
+                                        fillColor: Colors.grey.shade50,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
+                                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                        isDense: true,
+                                      ),
+                                          onChanged: (value) => _firms[index]['mapLink'] = value,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Family Information Section
+                  _buildSectionHeader(lang.translate('family_information'), Icons.family_restroom),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Colors.grey.shade100, width: 1),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.04),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(_dktFamilyIdCtrl, lang.translate('dkt_family_id'),
+                                    hint: 'Enter DKT Family ID'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildTextField(_parentMidCtrl, lang.translate('parent_member_id'),
+                                    hint: 'Enter parent MID'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            value: _relationToHead,
+                            decoration: InputDecoration(
+                              labelText: lang.translate('relation_to_head'),
+                              filled: true,
+                              fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                            ),
+                            items: [
+                              DropdownMenuItem(value: 'none', child: Text(lang.translate('none'))),
+                              DropdownMenuItem(
+                                value: 'head',
+                                enabled: !_hasFamilyHead,
+                                child: Text(
+                                  lang.translate('head_of_family') + (_hasFamilyHead ? ' (Already Assigned)' : ''),
+                                ),
+                              ),
+                              DropdownMenuItem(value: 'wife', child: Text(lang.translate('wife'))),
+                              DropdownMenuItem(value: 'husband', child: Text(lang.translate('husband'))),
+                              DropdownMenuItem(value: 'son', child: Text(lang.translate('son'))),
+                              DropdownMenuItem(value: 'daughter', child: Text(lang.translate('daughter'))),
+                              DropdownMenuItem(value: 'son_in_law', child: Text(lang.translate('son_in_law'))),
+                              DropdownMenuItem(value: 'daughter_in_law', child: Text(lang.translate('daughter_in_law'))),
+                              DropdownMenuItem(value: 'grandson', child: Text(lang.translate('grandson'))),
+                              DropdownMenuItem(value: 'granddaughter', child: Text(lang.translate('granddaughter'))),
+                              DropdownMenuItem(value: 'other', child: Text(lang.translate('other'))),
+                            ],
+                            onChanged: (val) => setState(() => _relationToHead = val ?? 'none'),
+                          ),
+                          if (_relationToHead == 'head' && widget.subFamilyDocId != null) ...[
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              initialValue: _subFamilyHeadRelation,
+                              decoration: InputDecoration(
+                                labelText: lang.translate('relation_to_main_head'),
+                                hintText: 'Relationship of this head with main head (e.g. Son)',
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                              ),
+                              onChanged: (val) => setState(() => _subFamilyHeadRelation = val),
+                            ),
+                          ],
+                          if (_marriageStatus == 'married') ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 12),
+                            Text(
+                              lang.translate('spouse_details'),
+                              style: TextStyle(
+                                fontSize: 14, 
+                                fontWeight: FontWeight.bold, 
+                                color: Theme.of(context).colorScheme.primary
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Ask for relation first as requested
+                            DropdownButtonFormField<String>(
+                              value: _spouseRelation == 'none' ? null : _spouseRelation,
+                              decoration: InputDecoration(
+                                labelText: lang.translate('relation_to_spouse'),
+                                filled: true,
+                                fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                              ),
+                              items: [
+                                DropdownMenuItem(value: 'wife_of', child: Text(lang.translate('wife_of'))),
+                                DropdownMenuItem(value: 'husband_of', child: Text(lang.translate('husband_of'))),
+                              ],
+                              onChanged: (val) => setState(() => _spouseRelation = val ?? 'none'),
+                            ),
+                            if (_spouseRelation != 'none') ...[
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                value: _selectedSpouseMid,
+                                decoration: InputDecoration(
+                                  labelText: lang.translate('select_spouse'),
+                                  filled: true,
+                                  fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                ),
+                                items: [
+                                  DropdownMenuItem(value: null, child: Text(lang.translate('none'))),
+                                  ..._familyMembers
+                                      .map((m) {
+                                    final subName = m.subFamilyDocId == (widget.subFamilyDocId ?? '') ? ' (This Sub-family)' : '';
+                                    return DropdownMenuItem(
+                                      value: m.mid,
+                                      child: Text('${m.fullName} (${m.mid})$subName'),
+                                    );
+                                  }),
+                                ],
+                                onChanged: (val) {
                                   setState(() {
-                                    _firms.removeAt(index);
+                                    _selectedSpouseMid = val;
                                   });
                                 },
                               ),
                             ],
-                          ),
-                          TextFormField(
-                            initialValue: firm['phone'],
-                            decoration: const InputDecoration(
-                              labelText: 'Phone',
-                              border: InputBorder.none,
-                            ),
-                            onChanged: (value) {
-                              _firms[index]['phone'] = value;
-                            },
-                          ),
-                          TextFormField(
-                            initialValue: firm['mapLink'],
-                            decoration: const InputDecoration(
-                              labelText: 'Map Link',
-                              border: InputBorder.none,
-                            ),
-                            onChanged: (value) {
-                              _firms[index]['mapLink'] = value;
-                            },
-                          ),
+                          ],
                         ],
                       ),
-                    );
-                  }),
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _firms.add({'name': '', 'phone': '', 'mapLink': ''});
-                      });
-                    },
-                    icon: const Icon(Icons.add),
-                    label: Text(lang.translate('add_firm')),
+                    ),
                   ),
 
-                  // Family Information
-                  const SizedBox(height: 20),
-                  Text(
-                    lang.translate('family_information'),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _dktFamilyIdCtrl,
-                    decoration: InputDecoration(
-                      labelText: lang.translate('dkt_family_id'),
-                      hintText: 'Enter DKT Family ID',
+                  // Tags Section
+                  _buildSectionHeader(lang.translate('tags'), Icons.label_outline),
+                  Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 30),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(_tagsCtrl, lang.translate('add_tag'),
+                                    hint: 'Enter tag and press +'),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: CircleAvatar(
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  radius: 18,
+                                  child: const Icon(Icons.add, color: Colors.white, size: 20),
+                                ),
+                                onPressed: () {
+                                  final v = _tagsCtrl.text.trim();
+                                  if (v.isNotEmpty && v.length <= 15 && !_tags.contains(v)) {
+                                    setState(() {
+                                      _tags.add(v);
+                                      _tagsCtrl.clear();
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          if (_tags.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: _tags.map((tag) {
+                                return Chip(
+                                  label: Text(tag, style: const TextStyle(fontSize: 12)),
+                                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  onDeleted: () => setState(() => _tags.remove(tag)),
+                                  deleteIconColor: Colors.red,
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _parentMidCtrl,
-                    decoration: InputDecoration(
-                      labelText: lang.translate('parent_member_id'),
-                      hintText: 'Enter parent MID (optional)',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Relation to Head
-                  DropdownButtonFormField<String>(
-                    value: _relationToHead,
-                    decoration: InputDecoration(
-                      labelText: lang.translate('relation_to_head'),
-                      border: const OutlineInputBorder(),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'none',
-                        child: Text(lang.translate('none')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'head',
-                        enabled: !_hasFamilyHead,
-                        child: Text(
-                          lang.translate('head_of_family') + 
-                          (_hasFamilyHead ? ' (Already Assigned)' : ''),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'wife',
-                        child: Text(lang.translate('wife')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'daughter',
-                        child: Text(lang.translate('daughter')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'son',
-                        child: Text(lang.translate('son')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'daughter_in_law',
-                        child: Text(lang.translate('daughter_in_law')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'grandson',
-                        child: Text(lang.translate('grandson')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'grandsister',
-                        child: Text(lang.translate('grandsister')),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      setState(() {
-                        _relationToHead = val ?? 'none';
-                      });
-                    },
-                  ),
-                  
-                  if (_relationToHead == 'head' && widget.subFamilyDocId != null) ...[
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      decoration: InputDecoration(
-                        labelText: lang.translate('relation_to_main_head'),
-                        hintText: 'Relationship of this head with main head (e.g. Son)',
-                      ),
-                      onChanged: (val) {
-                        setState(() {
-                          _subFamilyHeadRelation = val;
-                        });
-                      },
-                    ),
-                  ],
 
-                  // Tags (Admin Only)
-                  const SizedBox(height: 20),
-                  Text(
-                    lang.translate('tags'),
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  // Visible tag input field
-                  TextFormField(
-                    controller: _tagsCtrl,
-                    decoration: InputDecoration(
-                      labelText: lang.translate('add_tag'),
-                      hintText: 'Enter tag and press + button',
-                    ),
-                    maxLength: 15,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: const SizedBox.shrink(), // Empty space
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () {
-                          final v = _tagsCtrl.text.trim();
-                          if (v.isNotEmpty &&
-                              v.length <= 15 &&
-                              !_tags.contains(v)) {
-                            setState(() {
-                              _tags.add(v);
-                              _tagsCtrl.clear();
-                            });
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  if (_tags.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      children: _tags.map((tag) {
-                        return Chip(
-                          label: Text(tag),
-                          onDeleted: () => setState(() => _tags.remove(tag)),
-                        );
-                      }).toList(),
-                    ),
-
-                  const SizedBox(height: 24),
-                  ElevatedButton(
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                  child: ElevatedButton(
                     onPressed: _submitForm,
-                    child: Text(lang.translate('add_member')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      lang.translate('add_member'),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: 1),
+                    ),
                   ),
-                  const SizedBox(height: 24),
+                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
@@ -787,7 +1120,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'Adding member...',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -819,6 +1152,101 @@ class EditMemberScreen extends StatefulWidget {
 }
 
 class _EditMemberScreenState extends State<EditMemberScreen> {
+  Widget _buildSectionHeader(String title, IconData icon) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0, top: 24.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: primaryColor, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: primaryColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    String? hint,
+    IconData? prefixIcon,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    int? maxLength,
+    bool obscureText = false,
+    String? Function(String?)? validator,
+    FocusNode? focusNode,
+    void Function(String)? onChanged,
+    void Function(String)? onFieldSubmitted,
+    bool enabled = true,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryColor = theme.colorScheme.primary;
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      maxLength: maxLength,
+      obscureText: obscureText,
+      enabled: enabled,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: primaryColor) : null,
+        filled: true,
+        fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
+        labelStyle: TextStyle(
+          color: isDark ? Colors.grey.shade400 : Colors.blueGrey.shade700, 
+          fontWeight: FontWeight.w400
+        ),
+        floatingLabelStyle: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, 
+            width: 1
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      ),
+      validator: validator,
+      onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted,
+    );
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _fullNameCtrl = TextEditingController();
   final _surnameCtrl = TextEditingController();
@@ -855,15 +1283,27 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   bool _alreadyHead = false; // Is THIS member currently the head?
   List<String> _tags = [];
   List<String> _allFirmNames = [];
+  String? _selectedSpouseMid;
+  String _spouseRelation = 'none'; // wife_of | husband_of | none
+  List<MemberModel> _familyMembers = [];
+  String _currentUserRole = 'member';
 
   final PhotoService _photoService = PhotoService();
 
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     _loadMemberData();
     _checkExistingHead();
     _loadFirmNames();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await SessionManager.getRole();
+    if (mounted) {
+      setState(() => _currentUserRole = role ?? 'member');
+    }
   }
 
   Future<void> _loadFirmNames() async {
@@ -910,6 +1350,19 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
     }
   }
 
+  Widget _buildSocialIcon(IconData icon, Color color, String label, TextEditingController controller, VoidCallback onPressed) {
+    return Column(
+      children: [
+        IconButton(
+          onPressed: controller.text.trim().isNotEmpty ? onPressed : null,
+          icon: Icon(icon, color: controller.text.trim().isNotEmpty ? color : Colors.grey),
+          iconSize: 32,
+        ),
+        Text(label, style: const TextStyle(fontSize: 10)),
+      ],
+    );
+  }
+
   Future<void> _launchMap(String mapUrl) async {
     if (mapUrl.isNotEmpty && await canLaunchUrl(Uri.parse(mapUrl))) {
       await launchUrl(Uri.parse(mapUrl));
@@ -936,6 +1389,113 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+
+    String photoUrl = _profilePhotoUrl ?? '';
+
+    // Upload photo if changed
+    if (_pendingPhotoPath != null) {
+      try {
+        final uploadedUrl = await _photoService.uploadProfilePhoto(
+          memberId: widget.memberId,
+          image: XFile(_pendingPhotoPath!),
+        );
+
+        if (uploadedUrl != null && uploadedUrl.startsWith('http')) {
+          photoUrl = uploadedUrl;
+        } else {
+          throw Exception('Failed to upload photo');
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Photo upload failed: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    } else {
+      // Safety check: if URL is local path but no pending upload, clear it
+      if (photoUrl.isNotEmpty && !photoUrl.startsWith('http')) {
+        photoUrl = '';
+      }
+    }
+
+    try {
+      await MemberService().updateMember(
+        mainFamilyDocId: widget.familyDocId,
+        subFamilyDocId: widget.subFamilyDocId ?? '',
+        memberId: widget.memberId,
+        updates: {
+          'fullName': _fullNameCtrl.text.trim(),
+          'surname': _surnameCtrl.text.trim(),
+          'fatherName': _fatherNameCtrl.text.trim(),
+          'motherName': _motherNameCtrl.text.trim(),
+          'gotra': _gotraCtrl.text.trim(),
+          'gender': _gender,
+          'birthDate': _birthDateCtrl.text.trim(),
+          'education': _educationCtrl.text.trim(),
+          'bloodGroup': _bloodGroup,
+          'marriageStatus': _marriageStatus,
+          'nativeHome': _nativeHomeCtrl.text.trim(),
+          'mid': _memberMid,
+          'phone': _phoneCtrl.text.trim(),
+          'email': _emailCtrl.text.trim(),
+          'address': _addressCtrl.text.trim(),
+          'googleMapLink': _googleMapLinkCtrl.text.trim(),
+          'surdhan': _surdhanCtrl.text.trim(),
+          'whatsapp': _whatsappCtrl.text.trim(),
+          'instagram': _instagramCtrl.text.trim(),
+          'facebook': _facebookCtrl.text.trim(),
+          'firms': _firms,
+          'tags': _tags,
+          'parentMid': _parentMidCtrl.text.trim(),
+          'password': _passwordCtrl.text.trim(),
+          'familyId': _dktFamilyIdCtrl.text.trim(),
+          'photoUrl': photoUrl,
+          'relationToHead': _relationToHead,
+          'subFamilyHeadRelationToMainHead': _subFamilyHeadRelation,
+          'spouseMid': _selectedSpouseMid ?? '',
+          'spouseRelation': _spouseRelation,
+        },
+      );
+
+      // If a spouse was selected, update the link
+      if (_selectedSpouseMid != null && _selectedSpouseMid!.isNotEmpty) {
+        final spouseMember = _familyMembers.firstWhere((m) => m.mid == _selectedSpouseMid);
+        await MemberService().updateSpouseLink(
+          mainFamilyDocId: widget.familyDocId,
+          member1Id: widget.memberId,
+          member1SubFamilyDocId: widget.subFamilyDocId ?? '',
+          member2Id: spouseMember.id,
+          member2SubFamilyDocId: spouseMember.subFamilyDocId,
+          relation: _spouseRelation,
+        );
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating member: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -978,12 +1538,25 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
       _memberMid = member.mid;
       _relationToHead = member.relationToHead;
       _subFamilyHeadRelation = member.subFamilyHeadRelationToMainHead;
+      _selectedSpouseMid = member.spouseMid.isEmpty ? null : member.spouseMid;
+      _spouseRelation = member.spouseRelation.isEmpty ? 'none' : member.spouseRelation;
       _alreadyHead = _relationToHead == 'head';
       if (_memberMid.isEmpty) {
         _memberMid = MemberModel.generateMid(member.familyId, member.subFamilyId);
       }
     }
-    setState(() => _loading = false);
+    
+    // Load family members for spouse selection
+    final familyMembers = await MemberService().getSubFamilyMembers(
+      widget.familyDocId,
+      widget.subFamilyDocId ?? '',
+    );
+    if (mounted) {
+      setState(() {
+        _familyMembers = familyMembers;
+        _loading = false;
+      });
+    }
   }
 
 
@@ -1006,660 +1579,601 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Profile Photo
-              Center(
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: _pickProfilePhoto,
-                      child: CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.blue.shade900,
-                        backgroundImage:
-                            _profilePhotoUrl != null &&
-                                _profilePhotoUrl!.isNotEmpty
-                            ? (_profilePhotoUrl!.startsWith('http')
-                                  ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
-                                  : FileImage(File(_profilePhotoUrl!)))
-                            : null,
-                        child:
-                            _profilePhotoUrl == null ||
-                                _profilePhotoUrl!.isEmpty
-                            ? const Icon(
-                                Icons.camera_alt,
-                                size: 36,
-                                color: Colors.white,
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Tap to change profile photo',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-              if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty)
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _profilePhotoUrl = null;
-                        _pendingPhotoPath = null;
-                      });
-                    },
-                    child: const Text(
-                      'Remove Photo',
-                      style: TextStyle(color: Colors.red),
+              _buildSectionHeader(lang.translate('profile_photo'), Icons.camera_alt),
+              Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: _pickProfilePhoto,
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                            backgroundImage: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
+                                ? (_profilePhotoUrl!.startsWith('http')
+                                    ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
+                                    : FileImage(File(_profilePhotoUrl!)))
+                                : null,
+                            child: _profilePhotoUrl == null || _profilePhotoUrl!.isEmpty
+                                ? Icon(Icons.add_a_photo, size: 40, color: Theme.of(context).colorScheme.primary)
+                                : null,
+                          ),
+                        ),
+                        if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty)
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _profilePhotoUrl = null;
+                              _pendingPhotoPath = null;
+                            }),
+                            child: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                          )
+                        else ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            lang.translate('tap_to_add_photo'),
+                            style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
-              const SizedBox(height: 20),
+              ),
 
               // Personal Information
-              const Text(
-                'Personal Information',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'MID: $_memberMid',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade900,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _fullNameCtrl,
-                decoration: const InputDecoration(labelText: 'Full Name *'),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _surnameCtrl,
-                decoration: const InputDecoration(labelText: 'Surname'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _fatherNameCtrl,
-                decoration: const InputDecoration(labelText: 'Father Name'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _motherNameCtrl,
-                decoration: const InputDecoration(labelText: 'Mother Name'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _gotraCtrl,
-                decoration: const InputDecoration(labelText: 'Gotra'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _birthDateCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Birth Date (dd/MM/yyyy)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _passwordCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Member Login Password *',
-                  prefixIcon: Icon(Icons.lock),
-                ),
-                obscureText: true,
-                validator: (v) => (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v)) 
-                  ? 'Must be 8 alphanumeric characters' : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _gender,
-                decoration: InputDecoration(labelText: lang.translate('gender')),
-                items: ['male', 'female']
-                    .map((g) => DropdownMenuItem(value: g, child: Text(lang.translate(g))))
-                    .toList(),
-                onChanged: (v) => setState(() => _gender = v ?? 'male'),
-              ),
-              const SizedBox(height: 12),
-              // Education Field
-              TextFormField(
-                controller: _educationCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Education',
-                  hintText: 'e.g., B.Tech, MBA',
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _bloodGroup.isEmpty ? null : _bloodGroup,
-                decoration: const InputDecoration(labelText: 'Blood Group'),
-                items: ['', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
-                    .map(
-                      (bg) => DropdownMenuItem(
-                        value: bg,
-                        child: Text(bg.isEmpty ? 'Select' : bg),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _bloodGroup = v ?? ''),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _marriageStatus,
-                decoration: const InputDecoration(labelText: 'Marriage Status'),
-                items: ['unmarried', 'married']
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                    .toList(),
-                onChanged: (v) =>
-                    setState(() => _marriageStatus = v ?? 'unmarried'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _nativeHomeCtrl,
-                decoration: const InputDecoration(labelText: 'Native Home'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _surdhanCtrl,
-                decoration: const InputDecoration(labelText: 'Surdhan'),
-              ),
-
-              // Contact Information
-              const SizedBox(height: 20),
-              const Text(
-                'Contact Information',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _phoneCtrl,
-                decoration: const InputDecoration(labelText: 'Phone'),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailCtrl,
-                decoration: const InputDecoration(labelText: 'E-mail ID'),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _addressCtrl,
-                decoration: const InputDecoration(labelText: 'Address'),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _googleMapLinkCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Google Map Link',
-                  hintText: 'https://maps.google.com/...',
-                ),
-              ),
-
-              // Social Media
-              const SizedBox(height: 20),
-              const Text(
-                'Social Media',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              // Changed Row to Wrap to prevent overflow
-              Wrap(
-                alignment: WrapAlignment.spaceEvenly,
-                spacing: 20,
-                runSpacing: 10,
-                children: [
-                  // WhatsApp
-                  Column(
-                    children: [
-                      IconButton(
-                        onPressed: _whatsappCtrl.text.trim().isNotEmpty
-                            ? _launchWhatsApp
-                            : null,
-                        icon: const Icon(Icons.message, color: Colors.teal),
-                        iconSize: 40,
-                      ),
-                      const Text('WhatsApp', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                  // Instagram
-                  Column(
-                    children: [
-                      IconButton(
-                        onPressed: _instagramCtrl.text.trim().isNotEmpty
-                            ? _launchInstagram
-                            : null,
-                        icon: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.purple,
-                        ),
-                        iconSize: 40,
-                      ),
-                      const Text('Instagram', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                  // Facebook
-                  Column(
-                    children: [
-                      IconButton(
-                        onPressed: _facebookCtrl.text.trim().isNotEmpty
-                            ? _launchFacebook
-                            : null,
-                        icon: const Icon(Icons.facebook, color: Colors.blue),
-                        iconSize: 40,
-                      ),
-                      const Text('Facebook', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ],
-              ),
-              // Hidden text fields for storing values
-              TextFormField(
-                controller: _whatsappCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'WhatsApp Number',
-                  border: InputBorder.none,
-                ),
-                onChanged: (value) => setState(() {}),
-              ),
-              TextFormField(
-                controller: _instagramCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Instagram Username',
-                  border: InputBorder.none,
-                ),
-                onChanged: (value) => setState(() {}),
-              ),
-              TextFormField(
-                controller: _facebookCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Facebook Username',
-                  border: InputBorder.none,
-                ),
-                onChanged: (value) => setState(() {}),
-              ),
-
-              // Firms/Business Details
-              const SizedBox(height: 20),
-              const Text(
-                'Firms / Business Details',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              ..._firms.asMap().entries.map((entry) {
-                final index = entry.key;
-                final firm = entry.value;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+              _buildSectionHeader(lang.translate('personal_information'), Icons.person),
+              Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('MID: $_memberMid',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade900,
+                                fontSize: 16,
+                              )),
+                          if (_alreadyHead)
+                            Chip(
+                              label: Text(lang.translate('head_of_family'), style: const TextStyle(fontSize: 12, color: Colors.white)),
+                              backgroundColor: Colors.orange.shade700,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(_fullNameCtrl, '${lang.translate('full_name')} *',
+                          validator: (v) => v == null || v.isEmpty ? lang.translate('required') : null),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: _buildTextField(_surnameCtrl, lang.translate('surname'))),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildTextField(_gotraCtrl, lang.translate('gotra'))),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(_fatherNameCtrl, lang.translate('father_name')),
+                      const SizedBox(height: 12),
+                      _buildTextField(_motherNameCtrl, lang.translate('mother_name')),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _gender,
+                              decoration: InputDecoration(
+                                labelText: lang.translate('gender'),
+                                border: const OutlineInputBorder(),
+                              ),
+                              items: ['male', 'female']
+                                  .map((g) => DropdownMenuItem(value: g, child: Text(lang.translate(g))))
+                                  .toList(),
+                              onChanged: (v) => setState(() => _gender = v ?? 'male'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildTextField(_birthDateCtrl, 'Birth Date (dd/MM/yyyy) *',
+                                hint: '15/08/1990',
+                                validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _bloodGroup.isEmpty ? null : _bloodGroup,
+                              decoration: const InputDecoration(
+                                labelText: 'Blood Group',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: ['', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
+                                  .map((bg) => DropdownMenuItem(
+                                        value: bg,
+                                        child: Text(bg.isEmpty ? 'Select' : bg),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) => setState(() => _bloodGroup = v ?? ''),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _marriageStatus,
+                              decoration: const InputDecoration(
+                                labelText: 'Marriage Status',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: ['unmarried', 'married']
+                                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (v) => setState(() => _marriageStatus = v ?? 'unmarried'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: _buildTextField(_nativeHomeCtrl, 'Native Home')),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildTextField(_surdhanCtrl, 'Surdhan')),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Contact Info Section
+              _buildSectionHeader(lang.translate('contact_information'), Icons.contact_mail),
+              Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                return Autocomplete<String>(
-                                  optionsBuilder: (TextEditingValue textEditingValue) {
-                                    if (textEditingValue.text.isEmpty) {
-                                      return const Iterable<String>.empty();
-                                    }
-                                    return _allFirmNames.where((String option) {
-                                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                                    });
-                                  },
-                                  onSelected: (String selection) {
-                                    setState(() {
-                                      _firms[index]['name'] = selection;
-                                    });
-                                  },
-                                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                                    if (controller.text != firm['name']) {
-                                      controller.text = firm['name'] ?? '';
-                                    }
-                                    return TextFormField(
-                                      controller: controller,
-                                      focusNode: focusNode,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Firm Name',
-                                        border: InputBorder.none,
-                                      ),
-                                      onChanged: (value) {
-                                        _firms[index]['name'] = value;
-                                      },
-                                      onFieldSubmitted: (value) => onFieldSubmitted(),
-                                    );
-                                  },
-                                  optionsViewBuilder: (context, onSelected, options) {
-                                    return Align(
-                                      alignment: Alignment.topLeft,
-                                      child: Material(
-                                        elevation: 4.0,
-                                        child: Container(
-                                          width: constraints.maxWidth,
-                                          constraints: const BoxConstraints(maxHeight: 200),
-                                          color: Colors.white,
-                                          child: ListView.builder(
-                                            padding: EdgeInsets.zero,
-                                            shrinkWrap: true,
-                                            itemCount: options.length,
-                                            itemBuilder: (BuildContext context, int index) {
-                                              final String option = options.elementAt(index);
-                                              return ListTile(
-                                                title: Text(option),
-                                                onTap: () => onSelected(option),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
+                            child: _buildTextField(_phoneCtrl, '${lang.translate('phone')} *',
+                                keyboardType: TextInputType.phone,
+                                validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildTextField(_emailCtrl, 'E-mail ID',
+                                keyboardType: TextInputType.emailAddress),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTextField(_addressCtrl, lang.translate('address'), maxLines: 2),
+                      const SizedBox(height: 12),
+                      _buildTextField(_googleMapLinkCtrl, lang.translate('google_map_link'),
+                          hint: 'https://maps.google.com/...', prefixIcon: Icons.map),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Social Media Section
+              _buildSectionHeader(lang.translate('social_media'), Icons.share),
+              Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      _buildTextField(_whatsappCtrl, lang.translate('whatsapp'),
+                          keyboardType: TextInputType.phone, prefixIcon: Icons.chat_bubble_outline),
+                      const SizedBox(height: 12),
+                      _buildTextField(_instagramCtrl, lang.translate('instagram'), prefixIcon: Icons.camera_alt_outlined),
+                      const SizedBox(height: 12),
+                      _buildTextField(_facebookCtrl, lang.translate('facebook'), prefixIcon: Icons.facebook),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        alignment: WrapAlignment.spaceEvenly,
+                        spacing: 20,
+                        runSpacing: 10,
+                        children: [
+                          _buildSocialIcon(Icons.message, Colors.teal, 'WhatsApp', _whatsappCtrl, _launchWhatsApp),
+                          _buildSocialIcon(Icons.camera_alt, Colors.purple, 'Instagram', _instagramCtrl, _launchInstagram),
+                          _buildSocialIcon(Icons.facebook, Colors.blue, 'Facebook', _facebookCtrl, _launchFacebook),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Professional & Account Section
+              _buildSectionHeader(lang.translate('professional_account'), Icons.business_center),
+              Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(_educationCtrl, lang.translate('education'), hint: 'e.g., B.Tech, MBA'),
+                      const SizedBox(height: 12),
+                      _buildTextField(_passwordCtrl, '${lang.translate('member_login_password')} *',
+                          prefixIcon: Icons.lock,
+                          obscureText: true,
+                          validator: (v) => (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v))
+                              ? lang.translate('must_be_8_chars')
+                              : null),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            lang.translate('firms_business'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
+                          if (_currentUserRole == 'admin')
+                            TextButton.icon(
+                              onPressed: () => setState(() {
+                                _firms.add({'name': '', 'phone': '', 'mapLink': ''});
+                              }),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: Text(lang.translate('add_firm')),
+                            ),
+                        ],
+                      ),
+                      ..._firms.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final firm = entry.value;
+                        return Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        return Autocomplete<String>(
+                                          optionsBuilder: (TextEditingValue textEditingValue) {
+                                            if (textEditingValue.text.isEmpty) {
+                                              return const Iterable<String>.empty();
+                                            }
+                                            return _allFirmNames.where((String option) {
+                                              return option
+                                                  .toLowerCase()
+                                                  .contains(textEditingValue.text.toLowerCase());
+                                            });
+                                          },
+                                          onSelected: (String selection) =>
+                                              _currentUserRole != 'member'
+                                                  ? setState(() => _firms[index]['name'] = selection)
+                                                  : null,
+                                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                            if (controller.text != firm['name']) {
+                                              controller.text = firm['name'] ?? '';
+                                            }
+                                            return TextFormField(
+                                              controller: controller,
+                                              focusNode: focusNode,
+                                              enabled: _currentUserRole != 'member',
+                                              decoration: InputDecoration(
+                                                labelText: lang.translate('firm_name'),
+                                                filled: true,
+                                                fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                                isDense: true,
+                                              ),
+                                              onChanged: (value) => _firms[index]['name'] = value,
+                                              onFieldSubmitted: (value) => onFieldSubmitted(),
+                                            );
+                                          },
+                                          optionsViewBuilder: (context, onSelected, options) {
+                                            return Align(
+                                              alignment: Alignment.topLeft,
+                                              child: Material(
+                                                elevation: 4.0,
+                                                child: Container(
+                                                  width: constraints.maxWidth,
+                                                  constraints: const BoxConstraints(maxHeight: 200),
+                                                  color: Theme.of(context).cardColor,
+                                                  child: ListView.builder(
+                                                    padding: EdgeInsets.zero,
+                                                    shrinkWrap: true,
+                                                    itemCount: options.length,
+                                                    itemBuilder: (BuildContext context, int index) {
+                                                      final String option = options.elementAt(index);
+                                                      return ListTile(
+                                                        title: Text(option),
+                                                        onTap: () => onSelected(option),
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  if (_currentUserRole == 'admin')
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                      onPressed: () => setState(() => _firms.removeAt(index)),
+                                    ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      initialValue: firm['phone'],
+                                      enabled: _currentUserRole != 'member',
+                                      decoration: InputDecoration(
+                                        labelText: 'Phone',
+                                        filled: true,
+                                        fillColor: Colors.grey.shade50,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
+                                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                        isDense: true,
+                                      ),
+                                      onChanged: (value) => _firms[index]['phone'] = value,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextFormField(
+                                      initialValue: firm['mapLink'],
+                                      enabled: _currentUserRole != 'member',
+                                      decoration: InputDecoration(
+                                        labelText: 'Map Link',
+                                        filled: true,
+                                        fillColor: Colors.grey.shade50,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade200)),
+                                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                        isDense: true,
+                                      ),
+                                      onChanged: (value) => _firms[index]['mapLink'] = value,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Family Information Section
+              _buildSectionHeader(lang.translate('family_information'), Icons.family_restroom),
+              Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(_dktFamilyIdCtrl, lang.translate('dkt_family_id'), hint: 'Enter DKT Family ID'),
+                      const SizedBox(height: 12),
+                      _buildTextField(_parentMidCtrl, lang.translate('parent_member_id'), hint: 'Enter parent MID (optional)'),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _relationToHead,
+                        decoration: InputDecoration(
+                          labelText: lang.translate('relation_to_head'),
+                          filled: true,
+                          fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                        ),
+                        items: [
+                          DropdownMenuItem(value: 'none', child: Text(lang.translate('none'))),
+                          DropdownMenuItem(
+                            value: 'head',
+                            enabled: !_hasFamilyHead || _alreadyHead,
+                            child: Text(lang.translate('head_of_family') +
+                                ((_hasFamilyHead && !_alreadyHead) ? ' (Already Assigned)' : '')),
+                          ),
+                          DropdownMenuItem(value: 'wife', child: Text(lang.translate('wife'))),
+                          DropdownMenuItem(value: 'husband', child: Text(lang.translate('husband'))),
+                          DropdownMenuItem(value: 'son', child: Text(lang.translate('son'))),
+                          DropdownMenuItem(value: 'daughter', child: Text(lang.translate('daughter'))),
+                          DropdownMenuItem(value: 'son_in_law', child: Text(lang.translate('son_in_law'))),
+                          DropdownMenuItem(value: 'daughter_in_law', child: Text(lang.translate('daughter_in_law'))),
+                          DropdownMenuItem(value: 'grandson', child: Text(lang.translate('grandson'))),
+                          DropdownMenuItem(value: 'granddaughter', child: Text(lang.translate('granddaughter'))),
+                          DropdownMenuItem(value: 'other', child: Text(lang.translate('other'))),
+                        ],
+                        onChanged: (v) => setState(() => _relationToHead = v ?? 'none'),
+                      ),
+                      if (_relationToHead == 'head' && widget.subFamilyDocId != null) ...[
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          initialValue: _subFamilyHeadRelation,
+                          decoration: InputDecoration(
+                            labelText: lang.translate('relation_to_main_head'),
+                            hintText: 'Relationship of this head with main head (e.g. Son)',
+                          ),
+                          onChanged: (val) => setState(() => _subFamilyHeadRelation = val),
+                        ),
+                      ],
+                      if (_marriageStatus == 'married') ...[
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 12),
+                        Text(
+                          lang.translate('spouse_details'),
+                          style: TextStyle(
+                            fontSize: 14, 
+                            fontWeight: FontWeight.bold, 
+                            color: Theme.of(context).colorScheme.primary
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Ask for relation first as requested
+                        DropdownButtonFormField<String>(
+                          value: _spouseRelation == 'none' ? null : _spouseRelation,
+                          decoration: InputDecoration(
+                            labelText: lang.translate('relation_to_spouse'),
+                            filled: true,
+                            fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'wife_of', child: Text(lang.translate('wife_of'))),
+                            DropdownMenuItem(value: 'husband_of', child: Text(lang.translate('husband_of'))),
+                          ],
+                          onChanged: (val) => setState(() => _spouseRelation = val ?? 'none'),
+                        ),
+                        if (_spouseRelation != 'none') ...[
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: _selectedSpouseMid,
+                            decoration: InputDecoration(
+                              labelText: lang.translate('select_spouse'),
+                              filled: true,
+                              fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
+                            ),
+                            items: [
+                              DropdownMenuItem(value: null, child: Text(lang.translate('none'))),
+                              ..._familyMembers
+                                  .where((m) => m.mid != _memberMid)
+                                  .map((m) {
+                                final subName = m.subFamilyDocId == (widget.subFamilyDocId ?? '') ? ' (This Sub-family)' : '';
+                                return DropdownMenuItem(
+                                  value: m.mid,
+                                  child: Text('${m.fullName} (${m.mid})$subName'),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) {
                               setState(() {
-                                _firms.removeAt(index);
+                                _selectedSpouseMid = val;
                               });
                             },
                           ),
                         ],
-                      ),
-                      TextFormField(
-                        initialValue: firm['phone'],
-                        decoration: const InputDecoration(
-                          labelText: 'Phone',
-                          border: InputBorder.none,
-                        ),
-                        onChanged: (value) {
-                          _firms[index]['phone'] = value;
-                        },
-                      ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // Tags Section
+              _buildSectionHeader(lang.translate('tags'), Icons.label_outline),
+              Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 30),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
                           Expanded(
-                            child: TextFormField(
-                              initialValue: firm['mapLink'],
-                              decoration: const InputDecoration(
-                                labelText: 'Map Link',
-                                border: InputBorder.none,
-                              ),
-                              onChanged: (value) {
-                                _firms[index]['mapLink'] = value;
-                              },
-                            ),
+                            child: _buildTextField(_tagsCtrl, lang.translate('add_tag'), hint: 'Enter tag and press +'),
                           ),
+                          const SizedBox(width: 8),
                           IconButton(
-                            icon: const Icon(Icons.map, color: Colors.blue),
-                            onPressed: firm['mapLink']?.isNotEmpty == true
-                                ? () => _launchMap(firm['mapLink']!)
-                                : null,
+                            icon: CircleAvatar(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              radius: 18,
+                              child: const Icon(Icons.add, color: Colors.white, size: 20),
+                            ),
+                            onPressed: () {
+                              final v = _tagsCtrl.text.trim();
+                              if (v.isNotEmpty && v.length <= 15 && !_tags.contains(v)) {
+                                setState(() {
+                                  _tags.add(v);
+                                  _tagsCtrl.clear();
+                                });
+                              }
+                            },
                           ),
                         ],
                       ),
+                      if (_tags.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: _tags.map((tag) {
+                            return Chip(
+                              label: Text(tag, style: const TextStyle(fontSize: 12)),
+                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              onDeleted: () => setState(() => _tags.remove(tag)),
+                              deleteIconColor: Colors.red,
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ],
                   ),
-                );
-              }),
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _firms.add({'name': '', 'phone': '', 'mapLink': ''});
-                  });
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add Firm'),
-              ),
-
-              // Family Information
-              const SizedBox(height: 20),
-              Text(
-                lang.translate('family_information'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _dktFamilyIdCtrl,
-                decoration: InputDecoration(
-                  labelText: lang.translate('dkt_family_id'),
-                  hintText: 'Enter DKT Family ID',
                 ),
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _parentMidCtrl,
-                decoration: InputDecoration(
-                  labelText: lang.translate('parent_member_id'),
-                  hintText: 'Enter parent MID (optional)',
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    lang.translate('save_changes'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: 1),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              
-              // Relation to Head
-              DropdownButtonFormField<String>(
-                value: _relationToHead,
-                decoration: InputDecoration(
-                  labelText: lang.translate('relation_to_head'),
-                  border: const OutlineInputBorder(),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: 'none',
-                    child: Text(lang.translate('none')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'head',
-                    enabled: !_hasFamilyHead || _alreadyHead,
-                    child: Text(
-                      lang.translate('head_of_family') + 
-                      ((_hasFamilyHead && !_alreadyHead) ? ' (Already Assigned)' : ''),
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'wife',
-                    child: Text(lang.translate('wife')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'daughter',
-                    child: Text(lang.translate('daughter')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'son',
-                    child: Text(lang.translate('son')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'daughter_in_law',
-                    child: Text(lang.translate('daughter_in_law')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'grandson',
-                    child: Text(lang.translate('grandson')),
-                  ),
-                  DropdownMenuItem(
-                    value: 'grandsister',
-                    child: Text(lang.translate('grandsister')),
-                  ),
-                ],
-                onChanged: (val) {
-                  setState(() {
-                    _relationToHead = val ?? 'none';
-                  });
-                },
-              ),
-              
-              if (_relationToHead == 'head' && widget.subFamilyDocId != null) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  initialValue: _subFamilyHeadRelation,
-                  decoration: InputDecoration(
-                    labelText: lang.translate('relation_to_main_head'),
-                    hintText: 'Relationship of this head with main head (e.g. Son)',
-                  ),
-                  onChanged: (val) {
-                    setState(() {
-                      _subFamilyHeadRelation = val;
-                    });
-                  },
-                ),
-              ],
-
-              // Tags
-              const SizedBox(height: 20),
-              const Text(
-                'Tags',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              // Visible tag input field
-              TextFormField(
-                controller: _tagsCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Add Tag (max 15 chars)',
-                  hintText: 'Enter tag and press + button',
-                ),
-                maxLength: 15,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: const SizedBox.shrink(), // Empty space
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () {
-                      final v = _tagsCtrl.text.trim();
-                      if (v.isNotEmpty &&
-                          v.length <= 15 &&
-                          !_tags.contains(v)) {
-                        setState(() {
-                          _tags.add(v);
-                          _tagsCtrl.clear();
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              if (_tags.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  children: _tags.map((tag) {
-                    return Chip(
-                      label: Text(tag),
-                      onDeleted: () => setState(() => _tags.remove(tag)),
-                    );
-                  }).toList(),
-                ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () async {
-                  if (!_formKey.currentState!.validate()) return;
-
-                  setState(() => _loading = true);
-
-                  String photoUrl = _profilePhotoUrl ?? '';
-
-                  // Upload photo if changed
-                  if (_pendingPhotoPath != null) {
-                    try {
-                      final uploadedUrl = await _photoService.uploadProfilePhoto(
-                        memberId: widget.memberId,
-                        image: XFile(_pendingPhotoPath!),
-                      );
-
-                      if (uploadedUrl != null && uploadedUrl.startsWith('http')) {
-                        photoUrl = uploadedUrl;
-                      } else {
-                        throw Exception('Failed to upload photo');
-                      }
-                    } catch (e) {
-                      setState(() => _loading = false);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Photo upload failed: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                      return;
-                    }
-                  } else {
-                     // Safety check: if URL is local path but no pending upload, clear it
-                     if (photoUrl.isNotEmpty && !photoUrl.startsWith('http')) {
-                        photoUrl = '';
-                     }
-                  }
-
-                  try {
-                    await MemberService().updateMember(
-                      mainFamilyDocId: widget.familyDocId,
-                      subFamilyDocId: widget.subFamilyDocId ?? '',
-                      memberId: widget.memberId,
-                      updates: {
-                        'fullName': _fullNameCtrl.text.trim(),
-                        'surname': _surnameCtrl.text.trim(),
-                        'fatherName': _fatherNameCtrl.text.trim(),
-                        'motherName': _motherNameCtrl.text.trim(),
-                        'gotra': _gotraCtrl.text.trim(),
-                        'gender': _gender, // Added
-                        'birthDate': _birthDateCtrl.text.trim(),
-                        'education': _educationCtrl.text.trim(), // Added
-                        'bloodGroup': _bloodGroup,
-                        'marriageStatus': _marriageStatus,
-                        'nativeHome': _nativeHomeCtrl.text.trim(),
-                        'mid': _memberMid, // Ensure MID is saved
-                        'phone': _phoneCtrl.text.trim(),
-                        'email': _emailCtrl.text.trim(), // Added
-                        'address': _addressCtrl.text.trim(),
-                        'googleMapLink': _googleMapLinkCtrl.text.trim(),
-                        'surdhan': _surdhanCtrl.text.trim(), // Added
-                        'whatsapp': _whatsappCtrl.text.trim(),
-                        'instagram': _instagramCtrl.text.trim(),
-                        'facebook': _facebookCtrl.text.trim(),
-                        'firms': _firms,
-                        'tags': _tags,
-                        'parentMid': _parentMidCtrl.text.trim(),
-                        'password': _passwordCtrl.text.trim(), // Added
-                        'familyId': _dktFamilyIdCtrl.text.trim(),
-                        'photoUrl': photoUrl,
-                        'relationToHead': _relationToHead,
-                        'subFamilyHeadRelationToMainHead': _subFamilyHeadRelation,
-                      },
-                    );
-
-                    if (mounted) {
-                      Navigator.pop(context);
-                    }
-                  } catch (e) {
-                    setState(() => _loading = false);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error updating member: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Update Member'),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -1909,9 +2423,9 @@ class _MemberListScreenState extends State<MemberListScreen>
                                 ],
                               ),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.people,
-                              color: Colors.white,
+                              color: Theme.of(context).cardColor,
                               size: 30,
                             ),
                           ),
@@ -2144,7 +2658,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                     data['mid'] ?? 'NO MID',
                                     style: TextStyle(
                                       fontSize: 9,
-                                      color: Colors.blue.shade900,
+                                      color: Theme.of(context).colorScheme.primary,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 0.3,
                                     ),

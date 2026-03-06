@@ -56,6 +56,8 @@ class MemberModel {
   final String relationToHead; // head | wife | daughter | son | daughter_in_law | grandson | grandsister | none
   final String subFamilyHeadRelationToMainHead; // for joint family linking
   final String tod; // Date of Death (dd/MM/yyyy)
+  final String spouseMid; // for husband/wife connection
+  final String spouseRelation; // wife_of | husband_of | none
   final DateTime createdAt;
 
   MemberModel({
@@ -96,6 +98,8 @@ class MemberModel {
     this.relationToHead = 'none',
     this.subFamilyHeadRelationToMainHead = '',
     this.tod = '',
+    this.spouseMid = '',
+    this.spouseRelation = 'none',
     required this.createdAt,
   });
 
@@ -195,6 +199,8 @@ class MemberModel {
       'relationToHead': relationToHead,
       'subFamilyHeadRelationToMainHead': subFamilyHeadRelationToMainHead,
       'tod': tod,
+      'spouseMid': spouseMid,
+      'spouseRelation': spouseRelation,
       'createdAt': createdAt,
     };
 
@@ -245,6 +251,8 @@ class MemberModel {
       relationToHead: data['relationToHead'] ?? 'none',
       subFamilyHeadRelationToMainHead: data['subFamilyHeadRelationToMainHead'] ?? '',
       tod: data['tod'] ?? '',
+      spouseMid: data['spouseMid'] ?? '',
+      spouseRelation: data['spouseRelation'] ?? 'none',
       createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
     );
   }
@@ -286,6 +294,8 @@ class MemberModel {
     String? parentMid,
     String? relationToHead,
     String? subFamilyHeadRelationToMainHead,
+    String? spouseMid,
+    String? spouseRelation,
     String? tod,
   }) {
     return MemberModel(
@@ -326,6 +336,8 @@ class MemberModel {
       relationToHead: relationToHead ?? this.relationToHead,
       subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead ?? this.subFamilyHeadRelationToMainHead,
       tod: tod ?? this.tod,
+      spouseMid: spouseMid ?? this.spouseMid,
+      spouseRelation: spouseRelation ?? this.spouseRelation,
       createdAt: createdAt,
     );
   }
@@ -368,7 +380,8 @@ class MemberModel {
       parentMid: '',
       relationToHead: 'none',
       subFamilyHeadRelationToMainHead: '',
-      tod: '',
+      spouseMid: '',
+      spouseRelation: 'none',
       createdAt: DateTime.now(),
     );
   }

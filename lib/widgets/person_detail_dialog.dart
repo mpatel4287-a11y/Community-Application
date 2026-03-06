@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../models/person.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/animation_utils.dart';
+import '../config/app_config.dart';
 
 class PersonDetailDialog extends StatelessWidget {
   final Person person;
@@ -181,13 +182,7 @@ class PersonDetailDialog extends StatelessWidget {
   }
 
   Widget _buildQRCode(BuildContext context) {
-    final qrData = jsonEncode({
-      'type': 'person',
-      'id': person.id,
-      'mid': person.mid ?? '',
-      'fullName': person.fullName,
-      'birthYear': person.birthYear,
-    });
+    final qrData = AppConfig.getMemberUrl(person.id);
 
     return Container(
       padding: const EdgeInsets.all(16),

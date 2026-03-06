@@ -72,6 +72,15 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- Deep Linking for Member Profiles -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="comm-app.web.app" android:pathPrefix="/member" />
+                <data android:scheme="http" android:host="comm-app.web.app" android:pathPrefix="/member" />
+            </intent-filter>
+
         </activity>
 
         <meta-data
