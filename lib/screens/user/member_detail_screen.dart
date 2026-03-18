@@ -520,6 +520,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                           : member.fullName, 
                         Icons.person_outline
                       ),
+                      _buildPremiumRow(lang.translate('gender'), lang.translate(member.gender.toLowerCase()), Icons.wc_rounded),
                       _buildPremiumRow(lang.translate('age'), '${member.age} ${lang.translate('years')}', Icons.cake_outlined),
                       _buildPremiumRow(lang.translate('birth_date'), member.birthDate, Icons.calendar_today_rounded),
                       if (member.bloodGroup.isNotEmpty)
@@ -560,7 +561,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                       _buildPremiumRow('DKT Family ID', member.familyId, Icons.vpn_key_rounded),
                       if (member.parentMid.isNotEmpty)
                         _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
-                      if (member.spouseMid.isNotEmpty)
+                      if (member.spouseMid.isNotEmpty && member.marriageStatus.toLowerCase() == 'married')
                         _buildPremiumSpouseRow(lang, member.spouseMid),
                       if (member.tod.isNotEmpty)
                         _buildPremiumRow(lang.translate('date_of_death'), member.tod, Icons.heart_broken_rounded, isDestructive: true),
@@ -1471,6 +1472,12 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data == null) return const SizedBox.shrink();
         final spouse = snapshot.data!;
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        final labelColor = isDark ? Colors.white54 : const Color(0xFF94A3B8);
+        final valueColor = theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF334155));
+        final arrowColor = isDark ? Colors.white24 : const Color(0xFFCBD5E1);
+
         return InkWell(
           onTap: () {
             Navigator.push(
@@ -1485,13 +1492,10 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
             );
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: [
-                const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: Icon(Icons.favorite_border_rounded, color: Colors.red, size: 20),
-                ),
+                const Icon(Icons.favorite_border_rounded, color: Colors.red, size: 18),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
@@ -1500,22 +1504,25 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                       Text(
                         lang.translate('spouse'),
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
+                          color: labelColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         spouse.fullName,
-                        style: const TextStyle(
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
                           fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          color: valueColor,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: arrowColor),
               ],
             ),
           ),

@@ -539,7 +539,14 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                                   items: ['male', 'female']
                                       .map((g) => DropdownMenuItem(value: g, child: Text(lang.translate(g))))
                                       .toList(),
-                                  onChanged: (v) => setState(() => _gender = v ?? 'male'),
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _gender = v ?? 'male';
+                                      if (_marriageStatus == 'married') {
+                                        _spouseRelation = _gender == 'male' ? 'husband_of' : 'wife_of';
+                                      }
+                                    });
+                                  },
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -585,10 +592,21 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200)),
                                     focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)),
                                   ),
-                                  items: ['unmarried', 'married']
-                                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                  items: ['unmarried', 'married', 'engaged']
+                                      .map((s) => DropdownMenuItem(value: s, child: Text(lang.translate(s))))
                                       .toList(),
-                                  onChanged: (v) => setState(() => _marriageStatus = v ?? 'unmarried'),
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _marriageStatus = v ?? 'unmarried';
+                                      if (_marriageStatus != 'married') {
+                                        _selectedSpouseMid = null;
+                                        _spouseRelation = 'none';
+                                      } else {
+                                        // Auto-detect relation when set to married
+                                        _spouseRelation = _gender == 'male' ? 'husband_of' : 'wife_of';
+                                      }
+                                    });
+                                  },
                                 ),
                               ),
                             ],
@@ -1009,6 +1027,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                                 items: [
                                   DropdownMenuItem(value: null, child: Text(lang.translate('none'))),
                                   ..._familyMembers
+                                      .where((m) => m.marriageStatus.toLowerCase() == 'married' &&
+                                                   (m.spouseMid.isEmpty))
                                       .map((m) {
                                     final subName = m.subFamilyDocId == (widget.subFamilyDocId ?? '') ? ' (This Sub-family)' : '';
                                     return DropdownMenuItem(
@@ -1018,8 +1038,23 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                                   }),
                                 ],
                                 onChanged: (val) {
+                                  if (val != null) {
+                                    final selectedSpouse = _familyMembers.firstWhere((m) => m.mid == val);
+                                    if (selectedSpouse.marriageStatus.toLowerCase() != 'married') {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(lang.translate('spouse_must_be_married') ?? 'Selected spouse must have "Married" status'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                  }
                                   setState(() {
                                     _selectedSpouseMid = val;
+                                    if (val != null) {
+                                       _spouseRelation = _gender == 'male' ? 'husband_of' : 'wife_of';
+                                    }
                                   });
                                 },
                               ),
@@ -1678,7 +1713,14 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                               items: ['male', 'female']
                                   .map((g) => DropdownMenuItem(value: g, child: Text(lang.translate(g))))
                                   .toList(),
-                              onChanged: (v) => setState(() => _gender = v ?? 'male'),
+                              onChanged: (v) {
+                                setState(() {
+                                  _gender = v ?? 'male';
+                                  if (_marriageStatus == 'married') {
+                                    _spouseRelation = _gender == 'male' ? 'husband_of' : 'wife_of';
+                                  }
+                                });
+                              },
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -1716,10 +1758,21 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                                 labelText: 'Marriage Status',
                                 border: OutlineInputBorder(),
                               ),
-                              items: ['unmarried', 'married']
-                                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                              items: ['unmarried', 'married', 'engaged']
+                                  .map((s) => DropdownMenuItem(value: s, child: Text(lang.translate(s))))
                                   .toList(),
-                              onChanged: (v) => setState(() => _marriageStatus = v ?? 'unmarried'),
+                              onChanged: (v) {
+                                setState(() {
+                                  _marriageStatus = v ?? 'unmarried';
+                                  if (_marriageStatus != 'married') {
+                                    _selectedSpouseMid = null;
+                                    _spouseRelation = 'none';
+                                  } else {
+                                    // Auto-detect relation when set to married
+                                    _spouseRelation = _gender == 'male' ? 'husband_of' : 'wife_of';
+                                  }
+                                });
+                              },
                             ),
                           ),
                         ],
@@ -2080,7 +2133,11 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                             items: [
                               DropdownMenuItem(value: null, child: Text(lang.translate('none'))),
                               ..._familyMembers
-                                  .where((m) => m.mid != _memberMid)
+                                  .where((m) => m.mid != _memberMid && (
+                                               (m.marriageStatus.toLowerCase() == 'married' && 
+                                                (m.spouseMid.isEmpty || m.spouseMid == _memberMid)) ||
+                                               m.mid == _selectedSpouseMid
+                                  ))
                                   .map((m) {
                                 final subName = m.subFamilyDocId == (widget.subFamilyDocId ?? '') ? ' (This Sub-family)' : '';
                                 return DropdownMenuItem(
@@ -2090,8 +2147,23 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                               }),
                             ],
                             onChanged: (val) {
+                              if (val != null) {
+                                final selectedSpouse = _familyMembers.firstWhere((m) => m.mid == val);
+                                if (selectedSpouse.marriageStatus.toLowerCase() != 'married') {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(lang.translate('spouse_must_be_married')),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+                              }
                               setState(() {
                                 _selectedSpouseMid = val;
+                                if (val != null) {
+                                  _spouseRelation = _gender == 'male' ? 'husband_of' : 'wife_of';
+                                }
                               });
                             },
                           ),

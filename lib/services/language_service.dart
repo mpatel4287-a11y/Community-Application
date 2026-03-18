@@ -118,6 +118,8 @@ class LanguageService extends ChangeNotifier {
       'select': 'Select',
       'unmarried': 'Unmarried',
       'married': 'Married',
+      'engaged': 'Engaged',
+      'spouse_must_be_married': 'Selected spouse must have "Married" status',
       // QR Scanner
       'scan_qr': 'Scan QR Code',
       'scan_member_qr': 'Scan Member QR',
@@ -382,6 +384,8 @@ class LanguageService extends ChangeNotifier {
       'select': 'પસંદ કરો',
       'unmarried': 'અપરણીત',
       'married': 'પરણીત',
+      'engaged': 'સગાઈ',
+      'spouse_must_be_married': 'પસંદ કરેલ જીવનસાથીની સ્થિતિ "પરણીત" હોવી જોઈએ',
       // QR Scanner
       'scan_qr': 'QR કોડ સ્કેન કરો',
       'scan_member_qr': 'સભ્ય QR સ્કેન કરો',

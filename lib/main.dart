@@ -154,7 +154,7 @@ class _MyAppState extends State<MyApp> {
     _appLinks = AppLinks();
 
     // Check initial link if app was opened via link
-    _appLinks.getInitialAppLink().then((uri) {
+    _appLinks.getInitialLink().then((uri) {
       if (uri != null) _handleDeepLink(uri);
     });
 
