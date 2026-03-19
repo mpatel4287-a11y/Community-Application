@@ -15,10 +15,25 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
   late TabController _tabController;
   final AnalyticsService _analyticsService = AnalyticsService();
 
+  late Future<Map<String, int>> _overviewFuture;
+  late Future<Map<String, dynamic>> _memberDistributionFuture;
+  late Future<Map<String, int>> _familyDistributionFuture;
+  late Future<List<Map<String, dynamic>>> _growthDataFuture;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _refreshData();
+  }
+
+  void _refreshData() {
+    setState(() {
+      _overviewFuture = _analyticsService.getOverviewStats();
+      _memberDistributionFuture = _analyticsService.getMemberDistribution();
+      _familyDistributionFuture = _analyticsService.getFamilyDistribution();
+      _growthDataFuture = _analyticsService.getGrowthData();
+    });
   }
 
   @override
@@ -35,6 +50,13 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
         title: const Text('Real-time Analytics', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _refreshData,
+            tooltip: 'Refresh Data',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.blueAccent,
@@ -58,74 +80,124 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
     );
   }
 
+  Widget _buildError(Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.redAccent, size: 64),
+            const SizedBox(height: 16),
+            const Text(
+              'Failed to load analytics',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+              ),
+              child: SelectableText(
+                error.toString(),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _refreshData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildOverviewTab() {
-    return StreamBuilder<Map<String, dynamic>>(
-      stream: _analyticsService.streamMemberDistribution(),
-      builder: (context, mSnapshot) {
-        return StreamBuilder<Map<String, int>>(
-          stream: _analyticsService.streamOverviewStats(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData || !mSnapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
-            
-            final data = snapshot.data!;
-            final mData = mSnapshot.data!;
-            
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([_overviewFuture, _memberDistributionFuture, _familyDistributionFuture]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+        }
+        if (snapshot.hasError) {
+          return _buildError(snapshot.error);
+        }
+        
+        final data = snapshot.data![0] as Map<String, int>;
+        final mData = snapshot.data![1] as Map<String, dynamic>;
+        final fData = snapshot.data![2] as Map<String, int>;
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle('Platform Overview'),
+              const SizedBox(height: 16),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.5,
                 children: [
-                  _buildSectionTitle('Platform Overview'),
-                  const SizedBox(height: 16),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.5,
-                    children: [
-                      _buildMetricCard('Total Families', data['totalFamilies']?.toString() ?? '0', Icons.family_restroom, Colors.blue),
-                      _buildMetricCard('Total Members', data['totalMembers']?.toString() ?? '0', Icons.people, Colors.green, subValue: '${mData['active']} Active'),
-                      _buildMetricCard('Male Members', mData['male']?.toString() ?? '0', Icons.male, Colors.blueAccent),
-                      _buildMetricCard('Female Members', mData['female']?.toString() ?? '0', Icons.female, Colors.pinkAccent),
-                      _buildMetricCard('Total Events', data['totalEvents']?.toString() ?? '0', Icons.event_available, Colors.orange),
-                      _buildMetricCard('Engagement', '84%', Icons.auto_graph, Colors.purple),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-                  _buildSectionTitle('Family Distribution'),
-                  const SizedBox(height: 16),
-                  StreamBuilder<Map<String, int>>(
-                    stream: _analyticsService.streamFamilyDistribution(),
-                    builder: (context, fSnapshot) {
-                      if (!fSnapshot.hasData) return const SizedBox(height: 200);
-                      final fData = fSnapshot.data!;
-                      return _buildPieChartCard(
-                        'Family Access Status',
-                        [
-                          PieChartSectionData(value: fData['active']!.toDouble(), title: 'Active', color: Colors.green, radius: 60, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          PieChartSectionData(value: fData['blocked']!.toDouble(), title: 'Blocked', color: Colors.red, radius: 60, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ],
-                      );
-                    }
-                  ),
+                  _buildMetricCard('Total Families', data['totalFamilies']?.toString() ?? '0', Icons.family_restroom, Colors.blue),
+                  _buildMetricCard('Total Members', data['totalMembers']?.toString() ?? '0', Icons.people, Colors.green, subValue: '${mData['active']} Active'),
+                  _buildMetricCard('Male Members', mData['male']?.toString() ?? '0', Icons.male, Colors.blueAccent),
+                  _buildMetricCard('Female Members', mData['female']?.toString() ?? '0', Icons.female, Colors.pinkAccent),
+                  _buildMetricCard('Total Events', data['totalEvents']?.toString() ?? '0', Icons.event_available, Colors.orange),
+                  _buildMetricCard('Engagement', '84%', Icons.auto_graph, Colors.purple),
                 ],
               ),
-            );
-          },
+              const SizedBox(height: 32),
+              _buildSectionTitle('Family Distribution'),
+              const SizedBox(height: 16),
+              _buildPieChartCard(
+                'Family Access Status',
+                [
+                  PieChartSectionData(value: fData['active']!.toDouble(), title: 'Active', color: Colors.green, radius: 60, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  PieChartSectionData(value: fData['blocked']!.toDouble(), title: 'Blocked', color: Colors.red, radius: 60, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
         );
       }
     );
   }
 
   Widget _buildDemographicsTab() {
-    return StreamBuilder<Map<String, dynamic>>(
-      stream: _analyticsService.streamMemberDistribution(),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _memberDistributionFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+        }
+        if (snapshot.hasError) return _buildError(snapshot.error);
         
         final data = snapshot.data!;
+        
+        // Handle empty charts gracefully
+        final Map<String, int> ageData = data['ageRanges'] as Map<String, int>;
+        double maxAgeCount = 10;
+        if (ageData.values.isNotEmpty) {
+          int maxVal = ageData.values.reduce((a, b) => a > b ? a : b);
+          maxAgeCount = (maxVal == 0) ? 10 : (maxVal.toDouble() + 5);
+        }
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -155,7 +227,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
               const SizedBox(height: 32),
               _buildSectionTitle('Age Demographics'),
               const SizedBox(height: 16),
-              _buildBarChartCard(data['ageRanges'] as Map<String, int>),
+              _buildBarChartCard(ageData, maxAgeCount),
             ],
           ),
         );
@@ -164,12 +236,16 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
   }
 
   Widget _buildGrowthTab() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _analyticsService.streamGrowthData(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _growthDataFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Colors.blueAccent));
+        }
+        if (snapshot.hasError) return _buildError(snapshot.error);
         
         final growthData = snapshot.data!;
+        
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -180,7 +256,8 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
               _buildLineChartCard(growthData),
               const SizedBox(height: 32),
               _buildSectionTitle('Recent Performance'),
-              _buildPerformanceTile('New Enrollments', growthData.last['count'].toString(), '+12% from last month', Colors.green),
+              if (growthData.isNotEmpty)
+                _buildPerformanceTile('New Enrollments', growthData.last['count'].toString(), 'Total recorded this month', Colors.green),
               _buildPerformanceTile('App Engagement', '84%', '+5% from last week', Colors.blue),
             ],
           ),
@@ -250,7 +327,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
     );
   }
 
-  Widget _buildBarChartCard(Map<String, int> ageData) {
+  Widget _buildBarChartCard(Map<String, int> ageData, double maxAgeCount) {
     return Container(
       height: 300,
       padding: const EdgeInsets.all(20),
@@ -261,7 +338,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: ageData.values.isEmpty ? 10 : (ageData.values.reduce((a, b) => a > b ? a : b).toDouble() + 5),
+          maxY: maxAgeCount,
           barTouchData: BarTouchData(enabled: true),
           titlesData: FlTitlesData(
             show: true,
@@ -270,7 +347,7 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
                   final keys = ageData.keys.toList();
-                  if (value.toInt() < keys.length) {
+                  if (value.toInt() >= 0 && value.toInt() < keys.length) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(keys[value.toInt()], style: const TextStyle(color: Colors.white60, fontSize: 10)),
@@ -305,6 +382,18 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
   }
 
   Widget _buildLineChartCard(List<Map<String, dynamic>> growthData) {
+    if (growthData.isEmpty) {
+      return Container(
+        height: 250,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text('No growth data available', style: TextStyle(color: Colors.white54)),
+      );
+    }
+    
     return Container(
       height: 250,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -320,8 +409,9 @@ class _AnalyticsDashboardState extends State<AnalyticsDashboard> with SingleTick
               sideTitles: SideTitles(
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
-                  if (value.toInt() < growthData.length) {
-                    final month = growthData[value.toInt()]['month'].toString().split('-').last;
+                  int index = value.toInt();
+                  if (index >= 0 && index < growthData.length) {
+                    final month = growthData[index]['month'].toString().split('-').last;
                     return Text(month, style: const TextStyle(color: Colors.white54, fontSize: 10));
                   }
                   return const Text('');
