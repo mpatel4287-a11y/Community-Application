@@ -2044,7 +2044,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildTextField(_dktFamilyIdCtrl, lang.translate('dkt_family_id'), hint: 'Enter DKT Family ID'),
+                      _buildTextField(_dktFamilyIdCtrl, lang.translate('dkt_family_id'), hint: 'Enter YSK Family ID'),
                       const SizedBox(height: 12),
                       _buildTextField(_parentMidCtrl, lang.translate('parent_member_id'), hint: 'Enter parent MID (optional)'),
                       const SizedBox(height: 12),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:screenshot/screenshot.dart';
 import 'package:gal/gal.dart';
 import '../../widgets/family_tree.dart';
+import '../../widgets/custom_export_dialog.dart';
 import '../../models/member_model.dart';
 import '../../models/person.dart';
 import '../../services/member_service.dart';
@@ -366,6 +367,20 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Export Family Details (PDF / Excel)',
+            onPressed: () {
+              CustomExportDialog.show(
+                context,
+                mainFamilyDocId: widget.mainFamilyDocId,
+                familyName: widget.familyName,
+                initialSubFamilyDocId: widget.subFamilyDocId,
+                initialSubFamilyName: widget.subFamilyName,
+                restrictToSingleFamily: true,
+              );
+            },
+          ),
           if (!_loading && _generations.isNotEmpty)
             IconButton(
               icon: _downloading
@@ -379,7 +394,7 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
                     )
                   : const Icon(Icons.download),
               onPressed: _downloading ? null : _downloadFamilyTree,
-              tooltip: 'Download Family Tree',
+              tooltip: 'Download Family Tree Image',
             ),
         ],
       ),

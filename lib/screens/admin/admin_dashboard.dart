@@ -24,7 +24,6 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   String? _role;
-  String? _adminName;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
@@ -35,11 +34,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _loadAdminSession() async {
     final role = await SessionManager.getRole();
-    final name = await SessionManager.getFamilyName();
     if (mounted) {
       setState(() {
         _role = role;
-        _adminName = name ?? 'Administrator';
       });
     }
   }

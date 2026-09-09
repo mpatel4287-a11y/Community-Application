@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/member_model.dart';
 import '../../services/member_service.dart';
 import '../../services/subfamily_service.dart';
+import '../../widgets/custom_export_dialog.dart';
 import 'sub_family_tree_detail_screen.dart';
 
 class FamilyTreeView extends StatefulWidget {
@@ -168,6 +169,20 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
             color: Theme.of(context).colorScheme.onPrimary,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Export Family Details (PDF / Excel)',
+            onPressed: () {
+              CustomExportDialog.show(
+                context,
+                mainFamilyDocId: widget.mainFamilyDocId,
+                familyName: widget.familyName,
+                restrictToSingleFamily: true,
+              );
+            },
+          ),
+        ],
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
         iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary),

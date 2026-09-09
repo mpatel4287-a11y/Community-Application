@@ -7,6 +7,7 @@ import '../../services/member_service.dart';
 import '../../services/export_service.dart';
 import '../../services/session_manager.dart';
 import '../../widgets/animation_utils.dart';
+import '../../widgets/custom_export_dialog.dart';
 import 'add_family_screen.dart';
 import 'edit_family_screen.dart';
 import 'subfamily_list_screen.dart';
@@ -256,6 +257,19 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
+                                  _buildCompactAction(
+                                    icon: Icons.file_download_outlined,
+                                    color: const Color(0xFF0F766E),
+                                    onTap: () {
+                                      CustomExportDialog.show(
+                                        context,
+                                        mainFamilyDocId: doc.id,
+                                        familyName: familyName,
+                                        familyId: familyId.toString(),
+                                        restrictToSingleFamily: false,
+                                      );
+                                    },
+                                  ),
                                   _buildCompactAction(
                                     icon: Icons.edit,
                                     color: Colors.blue,

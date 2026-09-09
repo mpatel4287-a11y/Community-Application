@@ -598,7 +598,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                     icon: Icons.people_alt_rounded,
                     children: [
                       _buildPremiumRow(lang.translate('family_name'), member.familyName, Icons.family_restroom_rounded),
-                      _buildPremiumRow('DKT Family ID', member.familyId, Icons.vpn_key_rounded),
+                      _buildPremiumRow(lang.translate('dkt_family_id'), member.familyId, Icons.vpn_key_rounded),
                       if (member.parentMid.isNotEmpty)
                         _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
                       if (member.spouseMid.isNotEmpty && member.marriageStatus.toLowerCase() == 'married')
