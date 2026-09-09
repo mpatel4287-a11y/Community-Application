@@ -659,18 +659,34 @@
       });
     }
 
-    // Save Contact as VCF file
+    // Save Contact as VCF file (Full Name Only)
     function saveContactVCard() {
       if (!currentMember) return;
       const m = currentMember;
 
-      const vcard = [
+      const rawFullName = (m.fullName || '').trim();
+      const rawSurname = (m.surname || '').trim();
+
+      // Clean full contact name
+      let fullContactName = rawFullName;
+      if (rawSurname && !rawFullName.toLowerCase().includes(rawSurname.toLowerCase())) {
+        fullContactName = `${rawFullName} ${rawSurname}`;
+      }
+
+      // Split family/given name for VCF N field
+      const nameParts = fullContactName.split(/\s+/);
+      let familyName = '';
+      let givenName = fullContactName;
+      if (nameParts.length > 1) {
+        familyName = nameParts[nameParts.length - 1];
+        givenName = nameParts.slice(0, -1).join(' ');
+      }
+
+      const vcardLines = [
         'BEGIN:VCARD',
         'VERSION:3.0',
-        `N:${m.surname};${m.fullName};;;`,
-        `FN:${m.fullName} ${m.surname}`.trim(),
-        `ORG:Ramanagara Patidar Samaj;${m.familyName}`,
-        `TITLE:Member (MID: ${m.mid})`,
+        `N:${familyName};${givenName};;;`,
+        `FN:${fullContactName}`,
         m.phone ? `TEL;TYPE=CELL,VOICE:${m.phone}` : '',
         m.email ? `EMAIL;TYPE=INTERNET:${m.email}` : '',
         m.address ? `ADR;TYPE=HOME:;;${m.address.replace(/\n/g, ' ')};Ramanagara;;;India` : '',
@@ -678,42 +694,89 @@
         'END:VCARD'
       ].filter(Boolean).join('\r\n');
 
-      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8;' });
+      const blob = new Blob([vcardLines], { type: 'text/vcard;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${m.fullName.replace(/\s+/g, '_')}_${m.mid}.vcf`;
+      a.download = `${fullContactName.replace(/\s+/g, '_')}_${m.mid}.vcf`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
 
-      showToast('Contact VCF downloaded to phone! 📱');
+      showToast('Contact saved with full name!');
+    }
+
+    // Helper to trigger file download or open in new tab on mobile
+    function triggerDownload(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        showToast('ID Card Image downloaded!');
+      }, 1000);
     }
 
     // Download High-Resolution ID Card Image using html2canvas
-    function downloadHighResCard() {
+    async function downloadHighResCard() {
       const cardElement = document.getElementById('digital-id-card');
       showToast('Generating high-resolution ID card...');
 
-      html2canvas(cardElement, {
+      const filename = `Digital_ID_Card_${(currentMember?.mid || 'Member').replace(/-/g, '_')}.png`;
+      const renderOptions = {
         scale: 3,
         useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#122c4f'
-      }).then(canvas => {
-        const image = canvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = image;
-        a.download = `Digital_ID_Card_${(currentMember?.mid || 'Member').replace(/-/g, '_')}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        showToast('ID Card Image downloaded! 🎉');
-      }).catch(err => {
-        console.error('Download error:', err);
-        showToast('Unable to capture card image.');
-      });
+        allowTaint: false,
+        backgroundColor: '#122c4f',
+        logging: false,
+        ignoreElements: (element) => element.classList && element.classList.contains('header-action-icons')
+      };
+
+      try {
+        const canvas = await html2canvas(cardElement, renderOptions);
+
+        // Try Blob download first
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, filename);
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+          } else {
+            const dataUrl = canvas.toDataURL('image/png');
+            triggerDownload(dataUrl, filename);
+          }
+        }, 'image/png');
+
+      } catch (err) {
+        console.warn('Initial download attempt failed, retrying fallback without external image...', err);
+        try {
+          // Fallback if cross-origin image tainted canvas
+          const canvas = await html2canvas(cardElement, {
+            ...renderOptions,
+            scale: 2,
+            onclone: (clonedDoc) => {
+              const clonedPhoto = clonedDoc.getElementById('card-photo');
+              const clonedFallback = clonedDoc.getElementById('card-photo-fallback');
+              if (clonedPhoto) clonedPhoto.style.display = 'none';
+              if (clonedFallback) {
+                clonedFallback.style.display = 'flex';
+                clonedFallback.innerText = (currentMember?.fullName?.[0] || 'P').toUpperCase();
+              }
+            }
+          });
+          const dataUrl = canvas.toDataURL('image/png');
+          triggerDownload(dataUrl, filename);
+        } catch (fallbackErr) {
+          console.error('Download error:', fallbackErr);
+          showToast('Unable to capture card image.');
+        }
+      }
     }
 
     // Initialize
