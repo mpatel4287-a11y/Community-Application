@@ -19,9 +19,11 @@ class AppConfig {
     String? phone,
     String? bloodGroup,
     String? birthDate,
+    int? age,
     String? photoUrl,
     String? nativeHome,
     String? education,
+    String? marriageStatus,
     String? address,
     String? fatherName,
     String? motherName,
@@ -37,9 +39,11 @@ class AppConfig {
     if (phone != null && phone.isNotEmpty) queryParams['ph'] = phone;
     if (bloodGroup != null && bloodGroup.isNotEmpty) queryParams['bg'] = bloodGroup;
     if (birthDate != null && birthDate.isNotEmpty) queryParams['dob'] = birthDate;
+    if (age != null && age > 0) queryParams['age'] = age.toString();
     if (photoUrl != null && photoUrl.isNotEmpty) queryParams['img'] = photoUrl;
     if (nativeHome != null && nativeHome.isNotEmpty) queryParams['native'] = nativeHome;
     if (education != null && education.isNotEmpty) queryParams['edu'] = education;
+    if (marriageStatus != null && marriageStatus.isNotEmpty) queryParams['ms'] = marriageStatus;
     if (address != null && address.isNotEmpty) queryParams['addr'] = address;
     if (fatherName != null && fatherName.isNotEmpty) queryParams['fath'] = fatherName;
     if (motherName != null && motherName.isNotEmpty) queryParams['moth'] = motherName;
