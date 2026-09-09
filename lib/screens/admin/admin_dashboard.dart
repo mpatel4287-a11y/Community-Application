@@ -520,23 +520,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        isManager ? 'MANAGER' : 'SUPER ADMIN',
-                        style: const TextStyle(
-                          color: Color(0xFF38BDF8),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 14),

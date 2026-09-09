@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Digital ID Card - Ramanagara Patidar Samaj</title>
   <meta name="description"
-    content="Official Digital ID Card and verified contact details for Ramanagara Patidar Samaj member.">
+    content="Official Digital ID Card for Ramanagara Patidar Samaj member.">
   <link rel="icon" type="image/png" href="favicon.png">
 
   <!-- Google Fonts -->
@@ -48,110 +48,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px 16px 40px;
-    }
-
-    .top-header {
-      text-align: center;
-      margin-bottom: 24px;
-      width: 100%;
-      max-width: 480px;
-    }
-
-    .top-header .community-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .top-header h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #ffffff;
-    }
-
-    /* Action Buttons Card */
-    .action-container {
-      width: 100%;
-      max-width: 440px;
-      margin-bottom: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      width: 100%;
-      padding: 16px 20px;
-      border-radius: 16px;
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.05rem;
-      font-weight: 700;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-    }
-
-    .btn:active {
-      transform: scale(0.98);
-    }
-
-    .btn-save-contact {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: #ffffff;
-    }
-
-    .btn-save-contact:hover {
-      background: linear-gradient(135deg, #34d399 0%, #059669 100%);
-      box-shadow: 0 15px 30px -5px rgba(16, 185, 129, 0.4);
-    }
-
-    .btn-download-card {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      color: #ffffff;
-    }
-
-    .btn-download-card:hover {
-      background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-      box-shadow: 0 15px 30px -5px rgba(245, 158, 11, 0.4);
-    }
-
-    .quick-row {
-      display: flex;
-      gap: 10px;
-      width: 100%;
-    }
-
-    .btn-secondary {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      color: #ffffff;
-      padding: 12px;
-      font-size: 0.9rem;
-      border-radius: 12px;
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.2);
+      padding: 16px 12px 32px;
     }
 
     /* DIGITAL ID CARD UI (Matches Mobile App Perfectly) */
@@ -159,6 +56,7 @@
       width: 100%;
       max-width: 420px;
       position: relative;
+      margin-top: 10px;
     }
 
     .id-card {
@@ -167,16 +65,21 @@
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.1);
       overflow: hidden;
-      margin-bottom: 24px;
     }
 
     .card-header {
       background: linear-gradient(135deg, #0d1e36 0%, #122c4f 100%);
-      padding: 18px 20px;
+      padding: 16px 20px;
       display: flex;
       align-items: center;
-      gap: 14px;
+      justify-content: space-between;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .card-header-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     .card-header .star-icon {
@@ -197,6 +100,30 @@
       font-size: 0.75rem;
       color: rgba(255, 255, 255, 0.8);
       display: block;
+    }
+
+    .header-action-icons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .icon-btn:hover, .icon-btn:active {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
     }
 
     .card-body {
@@ -228,33 +155,31 @@
     }
 
     .profile-avatar-fallback {
-      font-size: 42px;
+      font-size: 44px;
       font-weight: bold;
       color: var(--ocean-blue);
     }
 
     .member-name {
       font-family: 'Outfit', sans-serif;
-      font-size: 1.45rem;
-      font-weight: 800;
+      font-size: 1.5rem;
+      font-weight: 700;
       color: var(--gold-accent);
-      margin-bottom: 4px;
-      line-height: 1.2;
+      margin-bottom: 2px;
     }
 
     .member-surname {
       font-size: 1rem;
       color: var(--ocean-blue);
-      font-weight: 600;
-      margin-bottom: 10px;
+      font-weight: 500;
+      margin-bottom: 8px;
     }
 
     .mid-badge {
       display: inline-block;
-      background: rgba(91, 136, 178, 0.15);
+      background: rgba(91, 136, 178, 0.12);
       color: var(--ocean-blue);
-      border: 1px solid rgba(91, 136, 178, 0.3);
-      padding: 4px 14px;
+      padding: 6px 16px;
       border-radius: 20px;
       font-size: 0.85rem;
       font-weight: 700;
@@ -264,22 +189,22 @@
 
     .samaj-watermark {
       font-size: 0.65rem;
-      font-weight: 800;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.2em;
       color: var(--gold-accent);
       opacity: 0.6;
+      text-transform: uppercase;
+
       margin-bottom: 16px;
     }
 
     .divider {
       width: 100%;
       height: 1px;
-      background: rgba(255, 255, 255, 0.1);
-      margin: 12px 0 16px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 16px 0;
     }
 
-    /* Details Grid */
     .details-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -289,72 +214,102 @@
     }
 
     .detail-item {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
+      background: rgba(91, 136, 178, 0.08);
+      border: 1px solid rgba(91, 136, 178, 0.2);
       padding: 10px 12px;
+      border-radius: 12px;
     }
 
     .detail-label {
-      font-size: 0.72rem;
-      color: rgba(251, 249, 228, 0.6);
-      margin-bottom: 2px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      font-size: 0.65rem;
+      color: var(--ocean-blue);
+      font-weight: 600;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .detail-value {
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 700;
       color: var(--gold-accent);
       word-break: break-word;
     }
 
     .qr-card-section {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
       padding: 16px;
-      margin-top: 16px;
       width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
+      margin-top: 8px;
     }
 
     #qr-container {
-      background: #ffffff;
       padding: 10px;
+      background: #ffffff;
       border-radius: 12px;
-      display: inline-block;
-    }
-
-    #qr-container img {
-      display: block;
+      margin-bottom: 10px;
     }
 
     .qr-caption {
-      margin-top: 10px;
-      font-size: 0.75rem;
-      color: rgba(255, 255, 255, 0.6);
-      font-weight: 500;
+      font-size: 0.7rem;
+      color: var(--gold-accent);
+      font-weight: 600;
     }
 
-    /* Loading and Error States */
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: #10b981;
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      display: none;
+      z-index: 10000;
+    }
+
+    .toast.show {
+      display: block;
+      animation: fadeInUp 0.3s ease;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Loading Spinner */
     #loading-state {
-      text-align: center;
-      padding: 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 100px;
     }
 
     .spinner {
-      width: 48px;
-      height: 48px;
-      border: 4px solid rgba(255, 255, 255, 0.15);
-      border-top-color: var(--gold-accent);
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-left-color: #ffffff;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto 16px;
+      margin-bottom: 16px;
     }
 
     @keyframes spin {
@@ -362,89 +317,47 @@
         transform: rotate(360deg);
       }
     }
-
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #ffffff;
-      padding: 12px 24px;
-      border-radius: 12px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      z-index: 1000;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      transform: translateY(100px);
-      opacity: 0;
-      transition: all 0.3s ease;
-    }
-
-    .toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
   </style>
 </head>
 
 <body>
 
-  <div class="top-header">
-    <div class="community-tag">
-      <span>✨ Ramanagara Patidar Samaj</span>
-    </div>
-    <h1>Official Digital Identity</h1>
-  </div>
-
   <!-- Loading State -->
   <div id="loading-state">
     <div class="spinner"></div>
-    <p>Verifying and fetching member identity...</p>
+    <p>Verifying member identity...</p>
   </div>
 
   <!-- Main Content (Hidden until loaded) -->
-  <div id="main-content" style="display: none; width: 100%; max-width: 440px;">
+  <div id="main-content" style="display: none; width: 100%; max-width: 420px;">
 
-    <!-- Action Buttons -->
-    <div class="action-container">
-      <button class="btn btn-save-contact" onclick="saveContactVCard()">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-          <line x1="19" y1="8" x2="19" y2="14"></line>
-          <line x1="22" y1="11" x2="16" y2="11"></line>
-        </svg>
-        Save Contact to Phone
-      </button>
-
-      <button class="btn btn-download-card" onclick="downloadHighResCard()">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        Save High-Res ID Card Image
-      </button>
-
-      <div class="quick-row">
-        <a id="btn-call" href="#" class="btn btn-secondary" style="display: none;">
-          📞 Call Member
-        </a>
-        <a id="btn-whatsapp" href="#" target="_blank" class="btn btn-secondary" style="display: none;">
-          💬 WhatsApp
-        </a>
-      </div>
-    </div>
-
-    <!-- DIGITAL ID CARD FOR DISPLAY AND CAPTURE -->
+    <!-- DIGITAL ID CARD -->
     <div class="id-card-wrapper">
       <div id="digital-id-card" class="id-card">
         <div class="card-header">
-          <span class="star-icon">⭐</span>
-          <div>
-            <h2 id="card-family-name">PATEL</h2>
-            <span>DIGITAL IDENTITY CARD</span>
+          <div class="card-header-info">
+            <span class="star-icon">⭐</span>
+            <div>
+              <h2 id="card-family-name">PATEL</h2>
+              <span>DIGITAL ID CARD</span>
+            </div>
+          </div>
+          <div class="header-action-icons">
+            <button class="icon-btn" onclick="saveContactVCard()" title="Save Contact to Phone">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+                <line x1="19" y1="8" x2="19" y2="14"></line>
+                <line x1="22" y1="11" x2="16" y2="11"></line>
+              </svg>
+            </button>
+            <button class="icon-btn" onclick="downloadHighResCard()" title="Download ID Card">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -648,98 +561,79 @@
         document.getElementById('card-photo-fallback').innerText = (m.fullName[0] || 'P').toUpperCase();
       }
 
-      // Quick Call & WhatsApp
-      if (m.phone) {
-        const btnCall = document.getElementById('btn-call');
-        btnCall.href = `tel:${m.phone.replace(/[^0-9+]/g, '')}`;
-        btnCall.style.display = 'flex';
-
-        const btnWa = document.getElementById('btn-whatsapp');
-        const cleanPhone = m.phone.replace(/[^0-9]/g, '');
-        btnWa.href = `https://wa.me/${cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone}`;
-        btnWa.style.display = 'flex';
-      }
-
       // Generate QR Code inside the card
-      const currentUrl = window.location.href;
-      new QRCode(document.getElementById("qr-container"), {
-        text: currentUrl,
-        width: 120,
-        height: 120,
+      const qrContainer = document.getElementById("qr-container");
+      qrContainer.innerHTML = "";
+      new QRCode(qrContainer, {
+        text: window.location.href,
+        width: 130,
+        height: 130,
         colorDark: "#122c4f",
         colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
+        correctLevel: QRCode.CorrectLevel.H
       });
     }
 
-    // 1. SAVE CONTACT AS VCARD (.VCF)
+    // Save Contact as VCF file
     function saveContactVCard() {
       if (!currentMember) return;
       const m = currentMember;
 
-      const formattedName = m.fullName.trim();
-      const surname = m.surname ? m.surname.trim() : '';
-
-      const vcardContent = [
+      const vcard = [
         'BEGIN:VCARD',
         'VERSION:3.0',
-        `N:${surname};${formattedName};;;`,
-        `FN:${formattedName} ${surname}`.trim(),
-        `ORG:Ramanagara Patidar Samaj;${m.familyName || ''}`,
+        `N:${m.surname};${m.fullName};;;`,
+        `FN:${m.fullName} ${m.surname}`.trim(),
+        `ORG:Ramanagara Patidar Samaj;${m.familyName}`,
         `TITLE:Member (MID: ${m.mid})`,
         m.phone ? `TEL;TYPE=CELL,VOICE:${m.phone}` : '',
         m.email ? `EMAIL;TYPE=INTERNET:${m.email}` : '',
-        m.address ? `ADR;TYPE=HOME:;;${m.address.replace(/[\n,]/g, ' ')};Ramanagara;;;India` : '',
+        m.address ? `ADR;TYPE=HOME:;;${m.address.replace(/\n/g, ' ')};Ramanagara;;;India` : '',
         `NOTE:MID: ${m.mid} | Family: ${m.familyName} | Blood: ${m.bloodGroup} | Native: ${m.nativeHome}`,
         'END:VCARD'
       ].filter(Boolean).join('\r\n');
 
-      const blob = new Blob([vcardContent], { type: 'text/vcard;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `${m.fullName.replace(/\s+/g, '_')}_${m.mid}.vcf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${m.fullName.replace(/\s+/g, '_')}_${m.mid}.vcf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-      showToast('Contact file ready! Tap to Add to Contacts.');
+      showToast('Contact VCF downloaded to phone! 📱');
     }
 
-    // 2. DOWNLOAD HIGH RESOLUTION ID CARD IMAGE
-    async function downloadHighResCard() {
-      if (!currentMember) return;
+    // Download High-Resolution ID Card Image using html2canvas
+    function downloadHighResCard() {
       const cardElement = document.getElementById('digital-id-card');
+      showToast('Generating high-resolution ID card...');
 
-      showToast('Generating High-Resolution ID Card...');
-
-      try {
-        const canvas = await html2canvas(cardElement, {
-          scale: 3, // 3x ultra-high resolution
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#122c4f',
-          logging: false
-        });
-
-        const imageUri = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.href = imageUri;
-        link.download = `Digital_ID_${currentMember.mid || 'Card'}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        showToast('High-Res ID Card downloaded successfully!');
-      } catch (err) {
-        console.error('Error saving image:', err);
-        showToast('Failed to generate image. Please screenshot the card.');
-      }
+      html2canvas(cardElement, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#122c4f'
+      }).then(canvas => {
+        const image = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = image;
+        a.download = `Digital_ID_Card_${(currentMember?.mid || 'Member').replace(/-/g, '_')}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('ID Card Image downloaded! 🎉');
+      }).catch(err => {
+        console.error('Download error:', err);
+        showToast('Unable to capture card image.');
+      });
     }
 
-    // Start loading on page open
-    window.addEventListener('DOMContentLoaded', fetchMemberData);
+    // Initialize
+    fetchMemberData();
   </script>
-
 </body>
 
 </html>
