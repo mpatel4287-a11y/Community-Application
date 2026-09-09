@@ -21,6 +21,8 @@ class FamilyListScreen extends StatefulWidget {
 
 class _FamilyListScreenState extends State<FamilyListScreen> {
   String? _userRole;
+  bool _isAdmin = false;
+  String? _userFamilyDocId;
   bool _isExporting = false;
 
   @override
@@ -31,7 +33,13 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
 
   Future<void> _loadRole() async {
     final role = await SessionManager.getRole();
-    setState(() => _userRole = role);
+    final isAdmin = await SessionManager.getIsAdmin();
+    final familyDocId = await SessionManager.getFamilyDocId();
+    setState(() {
+      _userRole = role;
+      _isAdmin = (isAdmin == true) || role == 'admin' || role == 'super_admin';
+      _userFamilyDocId = familyDocId;
+    });
   }
 
   Future<void> _exportData(List<QueryDocumentSnapshot> familiesDocs, bool isExcel) async {
@@ -99,6 +107,12 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
         List<QueryDocumentSnapshot> families = [];
         if (snapshot.hasData) {
           families = List.from(snapshot.data!.docs);
+          
+          // NON-ADMIN RESTRICTION: Regular family users can ONLY view their own family!
+          if (!_isAdmin && _userFamilyDocId != null && _userFamilyDocId!.isNotEmpty) {
+            families = families.where((doc) => doc.id == _userFamilyDocId).toList();
+          }
+
           families.sort((a, b) {
             final idA = (a.data() as Map<String, dynamic>)['familyId'] ?? '';
             final idB = (b.data() as Map<String, dynamic>)['familyId'] ?? '';
@@ -111,7 +125,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
             title: const Text('Families'),
             backgroundColor: Colors.blue.shade900,
             actions: [
-              if (families.isNotEmpty && !_isExporting) ...[
+              if (_isAdmin && families.isNotEmpty && !_isExporting) ...[
                 IconButton(
                   icon: const Icon(Icons.table_chart_rounded),
                   tooltip: 'Export to Excel (.xlsx)',
@@ -270,8 +284,9 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                       );
                                     },
                                   ),
-                                  _buildCompactAction(
-                                    icon: Icons.edit,
+                                  if (_isAdmin)
+                                    _buildCompactAction(
+                                      icon: Icons.edit,
                                     color: Colors.blue,
                                     onTap: () {
                                       Navigator.push(
