@@ -138,6 +138,8 @@ class SessionManager {
   }
 
   // CLEAR SESSION
+  static Future<void> clearSession() => clear();
+
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     final lang = prefs.getString(_keyLanguage);

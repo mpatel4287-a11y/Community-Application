@@ -2,17 +2,18 @@
 
 import 'dart:ui' as ui;
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gal/gal.dart';
+import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../widgets/full_screen_image_viewer.dart';
-
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../../widgets/full_screen_image_viewer.dart';
 import '../../models/member_model.dart';
 import '../../services/language_service.dart';
 import '../../config/app_config.dart';
@@ -30,7 +31,6 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
   final GlobalKey _boundaryKey = GlobalKey();
   bool _isSharing = false;
 
-
   @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageService>(context);
@@ -45,18 +45,18 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
         actions: [
           if (!_isSharing) ...[
             IconButton(
-              icon: const Icon(Icons.download_rounded),
-              onPressed: () => _saveToGallery(lang),
+              icon: const Icon(Icons.download_rounded, size: 26),
+              tooltip: 'Download ID Card',
+              onPressed: () => _downloadIdCard(lang),
             ),
             IconButton(
-              icon: const Icon(Icons.share_rounded),
+              icon: const Icon(Icons.share_rounded, size: 22),
+              tooltip: 'Share ID Card',
               onPressed: () => _shareCardAsImage(lang),
             ),
           ],
         ],
       ),
-
-
       extendBodyBehindAppBar: true,
       body: Container(
         width: double.infinity,
@@ -72,6 +72,7 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             child: Column(
               children: [
                 const SizedBox(height: 20),
@@ -83,98 +84,6 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                 
                 const SizedBox(height: 24),
 
-                // ACTION BUTTONS SECTION
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      // Save Contact Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _saveContactVCard(lang),
-                          icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 22),
-                          label: const Text(
-                            'Save Contact Info (Add to Phone)',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981), // Emerald Green
-                            elevation: 4,
-                            shadowColor: const Color(0xFF10B981).withOpacity(0.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      // Row of Download & Share
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 50,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _saveToGallery(lang),
-                                icon: const Icon(Icons.file_download_outlined, color: Colors.white, size: 20),
-                                label: const Text(
-                                  'Save High-Res Card',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFD97706), // Amber
-                                  elevation: 3,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: SizedBox(
-                              height: 50,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _shareCardAsImage(lang),
-                                icon: const Icon(Icons.share_rounded, color: Colors.white, size: 20),
-                                label: const Text(
-                                  'Share ID Card',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F766E), // Teal
-                                  elevation: 3,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Text(
@@ -187,6 +96,7 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -200,7 +110,7 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
       width: MediaQuery.of(context).size.width * 0.92,
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF122C4F), // Forced dark background (Midnight)
+        color: const Color(0xFF122C4F), // Midnight blue card background
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -215,14 +125,14 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
           // Header with gradient
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
                 colors: [
                   Color(0xFF0D1E36),
                   Color(0xFF122C4F),
                 ],
               ),
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
               ),
@@ -237,7 +147,6 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                     children: [
                       Text(
                         widget.member.familyName.toUpperCase(),
-
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -304,17 +213,16 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFFBF9E4), // Pearl Perfect text
+                    color: Color(0xFFFBF9E4),
                   ),
                   textAlign: TextAlign.center,
                 ),
                 if (widget.member.surname.isNotEmpty)
                   Text(
                     widget.member.surname,
-
                     style: const TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF5B88B2), // Ocean secondary
+                      color: Color(0xFF5B88B2),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -327,7 +235,6 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                   ),
                   child: Text(
                     'MID: ${widget.member.mid}',
-
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF5B88B2),
@@ -338,13 +245,12 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                 ),
                 
                 const SizedBox(height: 8),
-                // Watermark moved here
                 Opacity(
-                  opacity: 0.6, // Increased opacity for better visibility
+                  opacity: 0.6,
                   child: Text(
                     "Ramanagara Patidar Samaj".toUpperCase(),
                     style: const TextStyle(
-                      color: Color(0xFFFBF9E4), // Pearl Perfect color
+                      color: Color(0xFFFBF9E4),
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
@@ -359,13 +265,11 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                 // Details Grid
                 _buildDetailsSection(lang),
 
-
-                
                 const SizedBox(height: 20),
                 Divider(color: Colors.grey.shade300),
                 const SizedBox(height: 16),
                 
-                // QR Code
+                // QR Code with Full Embedded Payload
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -379,6 +283,19 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                         data: AppConfig.getMemberUrl(
                           widget.member.id,
                           familyDocId: widget.member.familyDocId,
+                          mid: widget.member.mid,
+                          fullName: widget.member.fullName,
+                          surname: widget.member.surname,
+                          familyName: widget.member.familyName,
+                          phone: widget.member.phone,
+                          bloodGroup: widget.member.bloodGroup,
+                          birthDate: widget.member.birthDate,
+                          photoUrl: widget.member.photoUrl,
+                          nativeHome: widget.member.nativeHome,
+                          education: widget.member.education,
+                          address: widget.member.address,
+                          fatherName: widget.member.fatherName,
+                          motherName: widget.member.motherName,
                         ),
                         version: QrVersions.auto,
                         size: 140.0,
@@ -393,7 +310,7 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'Scan with any camera to Save Contact or Download High-Res Card',
+                        'Scan with any phone camera to view Digital ID Card',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 11,
@@ -466,9 +383,9 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
           children: [
             Expanded(
               child: _buildDetailItem(
-                lang.translate('age'),
-                '${widget.member.age} ${lang.translate('years')}',
-                Icons.cake,
+                'Age',
+                widget.member.age > 0 ? '${widget.member.age} years' : '-',
+                Icons.calendar_today,
               ),
             ),
             const SizedBox(width: 12),
@@ -481,9 +398,8 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
             ),
           ],
         ),
-
         const SizedBox(height: 12),
-        
+
         // Row 4: Native Home & Marriage Status
         Row(
           children: [
@@ -491,21 +407,21 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
               child: _buildDetailItem(
                 lang.translate('native_home'),
                 widget.member.nativeHome.isNotEmpty ? widget.member.nativeHome : '-',
-                Icons.home,
+                Icons.home_outlined,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _buildDetailItem(
-                lang.translate('marriage_status'),
-                lang.translate(widget.member.marriageStatus),
-                Icons.favorite,
+                lang.translate('marital_status'),
+                widget.member.marriageStatus.isNotEmpty ? widget.member.marriageStatus : '-',
+                Icons.favorite_outline,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        
+
         // Row 5: Phone & Address
         Row(
           children: [
@@ -520,17 +436,12 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
             Expanded(
               child: _buildDetailItem(
                 lang.translate('address'),
-                widget.member.address.isNotEmpty
-                    ? (widget.member.address.length > 20
-                        ? '${widget.member.address.substring(0, 20)}...'
-                        : widget.member.address)
-                    : '-',
+                widget.member.address.isNotEmpty ? widget.member.address : '-',
                 Icons.location_on,
               ),
             ),
           ],
         ),
-
       ],
     );
   }
@@ -539,25 +450,26 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: const Color(0xFF5B88B2).withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: const Color(0xFF5B88B2).withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: Colors.grey.shade600),
+              Icon(icon, size: 14, color: const Color(0xFF5B88B2)),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: const Color(0xFFFBF9E4).withOpacity(0.6),
-                    fontWeight: FontWeight.w500,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF5B88B2),
+                    fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -579,82 +491,49 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
     );
   }
 
-  Future<String?> _captureImage() async {
+  Future<void> _downloadIdCard(LanguageService lang) async {
+    setState(() => _isSharing = true);
+    await Future.delayed(const Duration(milliseconds: 150));
+
     try {
-      final RenderRepaintBoundary boundary = _boundaryKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
-      
-      // 3.5x Pixel Ratio for Ultra-Crisp High-Resolution ID Card
+      final RenderRepaintBoundary? boundary = _boundaryKey.currentContext
+          ?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
       final ui.Image image = await boundary.toImage(pixelRatio: 3.5);
-      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      
-      if (byteData == null) return null;
+      final ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
 
       final Uint8List pngBytes = byteData.buffer.asUint8List();
+      final fileName =
+          'Digital_ID_Card_${widget.member.mid.replaceAll('-', '_')}.png';
 
-      final tempDir = await getTemporaryDirectory();
-      final path = '${tempDir.path}/digital_id_${widget.member.mid}.png';
-      final file = await File(path).create();
-      await file.writeAsBytes(pngBytes);
-      return path;
-    } catch (e) {
-      debugPrint('Error capturing image: $e');
-      return null;
-    }
-  }
-
-  Future<void> _saveContactVCard(LanguageService lang) async {
-    try {
-      final m = widget.member;
-      final vcard = StringBuffer();
-      vcard.writeln('BEGIN:VCARD');
-      vcard.writeln('VERSION:3.0');
-      vcard.writeln('N:${m.surname};${m.fullName};;;');
-      vcard.writeln('FN:${m.fullName} ${m.surname}'.trim());
-      vcard.writeln('ORG:Ramanagara Patidar Samaj;${m.familyName}');
-      vcard.writeln('TITLE:Member (MID: ${m.mid})');
-      if (m.phone.isNotEmpty) {
-        vcard.writeln('TEL;TYPE=CELL,VOICE:${m.phone}');
-      }
-      if (m.email.isNotEmpty) {
-        vcard.writeln('EMAIL;TYPE=INTERNET:${m.email}');
-      }
-      if (m.address.isNotEmpty) {
-        vcard.writeln('ADR;TYPE=HOME:;;${m.address.replaceAll('\n', ' ')};Ramanagara;;;India');
-      }
-      vcard.writeln('NOTE:MID: ${m.mid} | Family: ${m.familyName} | Blood: ${m.bloodGroup} | Native: ${m.nativeHome}');
-      vcard.writeln('END:VCARD');
-
-      final tempDir = await getTemporaryDirectory();
-      final path = '${tempDir.path}/${m.fullName.replaceAll(' ', '_')}_${m.mid}.vcf';
-      final file = await File(path).create();
-      await file.writeAsString(vcard.toString());
-
-      await Share.shareXFiles(
-        [XFile(path, mimeType: 'text/vcard')],
-        text: 'Save Contact: ${m.fullName}',
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to export contact: $e'), backgroundColor: Colors.red),
+      if (kIsWeb) {
+        await Printing.sharePdf(
+          bytes: pngBytes,
+          filename: fileName,
         );
-      }
-    }
-  }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Digital ID Card downloaded! 🎉'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+      } else {
+        final tempDir = await getTemporaryDirectory();
+        final path = '${tempDir.path}/$fileName';
+        final file = await File(path).create();
+        await file.writeAsBytes(pngBytes);
 
-  Future<void> _saveToGallery(LanguageService lang) async {
-    setState(() => _isSharing = true);
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    final path = await _captureImage();
-    if (path != null) {
-      try {
         final hasAccess = await Gal.hasAccess();
         if (!hasAccess) {
           await Gal.requestAccess();
         }
-        await Gal.putImage(path);
+        await Gal.putImage(file.path);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -663,36 +542,49 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
             ),
           );
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save: $e'), backgroundColor: Colors.red),
-          );
-        }
       }
-    }
-    
-    if (mounted) {
-      setState(() => _isSharing = false);
+    } catch (e) {
+      debugPrint('Error downloading ID Card: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download status: $e'), backgroundColor: Colors.orange.shade800),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSharing = false);
+      }
     }
   }
 
   Future<void> _shareCardAsImage(LanguageService lang) async {
     setState(() => _isSharing = true);
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future.delayed(const Duration(milliseconds: 150));
 
-    final path = await _captureImage();
-    if (path != null) {
+    try {
+      final RenderRepaintBoundary? boundary = _boundaryKey.currentContext
+          ?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.5);
+      final ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+      final fileName =
+          'Digital_ID_Card_${widget.member.mid.replaceAll('-', '_')}.png';
+
       await Share.shareXFiles(
-        [XFile(path)],
+        [XFile.fromData(pngBytes, name: fileName, mimeType: 'image/png')],
         text: '${lang.translate('digital_id')} - ${widget.member.fullName}',
       );
-    }
-    
-    if (mounted) {
-      setState(() => _isSharing = false);
+    } catch (e) {
+      debugPrint('Error sharing card: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isSharing = false);
+      }
     }
   }
 }
-
-

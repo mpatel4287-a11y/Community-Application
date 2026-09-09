@@ -524,23 +524,51 @@
 
     // Parse URL query parameters
     const urlParams = new URLSearchParams(window.location.search);
-    const memberId = urlParams.get('id') || '';
+    const memberId = urlParams.get('id') || urlParams.get('mid') || '';
     const familyDocId = urlParams.get('family') || '';
+
+    const paramName = urlParams.get('name') || '';
+    const paramMid = urlParams.get('mid') || '';
 
     // Firestore REST API Endpoint
     const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/com-app-project/databases/(default)/documents';
 
     async function fetchMemberData() {
-      if (!memberId) {
+      // 1. If payload parameters exist in URL, render card immediately!
+      if (paramName || paramMid || memberId) {
+        let payloadMember = {
+          id: memberId || paramMid,
+          mid: paramMid || memberId || 'N/A',
+          fullName: paramName || 'Community Member',
+          surname: urlParams.get('sur') || '',
+          familyName: urlParams.get('fn') || 'Ramanagara Patidar Samaj',
+          fatherName: urlParams.get('fath') || '-',
+          motherName: urlParams.get('moth') || '-',
+          gender: '-',
+          birthDate: urlParams.get('dob') || '-',
+          bloodGroup: urlParams.get('bg') || '-',
+          education: urlParams.get('edu') || '-',
+          nativeHome: urlParams.get('native') || '-',
+          phone: urlParams.get('ph') || '',
+          email: '',
+          address: urlParams.get('addr') || '',
+          photoUrl: urlParams.get('img') || '',
+          familyDocId: familyDocId
+        };
+        currentMember = payloadMember;
+        renderMemberCard(payloadMember);
+      }
+
+      if (!memberId && !paramMid && !paramName) {
         document.getElementById('loading-state').innerHTML = '<p style="color:#ef4444; font-weight:bold;">Invalid or missing Member ID.</p>';
         return;
       }
 
+      // 2. Fetch fresh details from Firestore in background
       try {
         let memberData = null;
 
-        // Try direct fetch if family doc ID provided
-        if (familyDocId) {
+        if (familyDocId && memberId) {
           try {
             const res = await fetch(`${FIRESTORE_BASE}/families/${familyDocId}/members/${memberId}`);
             if (res.ok) {
@@ -550,75 +578,12 @@
           } catch (_) { }
         }
 
-        // If not found, use runQuery to search across all members by ID or MID
-        if (!memberData) {
-          const queryBody = {
-            structuredQuery: {
-              from: [{ collectionId: 'members', allDescendants: true }],
-              where: {
-                fieldFilter: {
-                  field: { fieldPath: 'id' },
-                  op: 'EQUAL',
-                  value: { stringValue: memberId }
-                }
-              },
-              limit: 1
-            }
-          };
-
-          const res = await fetch(`${FIRESTORE_BASE}:runQuery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(queryBody)
-          });
-
-          if (res.ok) {
-            const results = await res.json();
-            if (results && results[0] && results[0].document) {
-              memberData = parseFirestoreDoc(results[0].document);
-            }
-          }
-        }
-
-        // Secondary fallback search by MID
-        if (!memberData) {
-          const midQueryBody = {
-            structuredQuery: {
-              from: [{ collectionId: 'members', allDescendants: true }],
-              where: {
-                fieldFilter: {
-                  field: { fieldPath: 'mid' },
-                  op: 'EQUAL',
-                  value: { stringValue: memberId }
-                }
-              },
-              limit: 1
-            }
-          };
-
-          const res = await fetch(`${FIRESTORE_BASE}:runQuery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(midQueryBody)
-          });
-
-          if (res.ok) {
-            const results = await res.json();
-            if (results && results[0] && results[0].document) {
-              memberData = parseFirestoreDoc(results[0].document);
-            }
-          }
-        }
-
         if (memberData) {
           currentMember = memberData;
           renderMemberCard(memberData);
-        } else {
-          document.getElementById('loading-state').innerHTML = '<p style="color:#f59e0b; font-weight:bold;">Member record not found or inactive.</p>';
         }
       } catch (err) {
-        console.error('Error fetching member:', err);
-        document.getElementById('loading-state').innerHTML = '<p style="color:#ef4444;">Unable to load member data. Please try again later.</p>';
+        console.warn('Background fetch notice:', err);
       }
     }
 

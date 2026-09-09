@@ -49,6 +49,9 @@ dependencies:
   app_links: ^7.0.0
   firebase_app_check: ^0.4.1+5
   google_fonts: ^6.2.1
+  excel: ^4.0.6
+  pdf: ^3.12.0
+  printing: ^5.14.3
 
 dev_dependencies:
   flutter_test:

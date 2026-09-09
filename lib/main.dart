@@ -121,14 +121,13 @@ class _InitialRouteState extends State<InitialRoute> {
   }
 
   Future<void> _checkSessionAndNavigate() async {
-    // Check for existing session
     final hasSession = await SessionManager.hasSession();
-    final isAdmin = await SessionManager.getIsAdmin();
-    await SessionManager.getRole();
+    final isAdmin = await SessionManager.getIsAdmin() == true;
+    final role = await SessionManager.getRole();
+    final isStaff = isAdmin || role == 'admin' || role == 'manager';
 
     if (mounted) {
-      // Navigate based on role/admin status
-      if (hasSession && isAdmin == true) {
+      if (hasSession && isStaff) {
         Navigator.pushReplacementNamed(context, '/admin');
       } else if (hasSession) {
         Navigator.pushReplacementNamed(context, '/home');
@@ -140,8 +139,109 @@ class _InitialRouteState extends State<InitialRoute> {
 
   @override
   Widget build(BuildContext context) {
-    // Show a minimal loading screen while checking session
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+/// Route guard widget that prevents unauthorized route jumping via web URL or deep links
+class AuthGuard extends StatefulWidget {
+  final Widget child;
+  final bool requireAdmin;
+  final bool requireUser;
+  final bool isLoginRoute;
+
+  const AuthGuard({
+    super.key,
+    required this.child,
+    this.requireAdmin = false,
+    this.requireUser = false,
+    this.isLoginRoute = false,
+  });
+
+  @override
+  State<AuthGuard> createState() => _AuthGuardState();
+}
+
+class _AuthGuardState extends State<AuthGuard> {
+  bool _isChecking = true;
+  bool _isAuthorized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _evaluateSession();
+  }
+
+  @override
+  void didUpdateWidget(covariant AuthGuard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _evaluateSession();
+  }
+
+  Future<void> _evaluateSession() async {
+    final hasSession = await SessionManager.hasSession();
+    final isAdmin = await SessionManager.getIsAdmin() == true;
+    final role = await SessionManager.getRole();
+    final isStaff = isAdmin || role == 'admin' || role == 'manager';
+
+    if (!mounted) return;
+
+    if (widget.isLoginRoute) {
+      // When visiting login route, clear active session to enforce fresh authentication
+      await SessionManager.clearSession();
+      if (mounted) {
+        setState(() {
+          _isChecking = false;
+          _isAuthorized = true;
+        });
+      }
+      return;
+    }
+
+    if (widget.requireAdmin) {
+      if (!hasSession || !isStaff) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.pushReplacementNamed(context, '/login');
+        });
+      } else {
+        setState(() {
+          _isChecking = false;
+          _isAuthorized = true;
+        });
+      }
+      return;
+    }
+
+    if (widget.requireUser) {
+      if (!hasSession) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.pushReplacementNamed(context, '/login');
+        });
+      } else {
+        setState(() {
+          _isChecking = false;
+          _isAuthorized = true;
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isChecking = false;
+      _isAuthorized = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isChecking || !_isAuthorized) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    return widget.child;
   }
 }
 
@@ -285,38 +385,39 @@ class _MyAppState extends State<MyApp> {
       // Start with initial route - it will check session and redirect
       home: const InitialRoute(),
       routes: {
-        '/login': (_) => const LoginScreen(),
-        '/admin': (_) => const AdminDashboard(),
-        '/admin/families': (_) => const FamilyListScreen(),
-        '/admin/groups': (_) => const GroupManagementScreen(),
-        '/admin/events': (_) => const EventManagementScreen(),
-        '/admin/analytics': (_) => const AnalyticsDashboard(),
-        '/admin/system-health': (_) => const SystemHealthScreen(),
-        '/admin/notifications': (_) => const NotificationCenterScreen(),
-        '/admin/firms': (_) => const FirmsListScreen(),
-        '/admin/update-requests': (_) => const AdminUpdateRequestsScreen(),
-        '/home': (_) => const EnhancedUserDashboard(),
-        '/user/settings': (_) => const SettingsScreen(),
-        '/user/profile': (_) => const UserProfileScreen(),
-        '/user/notifications': (_) => const UserNotificationScreen(),
-        '/user/qr-scanner': (_) => const QRScannerScreen(),
+        '/login': (_) => const AuthGuard(isLoginRoute: true, child: LoginScreen()),
+        '/admin': (_) => const AuthGuard(requireAdmin: true, child: AdminDashboard()),
+        '/admin/families': (_) => const AuthGuard(requireAdmin: true, child: FamilyListScreen()),
+        '/admin/groups': (_) => const AuthGuard(requireAdmin: true, child: GroupManagementScreen()),
+        '/admin/events': (_) => const AuthGuard(requireAdmin: true, child: EventManagementScreen()),
+        '/admin/analytics': (_) => const AuthGuard(requireAdmin: true, child: AnalyticsDashboard()),
+        '/admin/system-health': (_) => const AuthGuard(requireAdmin: true, child: SystemHealthScreen()),
+        '/admin/notifications': (_) => const AuthGuard(requireAdmin: true, child: NotificationCenterScreen()),
+        '/admin/firms': (_) => const AuthGuard(requireAdmin: true, child: FirmsListScreen()),
+        '/admin/update-requests': (_) => const AuthGuard(requireAdmin: true, child: AdminUpdateRequestsScreen()),
+        '/home': (_) => const AuthGuard(requireUser: true, child: EnhancedUserDashboard()),
+        '/user/settings': (_) => const AuthGuard(requireUser: true, child: SettingsScreen()),
+        '/user/profile': (_) => const AuthGuard(requireUser: true, child: UserProfileScreen()),
+        '/user/notifications': (_) => const AuthGuard(requireUser: true, child: UserNotificationScreen()),
+        '/user/qr-scanner': (_) => const AuthGuard(requireUser: true, child: QRScannerScreen()),
         '/user/update-request': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
-          if (args is MemberModel) {
-            return MemberUpdateRequestScreen(targetMember: args);
-          }
-          return const MemberUpdateRequestScreen();
+          final target = args is MemberModel ? MemberUpdateRequestScreen(targetMember: args) : const MemberUpdateRequestScreen();
+          return AuthGuard(requireUser: true, child: target);
         },
         '/user/member-detail': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           if (args is Map<String, dynamic>) {
-            return MemberDetailScreen(
-              memberId: args['memberId'] ?? '',
-              familyDocId: args['familyDocId'],
-              subFamilyDocId: args['subFamilyDocId'],
+            return AuthGuard(
+              requireUser: true,
+              child: MemberDetailScreen(
+                memberId: args['memberId'] ?? '',
+                familyDocId: args['familyDocId'],
+                subFamilyDocId: args['subFamilyDocId'],
+              ),
             );
           }
-          return const MemberDetailScreen(memberId: '', familyDocId: null);
+          return const AuthGuard(requireUser: true, child: MemberDetailScreen(memberId: '', familyDocId: null));
         },
       },
       onGenerateRoute: (settings) {
@@ -364,19 +465,22 @@ class _MyAppState extends State<MyApp> {
           }
           final args = settings.arguments as Map<String, dynamic>;
           return _buildRoute(
-            MemberListScreen(
-              familyDocId: args['familyDocId'],
-              familyName: args['familyName'],
-              subFamilyDocId: args['subFamilyDocId'],
+            AuthGuard(
+              requireAdmin: true,
+              child: MemberListScreen(
+                familyDocId: args['familyDocId'],
+                familyName: args['familyName'],
+                subFamilyDocId: args['subFamilyDocId'],
+              ),
             ),
           );
         }
         if (settings.name == '/user/digital-id') {
           final args = settings.arguments as MemberModel;
-          return _buildRoute(DigitalIdScreen(member: args));
+          return _buildRoute(AuthGuard(requireUser: true, child: DigitalIdScreen(member: args)));
         }
         // Fallback for any unhandled route - go to login
-        return _buildRoute(const LoginScreen());
+        return _buildRoute(const AuthGuard(isLoginRoute: true, child: LoginScreen()));
       },
     );
   }
