@@ -34,15 +34,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   String? _subFamilyName;
   String? _userRole;
 
-  int _totalAttendance = 0;
   bool _loading = false;
-  Map<String, int> _countsByType = {};
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
-    _loadAttendanceData();
   }
 
   Future<void> _loadUserData() async {
@@ -102,17 +99,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
 
     if (mounted) setState(() {});
-  }
-
-  Future<void> _loadAttendanceData() async {
-    final count = await _attendanceService.getAttendanceCount(widget.event.id);
-    final counts = await _attendanceService.getAttendanceByType(widget.event.id);
-    if (mounted) {
-      setState(() {
-        _totalAttendance = count;
-        _countsByType = counts;
-      });
-    }
   }
 
   bool _canEdit(AttendanceModel attendance) {
@@ -482,8 +468,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         memberCount: memberCount,
       );
 
-      await _loadAttendanceData();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -661,7 +645,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           attendanceId: attendance.id,
           newCount: newCount,
         );
-        await _loadAttendanceData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -709,7 +692,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       try {
         setState(() => _loading = true);
         await _attendanceService.deleteAttendance(widget.event.id, attendance.id);
-        await _loadAttendanceData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -842,27 +824,57 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
                             const SizedBox(height: 20),
 
-                            // Stats Grid: Total, Whole Family, Sub-Family
-                            Row(
-                              children: [
-                                _buildStatCard(
-                                  'Total Members',
-                                  _totalAttendance.toString(),
-                                  Colors.blue,
-                                ),
-                                const SizedBox(width: 8),
-                                _buildStatCard(
-                                  'Whole Family',
-                                  (_countsByType['whole_family'] ?? 0).toString(),
-                                  Colors.indigo,
-                                ),
-                                const SizedBox(width: 8),
-                                _buildStatCard(
-                                  'Sub-Family',
-                                  (_countsByType['sub_family'] ?? 0).toString(),
-                                  Colors.purple,
-                                ),
-                              ],
+                            Builder(
+                              builder: (context) {
+                                final totalCount = records.fold<int>(
+                                  0,
+                                  (sum, r) => sum + r.memberCount,
+                                );
+
+                                final wholeFamilyRec = records.cast<AttendanceModel?>().firstWhere(
+                                  (r) =>
+                                      r != null &&
+                                      ((_familyDocId != null && _familyDocId!.isNotEmpty && r.familyDocId == _familyDocId) ||
+                                       (_currentMemberId != null && _currentMemberId!.isNotEmpty && r.markedBy == _currentMemberId)) &&
+                                      r.attendanceType == 'whole_family',
+                                  orElse: () => null,
+                                );
+
+                                final subFamilyRec = records.cast<AttendanceModel?>().firstWhere(
+                                  (r) =>
+                                      r != null &&
+                                      ((_subFamilyDocId != null && _subFamilyDocId!.isNotEmpty &&
+                                        (r.subFamilyDocId == _subFamilyDocId || r.entityId == _subFamilyDocId)) ||
+                                       (_currentMemberId != null && _currentMemberId!.isNotEmpty && r.markedBy == _currentMemberId)) &&
+                                      r.attendanceType == 'sub_family',
+                                  orElse: () => null,
+                                );
+
+                                final myWholeFamilyCount = wholeFamilyRec?.memberCount ?? 0;
+                                final mySubFamilyCount = subFamilyRec?.memberCount ?? 0;
+
+                                return Row(
+                                  children: [
+                                    _buildStatCard(
+                                      'Total Members',
+                                      totalCount.toString(),
+                                      Colors.blue,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _buildStatCard(
+                                      'Whole Family',
+                                      myWholeFamilyCount.toString(),
+                                      Colors.indigo,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _buildStatCard(
+                                      'Sub-Family',
+                                      mySubFamilyCount.toString(),
+                                      Colors.purple,
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
 
                             const SizedBox(height: 24),
@@ -917,9 +929,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final wholeFamilyRec = records.cast<AttendanceModel?>().firstWhere(
       (r) =>
           r != null &&
-          _familyDocId != null &&
-          _familyDocId!.isNotEmpty &&
-          r.familyDocId == _familyDocId &&
+          ((_familyDocId != null && _familyDocId!.isNotEmpty && r.familyDocId == _familyDocId) ||
+           (_currentMemberId != null && _currentMemberId!.isNotEmpty && r.markedBy == _currentMemberId)) &&
           r.attendanceType == 'whole_family',
       orElse: () => null,
     );
@@ -928,12 +939,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final subFamilyRec = records.cast<AttendanceModel?>().firstWhere(
       (r) =>
           r != null &&
-          _familyDocId != null &&
-          _familyDocId!.isNotEmpty &&
-          _subFamilyDocId != null &&
-          _subFamilyDocId!.isNotEmpty &&
-          r.familyDocId == _familyDocId &&
-          (r.subFamilyDocId == _subFamilyDocId || r.entityId == _subFamilyDocId) &&
+          ((_subFamilyDocId != null && _subFamilyDocId!.isNotEmpty &&
+            (r.subFamilyDocId == _subFamilyDocId || r.entityId == _subFamilyDocId)) ||
+           (_currentMemberId != null && _currentMemberId!.isNotEmpty && r.markedBy == _currentMemberId)) &&
           r.attendanceType == 'sub_family',
       orElse: () => null,
     );
