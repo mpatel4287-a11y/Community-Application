@@ -381,6 +381,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
         slivers: [
           // 1. App Bar with Profile Quick Link (Shortened)
           SliverAppBar(
+            automaticallyImplyLeading: false,
             expandedHeight: 60.0,
             floating: false,
             pinned: true,

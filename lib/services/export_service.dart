@@ -169,6 +169,43 @@ class ExportService {
         }
       }
 
+      // Automatically adjust column widths based on content
+      final Map<int, int> colMaxLengths = {};
+      for (int i = 0; i < fields.length; i++) {
+        colMaxLengths[i] = fields[i].label.length;
+      }
+      for (final fam in familiesData) {
+        final List<MemberModel> members = fam['members'] as List<MemberModel>? ?? [];
+        if (members.isEmpty) {
+          for (int i = 0; i < fields.length; i++) {
+            final f = fields[i];
+            String val = '-';
+            if (f == ExportField.familyId) {
+              val = fam['familyId']?.toString() ?? '-';
+            } else if (f == ExportField.familyName) {
+              val = fam['familyName']?.toString() ?? 'Family';
+            }
+            if (val.length > (colMaxLengths[i] ?? 0)) {
+              colMaxLengths[i] = val.length;
+            }
+          }
+        } else {
+          for (final m in members) {
+            for (int i = 0; i < fields.length; i++) {
+              final val = fields[i].getValue(fam, m);
+              if (val.length > (colMaxLengths[i] ?? 0)) {
+                colMaxLengths[i] = val.length;
+              }
+            }
+          }
+        }
+      }
+      colMaxLengths.forEach((colIndex, maxLen) {
+        // Add 4 chars of padding and clamp between 14.0 and 50.0
+        final calculatedWidth = (maxLen + 4).toDouble().clamp(14.0, 50.0);
+        sheet.setColumnWidth(colIndex, calculatedWidth);
+      });
+
       final fileBytes = excel.encode();
       if (fileBytes == null) return;
 

@@ -201,7 +201,7 @@ class _AuthGuardState extends State<AuthGuard> {
     if (widget.requireAdmin) {
       if (!hasSession || !isStaff) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) Navigator.pushReplacementNamed(context, '/login');
+          if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         });
       } else {
         setState(() {
@@ -215,7 +215,7 @@ class _AuthGuardState extends State<AuthGuard> {
     if (widget.requireUser) {
       if (!hasSession) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) Navigator.pushReplacementNamed(context, '/login');
+          if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         });
       } else {
         setState(() {

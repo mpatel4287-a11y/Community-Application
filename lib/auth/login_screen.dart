@@ -185,8 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         delay: const Duration(milliseconds: 100),
                         beginScale: 0.5,
                         child: Image.asset(
-                          'assets/icon/app_icon.png',
-                          height: 145,
+                          'assets/ganesh.png',
+                          height: 115,
                           fit: BoxFit.contain,
                         ),
                       ),

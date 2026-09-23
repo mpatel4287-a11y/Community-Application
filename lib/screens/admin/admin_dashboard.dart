@@ -34,6 +34,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _loadAdminSession() async {
     final role = await SessionManager.getRole();
+    final isAdmin = await SessionManager.getIsAdmin() == true;
+    final hasSession = await SessionManager.hasSession();
+
+    if (!hasSession || (!isAdmin && role != 'admin' && role != 'manager')) {
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
+      return;
+    }
+
     if (mounted) {
       setState(() {
         _role = role;
@@ -80,7 +90,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     if (ok == true) {
       await AuthService().logout();
-      Navigator.pushReplacementNamed(context, '/login');
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
     }
   }
 

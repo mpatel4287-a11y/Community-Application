@@ -768,7 +768,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirm == true) {
       await AuthService().logout();
-      Navigator.pushReplacementNamed(context, '/login');
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
     }
   }
 
