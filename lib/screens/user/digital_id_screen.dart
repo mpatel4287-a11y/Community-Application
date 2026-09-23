@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gal/gal.dart';
@@ -576,13 +577,58 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
       final Uint8List pngBytes = byteData.buffer.asUint8List();
       final fileName =
           'Digital_ID_Card_${widget.member.mid.replaceAll('-', '_')}.png';
+      final shareText = '${lang.translate('digital_id')} - ${widget.member.fullName} (${widget.member.mid})';
 
-      await Share.shareXFiles(
-        [XFile.fromData(pngBytes, name: fileName, mimeType: 'image/png')],
-        text: '${lang.translate('digital_id')} - ${widget.member.fullName}',
-      );
+      if (kIsWeb) {
+        bool shared = false;
+        try {
+          final res = await Share.shareXFiles(
+            [XFile.fromData(pngBytes, name: fileName, mimeType: 'image/png')],
+            text: shareText,
+          );
+          if (res.status == ShareResultStatus.success) {
+            shared = true;
+          }
+        } catch (_) {
+          shared = false;
+        }
+
+        // Web fallback: download file and copy share text
+        if (!shared) {
+          await Printing.sharePdf(
+            bytes: pngBytes,
+            filename: fileName,
+          );
+          await Clipboard.setData(ClipboardData(text: shareText));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('ID Card downloaded & details copied to clipboard! 🎉'),
+                backgroundColor: Color(0xFF10B981),
+              ),
+            );
+          }
+        }
+      } else {
+        final box = context.findRenderObject() as RenderBox?;
+        final Rect? origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
+        await Share.shareXFiles(
+          [XFile.fromData(pngBytes, name: fileName, mimeType: 'image/png')],
+          text: shareText,
+          sharePositionOrigin: origin,
+        );
+      }
     } catch (e) {
       debugPrint('Error sharing card: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to share: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isSharing = false);

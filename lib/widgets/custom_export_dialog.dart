@@ -162,28 +162,91 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
     setState(() => _isExporting = true);
 
     try {
-      List<MemberModel> members = [];
+      final List<Map<String, dynamic>> exportData = [];
       String exportTitle = widget.familyName;
 
       if (_scope == ExportScope.subFamily && _selectedSubFamily != null) {
-        members = await _memberService.getSubFamilyMembers(
+        final members = await _memberService.getSubFamilyMembers(
           widget.mainFamilyDocId,
           _selectedSubFamily!.id,
         );
         exportTitle = '${widget.familyName} - ${_selectedSubFamily!.subFamilyName}';
-      } else {
-        members = await _memberService.getFamilyMembers(widget.mainFamilyDocId);
-        exportTitle = '${widget.familyName} (Full Family)';
-      }
-
-      final List<Map<String, dynamic>> exportData = [
-        {
+        final subName = _selectedSubFamily!.subFamilyName.isNotEmpty
+            ? _selectedSubFamily!.subFamilyName
+            : 'Sub-Family ${_selectedSubFamily!.subFamilyId}';
+        exportData.add({
           'familyDocId': widget.mainFamilyDocId,
           'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
           'familyName': widget.familyName,
+          'subFamilyName': subName,
+          'subFamilyId': _selectedSubFamily!.subFamilyId,
           'members': members,
+        });
+      } else {
+        exportTitle = '${widget.familyName} (Full Family)';
+        final subFamilies = _subFamilies.isNotEmpty
+            ? _subFamilies
+            : await _subFamilyService.getSubFamilies(widget.mainFamilyDocId);
+
+        final List<MemberModel> allMembers = await _memberService.getFamilyMembers(widget.mainFamilyDocId);
+
+        if (subFamilies.isNotEmpty) {
+          final Set<String> assignedMemberIds = {};
+
+          final sortedSubFamilies = List<SubFamilyModel>.from(subFamilies)
+            ..sort((a, b) => a.subFamilyId.compareTo(b.subFamilyId));
+
+          for (final sf in sortedSubFamilies) {
+            final sfMembers = allMembers.where((m) =>
+                m.subFamilyDocId == sf.id ||
+                (m.mid.isNotEmpty && (m.mid.contains('-S${sf.subFamilyId}-') || m.mid.contains('-S0${sf.subFamilyId}-')))).toList();
+
+            final finalSfMembers = sfMembers.isNotEmpty
+                ? sfMembers
+                : await _memberService.getSubFamilyMembers(widget.mainFamilyDocId, sf.id);
+
+            for (final m in finalSfMembers) {
+              assignedMemberIds.add(m.id);
+            }
+
+            if (finalSfMembers.isNotEmpty) {
+              final subName = sf.subFamilyName.isNotEmpty
+                  ? sf.subFamilyName
+                  : 'Sub-Family ${sf.subFamilyId}';
+
+              exportData.add({
+                'familyDocId': widget.mainFamilyDocId,
+                'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
+                'familyName': widget.familyName,
+                'subFamilyName': subName,
+                'subFamilyId': sf.subFamilyId,
+                'members': finalSfMembers,
+              });
+            }
+          }
+
+          final unassigned = allMembers.where((m) => !assignedMemberIds.contains(m.id)).toList();
+          if (unassigned.isNotEmpty) {
+            exportData.add({
+              'familyDocId': widget.mainFamilyDocId,
+              'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
+              'familyName': widget.familyName,
+              'subFamilyName': 'Main Family Members',
+              'subFamilyId': '00',
+              'members': unassigned,
+            });
+          }
         }
-      ];
+
+        if (exportData.isEmpty) {
+          exportData.add({
+            'familyDocId': widget.mainFamilyDocId,
+            'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
+            'familyName': widget.familyName,
+            'members': allMembers,
+          });
+        }
+      }
 
       if (_format == ExportFormat.excel) {
         await ExportService.exportToExcel(

@@ -108,6 +108,12 @@ class ExportService {
         backgroundColorHex: ExcelColor.fromHexString('#0F766E'),
       );
 
+      final CellStyle subFamilyBannerStyle = CellStyle(
+        bold: true,
+        fontColorHex: ExcelColor.fromHexString('#0F766E'),
+        backgroundColorHex: ExcelColor.fromHexString('#E0F2FE'),
+      );
+
       // Add Column Headers
       for (int i = 0; i < fields.length; i++) {
         final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
@@ -115,9 +121,28 @@ class ExportService {
         cell.cellStyle = headerStyle;
       }
 
-      // Add Data Rows
-      for (final fam in familiesData) {
+      final bool hasMultipleGroups = familiesData.length > 1;
+
+      // Add Data Rows grouped by Sub-Family
+      for (int i = 0; i < familiesData.length; i++) {
+        final fam = familiesData[i];
         final List<MemberModel> members = fam['members'] as List<MemberModel>? ?? [];
+
+        // If multiple sub-families, insert a clear section banner row
+        if (hasMultipleGroups || fam['subFamilyName'] != null) {
+          final groupName = fam['subFamilyName']?.toString().isNotEmpty == true
+              ? fam['subFamilyName'].toString()
+              : fam['familyName']?.toString() ?? 'Sub-Family ${i + 1}';
+
+          final rowIndex = sheet.maxRows;
+          final bannerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex));
+          bannerCell.value = TextCellValue('▶ SUB-FAMILY: $groupName (${members.length} Members)');
+          bannerCell.cellStyle = subFamilyBannerStyle;
+          for (int c = 1; c < fields.length; c++) {
+            final emptyCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: rowIndex));
+            emptyCell.cellStyle = subFamilyBannerStyle;
+          }
+        }
 
         if (members.isEmpty) {
           final rowCells = fields.map((f) {
@@ -128,16 +153,19 @@ class ExportService {
             }
             return TextCellValue('-');
           }).toList();
-
           sheet.appendRow(rowCells);
         } else {
           for (final m in members) {
             final rowCells = fields
                 .map((f) => TextCellValue(f.getValue(fam, m)))
                 .toList();
-
             sheet.appendRow(rowCells);
           }
+        }
+
+        // Add a blank separator row between sub-families
+        if (hasMultipleGroups && i < familiesData.length - 1) {
+          sheet.appendRow([TextCellValue('')]);
         }
       }
 
@@ -177,15 +205,6 @@ class ExportService {
           : defaultFields;
 
       final pdf = pw.Document();
-
-      final List<List<String>> dataRows = [];
-      for (final fam in familiesData) {
-        final List<MemberModel> members = fam['members'] as List<MemberModel>? ?? [];
-        for (final m in members) {
-          dataRows.add(fields.map((f) => f.getValue(fam, m)).toList());
-        }
-      }
-
       final headers = fields.map((f) => f.label).toList();
 
       pdf.addPage(
@@ -229,18 +248,87 @@ class ExportService {
               pw.Text('Page ${context.pageNumber} of ${context.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
             ],
           ),
-          build: (context) => [
-            pw.TableHelper.fromTextArray(
-              headers: headers,
-              data: dataRows,
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 9),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.teal800),
-              rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5))),
-              cellAlignment: pw.Alignment.centerLeft,
-              cellStyle: const pw.TextStyle(fontSize: 8.5),
-              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
-            ),
-          ],
+          build: (context) {
+            final List<pw.Widget> contentWidgets = [];
+            final bool hasMultipleGroups = familiesData.length > 1;
+
+            for (int i = 0; i < familiesData.length; i++) {
+              final fam = familiesData[i];
+              final List<MemberModel> members = fam['members'] as List<MemberModel>? ?? [];
+              if (members.isEmpty) continue;
+
+              final List<List<String>> subRows = [];
+              for (final m in members) {
+                subRows.add(fields.map((f) => f.getValue(fam, m)).toList());
+              }
+
+              // Show clean distinct sub-family header banner
+              if (hasMultipleGroups || fam['subFamilyName'] != null) {
+                final groupName = fam['subFamilyName']?.toString().isNotEmpty == true
+                    ? fam['subFamilyName'].toString()
+                    : fam['familyName']?.toString() ?? 'Sub-Family ${i + 1}';
+
+                contentWidgets.add(
+                  pw.Container(
+                    margin: pw.EdgeInsets.only(top: i > 0 ? 14 : 2, bottom: 6),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.teal50,
+                      borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+                      border: pw.Border.fromBorderSide(pw.BorderSide(color: PdfColors.teal700, width: 0.8)),
+                    ),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'Sub-Family: $groupName',
+                          style: pw.TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.teal900,
+                          ),
+                        ),
+                        pw.Text(
+                          'Total Members: ${members.length}',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.teal800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              contentWidgets.add(
+                pw.TableHelper.fromTextArray(
+                  headers: headers,
+                  data: subRows,
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 9),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.teal800),
+                  rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5))),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  cellStyle: const pw.TextStyle(fontSize: 8.5),
+                  cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+                ),
+              );
+            }
+
+            if (contentWidgets.isEmpty) {
+              contentWidgets.add(
+                pw.Center(
+                  child: pw.Padding(
+                    padding: const pw.EdgeInsets.all(20),
+                    child: pw.Text('No family members found to display.'),
+                  ),
+                ),
+              );
+            }
+
+            return contentWidgets;
+          },
         ),
       );
 

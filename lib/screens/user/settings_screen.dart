@@ -383,20 +383,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSectionHeader(lang.translate('support')),
                   _buildCard([
                     _buildActionTile(
-                      icon: Icons.edit_note_rounded,
-                      title: 'Submit Change Request',
-                      subtitle: 'Request member or photo corrections',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MemberUpdateRequestScreen(targetMember: _currentUser),
-                          ),
-                        );
-                      },
-                      color: Colors.indigo,
-                    ),
-                    _buildActionTile(
                       icon: Icons.help_outline,
                       title: lang.translate('help_faq'),
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HelpFaqScreen())),
