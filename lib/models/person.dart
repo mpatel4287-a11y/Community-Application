@@ -1,3 +1,5 @@
+import 'member_model.dart';
+
 class Person {
   final String id;
   final String firstName;
@@ -9,6 +11,7 @@ class Person {
   final List<String> parentIds;
   final List<String> childrenIds;
   final int? age;
+  final String? birthDate;
   final String? mid;
   final String? relationToHead;
   final String? spouseId;
@@ -24,10 +27,15 @@ class Person {
     this.parentIds = const [],
     this.childrenIds = const [],
     this.age,
+    this.birthDate,
     this.mid,
     this.relationToHead,
     this.spouseId,
   });
+
+  bool get isBirthdayToday => birthDate != null && birthDate!.isNotEmpty
+      ? MemberModel.isBirthdayTodayFromDate(birthDate!)
+      : false;
 
   String get fullName => '$firstName $lastName';
   String get initials {

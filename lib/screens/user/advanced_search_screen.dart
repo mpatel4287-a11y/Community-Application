@@ -505,13 +505,28 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      member.fullName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            member.fullName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (member.isBirthdayToday) ...[
+                          const SizedBox(width: 4),
+                          const Tooltip(
+                            message: 'Birthday Today!',
+                            child: Icon(Icons.cake_rounded, color: Color(0xFFFF6B6B), size: 16),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(

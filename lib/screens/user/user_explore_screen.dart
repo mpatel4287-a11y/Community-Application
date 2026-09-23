@@ -707,9 +707,22 @@ class _UserExploreScreenState extends State<UserExploreScreen> {
                         fullName: member.fullName,
                         radius: 25,
                       ),
-                      title: Text(
-                        member.fullName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              member.fullName,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          if (member.isBirthdayToday) ...[
+                            const SizedBox(width: 4),
+                            const Tooltip(
+                              message: 'Birthday Today!',
+                              child: Icon(Icons.cake_rounded, color: Color(0xFFFF6B6B), size: 16),
+                            ),
+                          ],
+                        ],
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

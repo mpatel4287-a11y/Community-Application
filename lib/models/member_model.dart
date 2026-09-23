@@ -75,7 +75,7 @@ class MemberModel {
     required this.gotra,
     required this.gender, // Added
     required this.birthDate,
-    required this.age,
+    int age = 0,
     required this.education, // Added
     required this.bloodGroup,
     required this.marriageStatus,
@@ -101,28 +101,66 @@ class MemberModel {
     this.spouseMid = '',
     this.spouseRelation = 'none',
     required this.createdAt,
-  });
+  }) : age = (parseBirthDate(birthDate) != null ? calculateAge(birthDate) : age);
+
+  bool get isBirthdayToday => isBirthdayTodayFromDate(birthDate);
+
+  static DateTime? parseBirthDate(String birthDateStr) {
+    if (birthDateStr.trim().isEmpty) return null;
+    final clean = birthDateStr.trim();
+    try {
+      if (clean.contains('/') || clean.contains('-') || clean.contains('.')) {
+        final sep = clean.contains('/')
+            ? '/'
+            : (clean.contains('-') ? '-' : '.');
+        final parts = clean.split(sep);
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            // yyyy/MM/dd or yyyy-MM-dd
+            final y = int.parse(parts[0]);
+            final m = int.parse(parts[1]);
+            final d = int.parse(parts[2]);
+            return DateTime(y, m, d);
+          } else {
+            // dd/MM/yyyy or dd-MM-yyyy
+            final d = int.parse(parts[0]);
+            final m = int.parse(parts[1]);
+            final y = int.parse(parts[2]);
+            return DateTime(y, m, d);
+          }
+        }
+      }
+      return DateTime.tryParse(clean);
+    } catch (_) {
+      return null;
+    }
+  }
 
   static int calculateAge(String birthDateStr) {
-    if (birthDateStr.isEmpty) return 0;
-    try {
-      final parts = birthDateStr.split('/');
-      if (parts.length != 3) return 0;
-      final birthDate = DateTime(
-        int.parse(parts[2]),
-        int.parse(parts[1]),
-        int.parse(parts[0]),
-      );
-      final today = DateTime.now();
-      int age = today.year - birthDate.year;
-      if (today.month < birthDate.month ||
-          (today.month == birthDate.month && today.day < birthDate.day)) {
-        age--;
-      }
-      return age;
-    } catch (e) {
-      return 0;
+    final bDate = parseBirthDate(birthDateStr);
+    if (bDate == null) return 0;
+    final today = DateTime.now();
+    int calculatedAge = today.year - bDate.year;
+    if (today.month < bDate.month ||
+        (today.month == bDate.month && today.day < bDate.day)) {
+      calculatedAge--;
     }
+    return calculatedAge >= 0 ? calculatedAge : 0;
+  }
+
+  static bool isBirthdayTodayFromDate(String birthDateStr) {
+    final bDate = parseBirthDate(birthDateStr);
+    if (bDate == null) return false;
+    final today = DateTime.now();
+    if (bDate.day == today.day && bDate.month == today.month) {
+      return true;
+    }
+    // Leap year handling: if born on Feb 29 and current year is non-leap, celebrate on Feb 28
+    if (bDate.month == 2 && bDate.day == 29 && today.month == 2 && today.day == 28) {
+      final isLeapYear = (today.year % 4 == 0 && today.year % 100 != 0) || (today.year % 400 == 0);
+      if (!isLeapYear) return true;
+    }
+    return false;
   }
 
   static String generateMid(String familyId, String subFamilyId) {
@@ -226,7 +264,9 @@ class MemberModel {
       gotra: data['gotra'] ?? '',
       gender: data['gender'] ?? 'male',
       birthDate: data['birthDate'] ?? '',
-      age: data['age'] ?? 0,
+      age: (data['birthDate'] != null && (data['birthDate'] as String).isNotEmpty)
+          ? MemberModel.calculateAge(data['birthDate'] as String)
+          : (data['age'] ?? 0),
       education: data['education'] ?? '', // Added
       bloodGroup: data['bloodGroup'] ?? '',
       marriageStatus: data['marriageStatus'] ?? 'unmarried',

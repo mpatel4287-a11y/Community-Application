@@ -209,14 +209,33 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                 const SizedBox(height: 16),
                 
                 // Name and MID
-                Text(
-                  widget.member.fullName,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFBF9E4),
-                  ),
-                  textAlign: TextAlign.center,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.member.fullName,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFBF9E4),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    if (widget.member.isBirthdayToday) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFF6B6B),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.cake_rounded, color: Colors.white, size: 16),
+                      ),
+                    ],
+                  ],
                 ),
                 if (widget.member.surname.isNotEmpty)
                   Text(
@@ -228,6 +247,40 @@ class _DigitalIdScreenState extends State<DigitalIdScreen> {
                     ),
                   ),
                 const SizedBox(height: 8),
+                if (widget.member.isBirthdayToday) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF5252), Color(0xFFFF7A00)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF5252).withOpacity(0.35),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cake_rounded, color: Colors.white, size: 14),
+                        SizedBox(width: 6),
+                        Text(
+                          'Birthday Today! 🎂',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(

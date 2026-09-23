@@ -196,6 +196,20 @@
       margin-bottom: 8px;
     }
 
+    .birthday-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #ff5252 0%, #ff7a00 100%);
+      color: #ffffff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 12px rgba(255, 82, 82, 0.4);
+    }
+
     .samaj-watermark {
       font-size: 0.65rem;
       font-weight: 700;
@@ -388,6 +402,7 @@
 
           <div id="card-full-name" class="member-name">Member Name</div>
           <div id="card-surname" class="member-surname">Surname</div>
+          <div id="card-birthday-badge" class="birthday-badge" style="display: none;">🎂 Birthday Today!</div>
           <div id="card-mid" class="mid-badge">MID: F-000-S00-000</div>
           <div class="samaj-watermark">RAMANAGARA PATIDAR SAMAJ</div>
 
@@ -614,21 +629,55 @@
       document.getElementById('card-father').innerText = m.fatherName || '-';
       document.getElementById('card-mother').innerText = m.motherName || '-';
 
-      // Age calculation / string
-      let ageStr = m.age ? `${m.age} years` : '-';
-      if ((!m.age || m.age === '-') && m.birthDate && m.birthDate !== '-') {
+      // Age calculation & Birthday Detection
+      let ageStr = '-';
+      let isBirthday = false;
+      if (m.birthDate && m.birthDate !== '-') {
         try {
-          const parts = m.birthDate.split('/');
-          if (parts.length === 3) {
-            const birthYear = parseInt(parts[2]);
-            const currentYear = new Date().getFullYear();
-            if (!isNaN(birthYear) && birthYear > 1900) {
-              ageStr = `${currentYear - birthYear} years`;
+          const sep = m.birthDate.includes('/') ? '/' : (m.birthDate.includes('-') ? '-' : (m.birthDate.includes('.') ? '.' : null));
+          if (sep) {
+            const parts = m.birthDate.split(sep);
+            let bDay, bMonth, bYear;
+            if (parts[0].length === 4) {
+              bYear = parseInt(parts[0]);
+              bMonth = parseInt(parts[1]);
+              bDay = parseInt(parts[2]);
+            } else {
+              bDay = parseInt(parts[0]);
+              bMonth = parseInt(parts[1]);
+              bYear = parseInt(parts[2]);
+            }
+            if (!isNaN(bYear) && bYear > 1900) {
+              const today = new Date();
+              let calcAge = today.getFullYear() - bYear;
+              if (today.getMonth() + 1 < bMonth || (today.getMonth() + 1 === bMonth && today.getDate() < bDay)) {
+                calcAge--;
+              }
+              ageStr = `${Math.max(0, calcAge)} years`;
+
+              // Check if birthday is today
+              if (today.getDate() === bDay && (today.getMonth() + 1) === bMonth) {
+                isBirthday = true;
+              }
             }
           }
-        } catch(_) {}
+        } catch (_) {}
+      }
+      if (ageStr === '-' && m.age) {
+        ageStr = `${m.age} years`;
       }
       document.getElementById('card-age').innerText = ageStr;
+
+      const bdayBadge = document.getElementById('card-birthday-badge');
+      if (bdayBadge) {
+        if (isBirthday) {
+          bdayBadge.style.display = 'inline-flex';
+          document.getElementById('card-full-name').innerHTML = `${m.fullName} <span style="font-size:18px;">🎂</span>`;
+        } else {
+          bdayBadge.style.display = 'none';
+          document.getElementById('card-full-name').innerText = m.fullName;
+        }
+      }
 
       document.getElementById('card-education').innerText = m.education || '-';
       document.getElementById('card-native').innerText = m.nativeHome || '-';

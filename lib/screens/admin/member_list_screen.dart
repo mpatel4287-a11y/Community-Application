@@ -2693,17 +2693,32 @@ class _MemberListScreenState extends State<MemberListScreen>
                                 const SizedBox(height: 8),
 
                                 // NAME
-                                Text(
-                                  data['fullName'] ?? 'Unnamed',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: isActive
-                                        ? Theme.of(context).colorScheme.onSurface
-                                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        data['fullName'] ?? 'Unnamed',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: isActive
+                                              ? Theme.of(context).colorScheme.onSurface
+                                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                                        ),
+                                      ),
+                                    ),
+                                    if (MemberModel.isBirthdayTodayFromDate(data['birthDate']?.toString() ?? '')) ...[
+                                      const SizedBox(width: 4),
+                                      const Tooltip(
+                                        message: 'Birthday Today!',
+                                        child: Icon(Icons.cake_rounded, color: Color(0xFFFF6B6B), size: 14),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 
                                 const SizedBox(height: 4),

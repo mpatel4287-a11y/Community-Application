@@ -168,16 +168,31 @@ class _PersonCardState extends State<PersonCard>
   }
 
   Widget _buildName() {
-    return Text(
-      widget.person.fullName,
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: Theme.of(context).colorScheme.onSurface,
-      ),
-      textAlign: TextAlign.center,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            widget.person.fullName,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (widget.person.isBirthdayToday) ...[
+          const SizedBox(width: 3),
+          const Tooltip(
+            message: 'Birthday Today!',
+            child: Icon(Icons.cake_rounded, color: Color(0xFFFF6B6B), size: 12),
+          ),
+        ],
+      ],
     );
   }
 

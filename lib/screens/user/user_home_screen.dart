@@ -145,7 +145,18 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           fullName: member.fullName,
                           radius: 25,
                         ),
-                        title: Text(member.fullName),
+                        title: Row(
+                          children: [
+                            Expanded(child: Text(member.fullName)),
+                            if (member.isBirthdayToday) ...[
+                              const SizedBox(width: 4),
+                              const Tooltip(
+                                message: 'Birthday Today!',
+                                child: Icon(Icons.cake_rounded, color: Color(0xFFFF6B6B), size: 16),
+                              ),
+                            ],
+                          ],
+                        ),
                         subtitle: Text('${member.familyName} • ${member.mid}'),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
@@ -363,7 +374,18 @@ class MemberSearchDelegate extends SearchDelegate {
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
-              title: Text(member.fullName),
+              title: Row(
+                children: [
+                  Expanded(child: Text(member.fullName)),
+                  if (member.isBirthdayToday) ...[
+                    const SizedBox(width: 4),
+                    const Tooltip(
+                      message: 'Birthday Today!',
+                      child: Icon(Icons.cake_rounded, color: Color(0xFFFF6B6B), size: 16),
+                    ),
+                  ],
+                ],
+              ),
               subtitle: Text('${member.mid} • ${member.familyName}'),
               onTap: () {
                 close(context, null);

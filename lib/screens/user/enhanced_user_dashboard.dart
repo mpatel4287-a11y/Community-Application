@@ -392,7 +392,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                 child: FlexibleSpaceBar(
                   titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
                   title: Text(
-                    '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}',
+                    '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
                     style: TextStyle(
                       fontSize: 16, 
                       fontWeight: FontWeight.bold, 
@@ -415,20 +415,42 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                 padding: const EdgeInsets.only(right: 16, top: 4),
                 child: GestureDetector(
                   onTap: () => setState(() => _selectedIndex = 4),
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    backgroundImage: _currentUser?.photoUrl.isNotEmpty == true
-                        ? CachedNetworkImageProvider(_currentUser!.photoUrl)
-                        : null,
-                    child: _currentUser?.photoUrl.isEmpty ?? true
-                        ? Text(
-                            _currentUser?.fullName.isNotEmpty == true 
-                                ? _currentUser!.fullName[0].toUpperCase() 
-                                : '?',
-                            style: TextStyle(color: Colors.blue.shade900, fontSize: 14),
-                          )
-                        : null,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        backgroundImage: _currentUser?.photoUrl.isNotEmpty == true
+                            ? CachedNetworkImageProvider(_currentUser!.photoUrl)
+                            : null,
+                        child: _currentUser?.photoUrl.isEmpty ?? true
+                            ? Text(
+                                _currentUser?.fullName.isNotEmpty == true 
+                                    ? _currentUser!.fullName[0].toUpperCase() 
+                                    : '?',
+                                style: TextStyle(color: Colors.blue.shade900, fontSize: 14),
+                              )
+                            : null,
+                      ),
+                      if (_currentUser?.isBirthdayToday == true)
+                        Positioned(
+                          right: -3,
+                          bottom: -3,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF6B6B),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.cake_rounded,
+                              size: 11,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -440,6 +462,68 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
             padding: const EdgeInsets.symmetric(vertical: 16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                if (_currentUser?.isBirthdayToday == true) ...[
+                  FadeInAnimation(
+                    delay: const Duration(milliseconds: 50),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF5252), Color(0xFFFF7A00)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF5252).withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.cake_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Happy Birthday, ${_currentUser?.fullName.split(' ')[0]}! 🎂',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Wishing you a wonderful and blessed day!',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 // Quick Statistics (Unbound layout fix) with animation
                 FadeInAnimation(
                   delay: const Duration(milliseconds: 100),
@@ -826,6 +910,38 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                           )
                         : _buildAvatarPlaceholder(member),
                   ),
+                  if (member.isBirthdayToday)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF5252), Color(0xFFFF7A00)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cake_rounded, color: Colors.white, size: 12),
+                            SizedBox(width: 3),
+                            Text(
+                              '🎂',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   if (isSuggestion)
                     Positioned(
                       top: 8,
@@ -852,15 +968,28 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    member.fullName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          member.fullName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (member.isBirthdayToday) ...[
+                        const SizedBox(width: 4),
+                        const Tooltip(
+                          message: 'Birthday Today!',
+                          child: Icon(Icons.cake_rounded, color: Color(0xFFFF6B6B), size: 15),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   if (member.bloodGroup.isNotEmpty)

@@ -117,6 +117,7 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
             ? 'Native: ${member.nativeHome}'
             : null,
         age: member.age,
+        birthDate: member.birthDate,
         mid: member.mid,
         relationToHead: member.relationToHead,
         parentIds: member.parentMid.isNotEmpty ? [member.parentMid] : [],
