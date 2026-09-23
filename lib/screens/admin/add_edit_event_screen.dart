@@ -28,7 +28,8 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
   late TextEditingController _descriptionCtrl;
   late TextEditingController _locationCtrl;
   late TextEditingController _searchCtrl;
-  late TextEditingController _attendanceLimitCtrl;
+  late TextEditingController _attendanceLimitHoursCtrl;
+  late TextEditingController _attendanceLimitMinsCtrl;
 
   String _selectedType = 'general';
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
@@ -51,9 +52,10 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.event?.title ?? '');
     _descriptionCtrl = TextEditingController(text: widget.event?.description ?? '');
-    _descriptionCtrl = TextEditingController(text: widget.event?.description ?? '');
     _locationCtrl = TextEditingController(text: widget.event?.location ?? '');
-    _attendanceLimitCtrl = TextEditingController(text: widget.event?.attendanceTimeLimit.toString() ?? '60');
+    final totalMins = widget.event?.attendanceTimeLimit ?? 60;
+    _attendanceLimitHoursCtrl = TextEditingController(text: (totalMins ~/ 60).toString());
+    _attendanceLimitMinsCtrl = TextEditingController(text: (totalMins % 60).toString());
     _searchCtrl = TextEditingController();
     _searchCtrl.addListener(_filterMembers);
 
@@ -98,7 +100,8 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
     _titleCtrl.dispose();
     _descriptionCtrl.dispose();
     _locationCtrl.dispose();
-    _attendanceLimitCtrl.dispose();
+    _attendanceLimitHoursCtrl.dispose();
+    _attendanceLimitMinsCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -178,6 +181,11 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
 
     final timeStr = _formatTime(_selectedTime);
 
+    final limitH = int.tryParse(_attendanceLimitHoursCtrl.text.trim()) ?? 0;
+    final limitM = int.tryParse(_attendanceLimitMinsCtrl.text.trim()) ?? 0;
+    final totalLimitMins = (limitH * 60) + limitM;
+    final attendanceLimit = totalLimitMins > 0 ? totalLimitMins : 60;
+
     try {
       if (widget.event == null) {
         await _eventService.createEvent(
@@ -192,7 +200,7 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
           visibilityType: _visibilityType,
           visibleToMemberIds: _visibilityType == 'selected' ? _selectedMemberIds : [],
           visibleToGroupIds: _visibilityType == 'selected' ? _selectedGroupIds : [],
-          attendanceTimeLimit: int.tryParse(_attendanceLimitCtrl.text.trim()) ?? 60,
+          attendanceTimeLimit: attendanceLimit,
         );
       } else {
         await _eventService.updateEvent(
@@ -206,7 +214,7 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
           visibilityType: _visibilityType,
           visibleToMemberIds: _visibilityType == 'selected' ? _selectedMemberIds : [],
           visibleToGroupIds: _visibilityType == 'selected' ? _selectedGroupIds : [],
-          attendanceTimeLimit: int.tryParse(_attendanceLimitCtrl.text.trim()) ?? 60,
+          attendanceTimeLimit: attendanceLimit,
         );
       }
       if (mounted) Navigator.pop(context);
@@ -275,20 +283,54 @@ class _AddEditEventScreenState extends State<AddEditEventScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _attendanceLimitCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Attendance Edit Limit (Minutes)',
-                                prefixIcon: Icon(Icons.timer_off),
-                                helperText: 'Time window to edit/delete attendance',
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _attendanceLimitHoursCtrl,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Edit Limit (Hours)',
+                                      prefixIcon: Icon(Icons.timer_outlined),
+                                      suffixText: 'hrs',
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) return 'Required';
+                                      final n = int.tryParse(v);
+                                      if (n == null || n < 0) return 'Must be >= 0';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _attendanceLimitMinsCtrl,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Edit Limit (Mins)',
+                                      prefixIcon: Icon(Icons.timelapse),
+                                      suffixText: 'mins',
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) return 'Required';
+                                      final m = int.tryParse(v);
+                                      if (m == null || m < 0 || m > 59) return '0 - 59';
+                                      final h = int.tryParse(_attendanceLimitHoursCtrl.text.trim()) ?? 0;
+                                      if (h == 0 && m == 0) return 'Total > 0';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, left: 4),
+                              child: Text(
+                                'Time window to edit/delete attendance (Hours & Minutes)',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                               ),
-                              keyboardType: TextInputType.number,
-                              validator: (v) {
-                                if (v == null || v.isEmpty) return 'Required';
-                                final n = int.tryParse(v);
-                                if (n == null || n < 1) return 'Must be > 0';
-                                return null;
-                              },
                             ),
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(

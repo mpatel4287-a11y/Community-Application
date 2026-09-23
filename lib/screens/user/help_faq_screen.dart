@@ -23,7 +23,7 @@ class HelpFaqScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _buildFaqItem(
             'How do I mark my attendance?',
-            'Navigate to the events page and select an upcoming event. Click on the "Mark Attendance" button and choose your firm or custom count.',
+            'Navigate to the events page and select an upcoming event. Click on the "Mark Attendance" button and enter your attending member count (1 to 30) for your whole family or sub-family.',
           ),
           _buildFaqItem(
             'How are Sub-Firms managed?',
