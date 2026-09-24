@@ -1,6 +1,7 @@
 // lib/widgets/animation_utils.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:ui';
 
 /// Fade in animation widget
@@ -306,21 +307,34 @@ class _AnimatedCardState extends State<AnimatedCard>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(widget.borderRadius),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
-                  child: Container(
-                    padding: widget.padding,
-                    decoration: BoxDecoration(
-                      color: widget.backgroundColor ??
-                          (isDark ? Colors.black.withOpacity(0.3) : Colors.white.withOpacity(0.5)),
-                      border: widget.border ?? Border.all(
-                        color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.6),
-                        width: 1.2,
+                child: kIsWeb
+                    ? BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+                        child: Container(
+                          padding: widget.padding,
+                          decoration: BoxDecoration(
+                            color: widget.backgroundColor ??
+                                (isDark ? Colors.black.withOpacity(0.3) : Colors.white.withOpacity(0.5)),
+                            border: widget.border ?? Border.all(
+                              color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.6),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: widget.child,
+                        ),
+                      )
+                    : Container(
+                        padding: widget.padding,
+                        decoration: BoxDecoration(
+                          color: widget.backgroundColor ??
+                              (isDark ? const Color(0xFF1E293B).withOpacity(0.85) : Colors.white.withOpacity(0.92)),
+                          border: widget.border ?? Border.all(
+                            color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.6),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: widget.child,
                       ),
-                    ),
-                    child: widget.child,
-                  ),
-                ),
               ),
             ),
           );

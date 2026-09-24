@@ -3,6 +3,8 @@
 // ignore_for_file: deprecated_member_use, unnecessary_underscores, sized_box_for_whitespace
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../models/member_model.dart';
@@ -54,6 +56,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
   MemberModel? _currentUser;
   String? _userRole;
   int _selectedIndex = 2; // Default to HOME tab (0=Calendar, 1=Search, 2=Home, 3=Notifications, 4=Profile)
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -284,10 +287,25 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
     }
 
     return PopScope(
-      canPop: _selectedIndex == 2,
-      onPopInvoked: (didPop) {
-        if (!didPop && _selectedIndex != 2) {
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_selectedIndex != 2) {
           setState(() => _selectedIndex = 2);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(lang.translate('press_again_to_exit')),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
         }
       },
       child: Scaffold(
@@ -387,28 +405,51 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
             pinned: true,
             backgroundColor: Colors.transparent, // Let flexible space handle the background
             flexibleSpace: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-                child: FlexibleSpaceBar(
-                  titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
-                  title: Text(
-                    '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
-                    style: TextStyle(
-                      fontSize: 16, 
-                      fontWeight: FontWeight.bold, 
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  background: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
-                      border: Border(
-                        bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
+              child: kIsWeb
+                  ? BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                      child: FlexibleSpaceBar(
+                        titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
+                        title: Text(
+                          '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
+                          style: TextStyle(
+                            fontSize: 16, 
+                            fontWeight: FontWeight.bold, 
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        background: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+                            border: Border(
+                              bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : FlexibleSpaceBar(
+                      titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
+                      title: Text(
+                        '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
+                        style: TextStyle(
+                          fontSize: 16, 
+                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      background: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
+                              width: 1,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
             ),
             actions: [
               Padding(

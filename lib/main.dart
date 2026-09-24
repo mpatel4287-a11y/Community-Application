@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, PlatformDispatcher;
 import 'package:app_links/app_links.dart';
 import 'dart:async';
 
@@ -59,6 +59,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Protect against unhandled asynchronous errors crashing the mobile activity
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError caught: ${details.exceptionAsString()}');
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('PlatformDispatcher uncaught error: $error\n$stack');
+    return true; // handled, prevent process exit
+  };
+
+  // Limit image cache to prevent OOM and GC frame drops on older phones
+  PaintingBinding.instance.imageCache.maximumSize = 100;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50MB
+
   final themeService = ThemeService();
   final languageService = LanguageService();
 
@@ -79,10 +93,10 @@ Future<void> main() async {
     languageService.initialize(),
   ]);
 
-  // Enable offline persistence
-  FirebaseFirestore.instance.settings = const Settings(
+  // Enable offline persistence with bounded cache on mobile
+  FirebaseFirestore.instance.settings = Settings(
     persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    cacheSizeBytes: kIsWeb ? Settings.CACHE_SIZE_UNLIMITED : 100 * 1024 * 1024,
   );
 
   // Initialize FCM (non-blocking - don't let it prevent app startup)

@@ -2,6 +2,7 @@
 // ignore_for_file: use_build_context_synchronously, deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
@@ -25,6 +26,7 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   String? _role;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -102,7 +104,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final lang = Provider.of<LanguageService>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(lang.translate('press_again_to_exit')),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         elevation: 0,
         backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B),
@@ -426,6 +446,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ],
         ),
       ),
+    ),
     );
   }
 
