@@ -2285,6 +2285,7 @@ class _MemberListScreenState extends State<MemberListScreen>
   String _searchQuery = '';
   String _selectedTag = '';
   String? _userRole;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -2359,7 +2360,11 @@ class _MemberListScreenState extends State<MemberListScreen>
 
   Future<void> _loadRole() async {
     final role = await SessionManager.getRole();
-    setState(() => _userRole = role);
+    final isAdmin = await SessionManager.getIsAdmin();
+    setState(() {
+      _userRole = role;
+      _isAdmin = (isAdmin == true) || role == 'admin' || role == 'super_admin';
+    });
   }
 
   // Helper function to build initials widget
@@ -2411,7 +2416,7 @@ class _MemberListScreenState extends State<MemberListScreen>
         title: Text(widget.showOnlyManagers ? lang.translate('managers') : widget.familyName),
         backgroundColor: Colors.blue.shade900,
         actions: [
-          if (!widget.isGlobal && _userRole == 'admin')
+          if (!widget.isGlobal && _isAdmin)
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () {
@@ -2579,14 +2584,19 @@ class _MemberListScreenState extends State<MemberListScreen>
                   );
                 }
 
-                return GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 0.72, 
-                  ),
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final int crossAxisCount = constraints.maxWidth > 900
+                        ? 4
+                        : (constraints.maxWidth > 600 ? 3 : 2);
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 0.98, 
+                      ),
                   itemCount: members.length,
                   itemBuilder: (context, index) {
                     final doc = members[index];
@@ -2790,7 +2800,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                 const Spacer(),
 
                                 // ACTIONS
-                                if (_userRole == 'admin')
+                                if (_isAdmin)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 3,
@@ -2804,7 +2814,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                           MainAxisAlignment.spaceAround,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        if (_userRole == 'admin' || _userRole == 'manager')
+                                        if (_isAdmin || _userRole == 'manager')
                                           Flexible(
                                             child: _buildCompactAction(
                                               icon: Icons.edit,
@@ -2826,7 +2836,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                               },
                                             ),
                                           ),
-                                        if (_userRole == 'admin')
+                                        if (_isAdmin)
                                           Flexible(
                                             child: _buildCompactAction(
                                               icon: isActive
@@ -2850,7 +2860,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                               },
                                             ),
                                           ),
-                                        if (_userRole == 'admin')
+                                        if (_isAdmin)
                                           Flexible(
                                             child: _buildCompactAction(
                                               icon: data['role'] == 'manager'
@@ -2912,7 +2922,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                               },
                                             ),
                                           ),
-                                        if (_userRole == 'admin')
+                                        if (_isAdmin)
                                           Flexible(
                                             child: _buildCompactAction(
                                               icon: Icons.delete,
@@ -2972,6 +2982,8 @@ class _MemberListScreenState extends State<MemberListScreen>
                   },
                 );
               },
+            );
+          },
             ),
           ),
         ],

@@ -6,12 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
+import 'dart:async';
 import 'member_list_screen.dart';
 import 'role_management_screen.dart';
 import 'admin_update_requests_screen.dart';
 import 'system_health_screen.dart';
+import 'admin_security_management_screen.dart';
 import '../../services/auth_service.dart';
 import '../../services/session_manager.dart';
+import '../../services/admin_management_service.dart';
 import '../../services/language_service.dart';
 import '../../widgets/top_action_bar.dart';
 import '../../widgets/animation_utils.dart';
@@ -25,6 +28,9 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   String? _role;
+  bool _isSuperAdmin = false;
+  List<String> _adminPermissions = [];
+  StreamSubscription? _subAdminWatcher;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   DateTime? _lastBackPressTime;
 
@@ -32,6 +38,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void initState() {
     super.initState();
     _loadAdminSession();
+  }
+
+  @override
+  void dispose() {
+    _subAdminWatcher?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadAdminSession() async {
@@ -46,11 +58,78 @@ class _AdminDashboardState extends State<AdminDashboard> {
       return;
     }
 
+    final isSuper = await SessionManager.isSuperAdmin();
+    final permissions = await SessionManager.getAdminPermissions();
+
     if (mounted) {
       setState(() {
         _role = role;
+        _isSuperAdmin = isSuper;
+        _adminPermissions = permissions;
       });
     }
+
+    // If secondary admin, listen to live session revocation and permission changes
+    if (!isSuper && (isAdmin || role == 'admin')) {
+      _subAdminWatcher?.cancel();
+      _subAdminWatcher = AdminManagementService()
+          .streamSubAdminConfig()
+          .listen((snap) async {
+        if (!snap.exists || snap.data() == null) return;
+        final data = Map<String, dynamic>.from(snap.data() as Map);
+        final isBlocked = data['isBlocked'] == true;
+        final activeToken = (data['activeSessionToken'] ?? '').toString();
+        final currentToken = await SessionManager.getAdminSessionToken();
+
+        if (isBlocked || (currentToken != null && currentToken.isNotEmpty && activeToken != currentToken)) {
+          _subAdminWatcher?.cancel();
+          if (mounted) {
+            await AuthService().logout();
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                title: Row(
+                  children: [
+                    Icon(isBlocked ? Icons.block_rounded : Icons.logout_rounded, color: Colors.red),
+                    const SizedBox(width: 8),
+                    const Text('Access Revoked'),
+                  ],
+                ),
+                content: Text(
+                  isBlocked
+                      ? 'Your admin access has been blocked by the Super Admin.'
+                      : 'Your admin session has been terminated by the Super Admin.',
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pushNamedAndRemoveUntil('/login', (route) => false);
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        } else {
+          // Live sync permissions
+          final updatedPerms = List<String>.from(data['permissions'] ?? []);
+          await SessionManager.setAdminPermissions(updatedPerms);
+          if (mounted) {
+            setState(() {
+              _adminPermissions = updatedPerms;
+            });
+          }
+        }
+      });
+    }
+  }
+
+  bool _canAccess(String module) {
+    if (_isSuperAdmin) return true;
+    return _adminPermissions.contains(module);
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -207,7 +286,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 12),
 
-            if (!isManager) ...[
+            if (!isManager && _canAccess('families')) ...[
               SlideInAnimation(
                 delay: const Duration(milliseconds: 280),
                 beginOffset: const Offset(-0.1, 0),
@@ -223,78 +302,85 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(height: 10),
             ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 310),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.people_alt_rounded,
-                title: lang.translate('members'),
-                subtitle: lang.translate('manage_members'),
-                gradientColors: const [Color(0xFF0D9488), Color(0xFF0F766E)],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MemberListScreen(
-                      isGlobal: true,
-                      showOnlyManagers: false,
-                      familyName: lang.translate('all_members'),
+            if (_canAccess('members')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 310),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.people_alt_rounded,
+                  title: lang.translate('members'),
+                  subtitle: lang.translate('manage_members'),
+                  gradientColors: const [Color(0xFF0D9488), Color(0xFF0F766E)],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MemberListScreen(
+                        isGlobal: true,
+                        showOnlyManagers: false,
+                        familyName: lang.translate('all_members'),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
             // Member Update Requests with Live Stream Badge
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 340),
-              beginOffset: const Offset(-0.1, 0),
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore
-                    .collection('member_update_requests')
-                    .where('status', isEqualTo: 'pending')
-                    .snapshots(),
-                builder: (context, snap) {
-                  final pendingCount = snap.hasData ? snap.data!.docs.length : 0;
-                  return _buildActionTile(
-                    context: context,
-                    icon: Icons.published_with_changes_rounded,
-                    title: lang.translate('member_update_requests'),
-                    subtitle: lang.translate('manage_update_requests_subtitle'),
-                    gradientColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
-                    badgeCount: pendingCount,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AdminUpdateRequestsScreen()),
-                    ),
-                  );
-                },
+            if (_canAccess('member_update_requests')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 340),
+                beginOffset: const Offset(-0.1, 0),
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('member_update_requests')
+                      .where('status', isEqualTo: 'pending')
+                      .snapshots(),
+                  builder: (context, snap) {
+                    final pendingCount = snap.hasData ? snap.data!.docs.length : 0;
+                    return _buildActionTile(
+                      context: context,
+                      icon: Icons.published_with_changes_rounded,
+                      title: lang.translate('member_update_requests'),
+                      subtitle: lang.translate('manage_update_requests_subtitle'),
+                      gradientColors: const [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                      badgeCount: pendingCount,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AdminUpdateRequestsScreen()),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 370),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.admin_panel_settings_rounded,
-                title: lang.translate('manage_managers'),
-                subtitle: lang.translate('manage_managers_subtitle'),
-                gradientColors: const [Color(0xFFEA580C), Color(0xFFC2410C)],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MemberListScreen(
-                      isGlobal: true,
-                      showOnlyManagers: true,
-                      familyName: lang.translate('managers'),
+            if (_canAccess('managers')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 370),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.admin_panel_settings_rounded,
+                  title: lang.translate('manage_managers'),
+                  subtitle: lang.translate('manage_managers_subtitle'),
+                  gradientColors: const [Color(0xFFEA580C), Color(0xFFC2410C)],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MemberListScreen(
+                        isGlobal: true,
+                        showOnlyManagers: true,
+                        familyName: lang.translate('managers'),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: 10),
+            ],
 
             const SizedBox(height: 22),
 
@@ -310,77 +396,88 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 12),
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 430),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.military_tech_rounded,
-                title: lang.translate('organizational_roles'),
-                subtitle: lang.translate('manage_roles_subtitle'),
-                gradientColors: const [Color(0xFF059669), Color(0xFF047857)],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RoleManagementScreen()),
+            if (_canAccess('roles')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 430),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.military_tech_rounded,
+                  title: lang.translate('organizational_roles'),
+                  subtitle: lang.translate('manage_roles_subtitle'),
+                  gradientColors: const [Color(0xFF059669), Color(0xFF047857)],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RoleManagementScreen()),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 460),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.diversity_3_rounded,
-                title: lang.translate('groups'),
-                subtitle: lang.translate('manage_groups_subtitle'),
-                gradientColors: const [Color(0xFF9333EA), Color(0xFF7E22CE)],
-                onTap: () => Navigator.pushNamed(context, '/admin/groups'),
+            if (_canAccess('groups')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 460),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.diversity_3_rounded,
+                  title: lang.translate('groups'),
+                  subtitle: lang.translate('manage_groups_subtitle'),
+                  gradientColors: const [Color(0xFF9333EA), Color(0xFF7E22CE)],
+                  onTap: () => Navigator.pushNamed(context, '/admin/groups'),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 490),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.event_available_rounded,
-                title: lang.translate('events'),
-                subtitle: lang.translate('manage_events_subtitle'),
-                gradientColors: const [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                onTap: () => Navigator.pushNamed(context, '/admin/events'),
+            if (_canAccess('events')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 490),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.event_available_rounded,
+                  title: lang.translate('events'),
+                  subtitle: lang.translate('manage_events_subtitle'),
+                  gradientColors: const [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                  onTap: () => Navigator.pushNamed(context, '/admin/events'),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 520),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.storefront_rounded,
-                title: lang.translate('firms'),
-                subtitle: lang.translate('view_firms_subtitle'),
-                gradientColors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
-                onTap: () => Navigator.pushNamed(context, '/admin/firms'),
+            if (_canAccess('firms')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 520),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.storefront_rounded,
+                  title: lang.translate('firms'),
+                  subtitle: lang.translate('view_firms_subtitle'),
+                  gradientColors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
+                  onTap: () => Navigator.pushNamed(context, '/admin/firms'),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 550),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.campaign_rounded,
-                title: lang.translate('notification_center'),
-                subtitle: lang.translate('send_custom_messages'),
-                gradientColors: const [Color(0xFFE11D48), Color(0xFFBE123C)],
-                onTap: () => Navigator.pushNamed(context, '/admin/notifications'),
+            if (_canAccess('notifications')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 550),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.campaign_rounded,
+                  title: lang.translate('notification_center'),
+                  subtitle: lang.translate('send_custom_messages'),
+                  gradientColors: const [Color(0xFFE11D48), Color(0xFFBE123C)],
+                  onTap: () => Navigator.pushNamed(context, '/admin/notifications'),
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+            ],
 
             const SizedBox(height: 22),
 
@@ -396,7 +493,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 12),
 
-            if (!isManager) ...[
+            if (!isManager && _canAccess('analytics')) ...[
               SlideInAnimation(
                 delay: const Duration(milliseconds: 610),
                 beginOffset: const Offset(-0.1, 0),
@@ -412,35 +509,59 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(height: 10),
             ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 640),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.health_and_safety_rounded,
-                title: lang.translate('system_health'),
-                subtitle: 'Firestore latency, latency checks & services status',
-                gradientColors: const [Color(0xFF059669), Color(0xFF047857)],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SystemHealthScreen()),
+            if (_canAccess('system_health')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 640),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.health_and_safety_rounded,
+                  title: lang.translate('system_health'),
+                  subtitle: 'Firestore latency, latency checks & services status',
+                  gradientColors: const [Color(0xFF059669), Color(0xFF047857)],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SystemHealthScreen()),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
 
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 670),
-              beginOffset: const Offset(-0.1, 0),
-              child: _buildActionTile(
-                context: context,
-                icon: Icons.settings_suggest_rounded,
-                title: lang.translate('settings'),
-                subtitle: 'App configuration, security rules & cache management',
-                gradientColors: const [Color(0xFF475569), Color(0xFF334155)],
-                onTap: () => Navigator.pushNamed(context, '/user/settings'),
+            if (_canAccess('settings')) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 670),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.settings_suggest_rounded,
+                  title: lang.translate('settings'),
+                  subtitle: 'App configuration, security rules & cache management',
+                  gradientColors: const [Color(0xFF475569), Color(0xFF334155)],
+                  onTap: () => Navigator.pushNamed(context, '/user/settings'),
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+            ],
+
+            if (_isSuperAdmin) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 700),
+                beginOffset: const Offset(-0.1, 0),
+                child: _buildActionTile(
+                  context: context,
+                  icon: Icons.shield_rounded,
+                  title: 'Admin Security & Access',
+                  subtitle: 'Manage 2nd admin, permissions, live tracking & passwords',
+                  gradientColors: const [Color(0xFFDC2626), Color(0xFF991B1B)],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminSecurityManagementScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
 
             const SizedBox(height: 32),
           ],

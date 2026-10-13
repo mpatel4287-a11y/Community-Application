@@ -20,6 +20,7 @@ import 'screens/admin/system_health_screen.dart';
 import 'screens/admin/notification_center_screen.dart';
 import 'screens/admin/firms_list_screen.dart';
 import 'screens/admin/admin_update_requests_screen.dart';
+import 'screens/admin/admin_security_management_screen.dart';
 import 'screens/user/digital_id_screen.dart';
 import 'models/member_model.dart';
 import 'screens/user/settings_screen.dart';
@@ -409,6 +410,7 @@ class _MyAppState extends State<MyApp> {
         '/admin/notifications': (_) => const AuthGuard(requireAdmin: true, child: NotificationCenterScreen()),
         '/admin/firms': (_) => const AuthGuard(requireAdmin: true, child: FirmsListScreen()),
         '/admin/update-requests': (_) => const AuthGuard(requireAdmin: true, child: AdminUpdateRequestsScreen()),
+        '/admin/security': (_) => const AuthGuard(requireAdmin: true, child: AdminSecurityManagementScreen()),
         '/home': (_) => const AuthGuard(requireUser: true, child: EnhancedUserDashboard()),
         '/user/settings': (_) => const AuthGuard(requireUser: true, child: SettingsScreen()),
         '/user/profile': (_) => const AuthGuard(requireUser: true, child: UserProfileScreen()),

@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/login_response.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'session_manager.dart';
+import 'admin_management_service.dart';
 
 class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -29,7 +30,7 @@ class AuthService {
         );
       }
 
-      // ---------------- ADMIN LOGIN (ADM-83288) ----------------
+      // ---------------- DUAL-ADMIN LOGIN (ADM-83288) ----------------
       if (id.startsWith('ADM-')) {
         final adminId = id.substring(4); // Remove 'ADM-'
         if (adminId == ADMIN_ID) {
@@ -38,27 +39,80 @@ class AuthService {
               .doc(ADMIN_ID)
               .get();
 
-          if (!adminSnap.exists || (adminSnap.data()?['password'] ?? '') != pwd) {
+          final masterPassword = adminSnap.exists ? (adminSnap.data()?['password']?.toString() ?? '') : '';
+
+          // 1. MASTER ADMIN (SUPER ADMIN) LOGIN
+          if (masterPassword.isNotEmpty && masterPassword == pwd) {
+            await SessionManager.saveSession(
+              familyDocId: adminSnap.id,
+              familyId: adminSnap.data()?['familyId'] ?? 0,
+              isAdmin: true,
+              role: 'admin',
+              familyName: adminSnap.data()?['familyName'] ?? 'Main Admin',
+            );
+            await SessionManager.setIsSuperAdmin(true);
+            await SessionManager.setAdminPermissions(AdminManagementService.allPermissionKeys);
+            await SessionManager.setAdminSessionToken('');
+
             return LoginResponse(
-              success: false,
-              message: 'Invalid admin credentials',
-              isAdmin: false,
+              success: true,
+              message: 'Super Admin login successful',
+              isAdmin: true,
+              role: 'admin',
             );
           }
 
-          await SessionManager.saveSession(
-            familyDocId: adminSnap.id,
-            familyId: adminSnap.data()?['familyId'] ?? 0,
-            isAdmin: true,
-            role: 'admin',
-            familyName: adminSnap.data()?['familyName'] ?? 'Admin',
-          );
+          // 2. SECONDARY ADMIN (SUB ADMIN) LOGIN
+          final adminService = AdminManagementService();
+          final subAdminConfig = await adminService.getSubAdminConfig();
+          final subAdminPassword = (subAdminConfig['password'] ?? '').toString();
+
+          if (subAdminPassword.isNotEmpty && subAdminPassword == pwd) {
+            // Check if blocked by Super Admin
+            if (subAdminConfig['isBlocked'] == true) {
+              return LoginResponse(
+                success: false,
+                message: 'This admin account is currently blocked by Super Admin.',
+                isAdmin: false,
+              );
+            }
+
+            // Generate unique session token & capture client telemetry
+            final sessionToken = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch}';
+            final telemetry = await adminService.fetchClientTelemetry();
+
+            await adminService.recordSubAdminLogin(
+              sessionToken: sessionToken,
+              telemetry: telemetry,
+            );
+
+            final permissions = List<String>.from(
+              subAdminConfig['permissions'] ?? AdminManagementService.allPermissionKeys,
+            );
+
+            await SessionManager.saveSession(
+              familyDocId: adminSnap.exists ? adminSnap.id : ADMIN_ID,
+              familyId: adminSnap.exists ? (adminSnap.data()?['familyId'] ?? 0) : 0,
+              isAdmin: true,
+              role: 'admin',
+              familyName: 'Admin',
+            );
+            await SessionManager.setIsSuperAdmin(false);
+            await SessionManager.setAdminPermissions(permissions);
+            await SessionManager.setAdminSessionToken(sessionToken);
+
+            return LoginResponse(
+              success: true,
+              message: 'Admin login successful',
+              isAdmin: true,
+              role: 'admin',
+            );
+          }
 
           return LoginResponse(
-            success: true,
-            message: 'Admin login successful',
-            isAdmin: true,
-            role: 'admin',
+            success: false,
+            message: 'Invalid admin credentials',
+            isAdmin: false,
           );
         }
       }

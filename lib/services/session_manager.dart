@@ -14,6 +14,9 @@ class SessionManager {
   static const _keySavedPassword = 'saved_password';
   static const _keyBiometricEnabled = 'biometric_enabled';
   static const _keyNotificationsEnabled = 'notifications_enabled';
+  static const _keyIsSuperAdmin = 'is_super_admin';
+  static const _keyAdminSessionToken = 'admin_session_token';
+  static const _keyAdminPermissions = 'admin_permissions';
 
   // SAVE SESSION (Family level)
   static Future<void> saveSession({
@@ -135,6 +138,44 @@ class SessionManager {
   static Future<bool> getNotificationsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyNotificationsEnabled) ?? true;
+  }
+
+  // SUPER ADMIN & ACCESS PERMISSIONS
+  static Future<void> setIsSuperAdmin(bool isSuper) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsSuperAdmin, isSuper);
+  }
+
+  static Future<bool> isSuperAdmin() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIsSuperAdmin) ?? false;
+  }
+
+  static Future<void> setAdminSessionToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyAdminSessionToken, token);
+  }
+
+  static Future<String?> getAdminSessionToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyAdminSessionToken);
+  }
+
+  static Future<void> setAdminPermissions(List<String> perms) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_keyAdminPermissions, perms);
+  }
+
+  static Future<List<String>> getAdminPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_keyAdminPermissions) ?? [];
+  }
+
+  static Future<bool> hasAdminPermission(String module) async {
+    final isSuper = await isSuperAdmin();
+    if (isSuper) return true;
+    final perms = await getAdminPermissions();
+    return perms.contains(module);
   }
 
   // CLEAR SESSION
