@@ -81,20 +81,92 @@ class SubFamilyService {
     required String mainFamilyDocId,
     required String subFamilyDocId,
   }) async {
-    // Delete all members of this sub-family
-    final members = await _firestore
-        .collectionGroup('members')
-        .where('subFamilyDocId', isEqualTo: subFamilyDocId)
-        .get();
+    // 1. Delete all members of this sub-family inside its direct subcollection:
+    // families/{mainFamilyDocId}/subfamilies/{subFamilyDocId}/members
+    try {
+      final subMembers = await _getSubFamiliesCollection(mainFamilyDocId)
+          .doc(subFamilyDocId)
+          .collection('members')
+          .get();
 
-    for (final doc in members.docs) {
-      await doc.reference.delete();
+      for (final doc in subMembers.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      // Log or continue
     }
 
-    // Delete sub-family document
+    // 2. Delete any members that might be in main family's members collection with this subFamilyDocId
+    try {
+      final mainMembers = await _firestore
+          .collection('families')
+          .doc(mainFamilyDocId)
+          .collection('members')
+          .where('subFamilyDocId', isEqualTo: subFamilyDocId)
+          .get();
+
+      for (final doc in mainMembers.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      // Log or continue
+    }
+
+    // 3. Delete any member_update_requests for this sub-family
+    try {
+      final reqs = await _firestore
+          .collection('member_update_requests')
+          .where('subFamilyDocId', isEqualTo: subFamilyDocId)
+          .get();
+
+      for (final doc in reqs.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      // Log or continue
+    }
+
+    // 4. Safely attempt collectionGroup deletion in case index exists or works
+    try {
+      final cgMembers = await _firestore
+          .collectionGroup('members')
+          .where('subFamilyDocId', isEqualTo: subFamilyDocId)
+          .get();
+
+      for (final doc in cgMembers.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      // Collection group deletion can fail if index is absent, safely continue
+    }
+
+    // 5. Delete sub-family document itself
     await _getSubFamiliesCollection(
       mainFamilyDocId,
     ).doc(subFamilyDocId).delete();
+  }
+
+  /// Delete sub-families by name pattern (e.g., if searching across all main families)
+  Future<int> deleteSubFamiliesByNamePattern(String namePattern) async {
+    try {
+      final query = await _firestore.collectionGroup('subfamilies').get();
+      int count = 0;
+      for (final doc in query.docs) {
+        final subName = (doc.data()['subFamilyName'] ?? '').toString().toLowerCase();
+        if (subName.contains(namePattern.toLowerCase())) {
+          final mainFamilyDocId = doc.reference.parent.parent?.id ?? '';
+          if (mainFamilyDocId.isNotEmpty) {
+            await deleteSubFamily(mainFamilyDocId: mainFamilyDocId, subFamilyDocId: doc.id);
+          } else {
+            await doc.reference.delete();
+          }
+          count++;
+        }
+      }
+      return count;
+    } catch (e) {
+      return 0;
+    }
   }
 
   // ---------------- GET SUB-FAMILY ----------------

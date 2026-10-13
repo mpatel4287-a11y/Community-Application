@@ -34,10 +34,13 @@ enum ExportField {
   String getValue(Map<String, dynamic> famData, MemberModel m) {
     switch (this) {
       case ExportField.familyId:
+        if (m.familyId.isNotEmpty && m.familyId != '-') {
+          return m.familyId;
+        }
         final idVal = famData['familyId']?.toString();
         return (idVal != null && idVal.isNotEmpty && idVal != '-')
             ? idVal
-            : (m.familyId.isNotEmpty ? m.familyId : '-');
+            : '-';
       case ExportField.familyName:
         final famName = famData['familyName']?.toString();
         return (famName != null && famName.isNotEmpty) ? famName : m.familyName;

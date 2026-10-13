@@ -39,7 +39,16 @@ class _EditFamilyScreenState extends State<EditFamilyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Family')),
+      appBar: AppBar(
+        title: const Text('Edit Family'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Delete Family',
+            onPressed: _loading ? null : _deleteFamily,
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -69,41 +78,112 @@ class _EditFamilyScreenState extends State<EditFamilyScreen> {
               const SizedBox(height: 16),
               _loading
                   ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: () async {
-                        if (!_formKey.currentState!.validate()) return;
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (!_formKey.currentState!.validate()) return;
 
-                        setState(() => _loading = true);
+                            setState(() => _loading = true);
 
-                        try {
-                          await FamilyService().updateFamily(
-                            familyDocId: widget.docId,
-                            familyName: _familyNameCtrl.text.trim(),
-                            password: _passwordCtrl.text.isNotEmpty
-                                ? _passwordCtrl.text.trim()
-                                : null,
-                          );
+                            try {
+                              await FamilyService().updateFamily(
+                                familyDocId: widget.docId,
+                                familyName: _familyNameCtrl.text.trim(),
+                                password: _passwordCtrl.text.isNotEmpty
+                                    ? _passwordCtrl.text.trim()
+                                    : null,
+                              );
 
-                          Navigator.pop(context);
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error updating family: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        } finally {
-                          if (mounted) {
-                            setState(() => _loading = false);
-                          }
-                        }
-                      },
-                      child: const Text('Update Family'),
+                              Navigator.pop(context);
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error updating family: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } finally {
+                              if (mounted) {
+                                setState(() => _loading = false);
+                              }
+                            }
+                          },
+                          child: const Text('Update Family'),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                          ),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Delete Family'),
+                          onPressed: _deleteFamily,
+                        ),
+                      ],
                     ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _deleteFamily() async {
+    final familyName = _familyNameCtrl.text.trim().isNotEmpty
+        ? _familyNameCtrl.text.trim()
+        : 'this family';
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Delete Family'),
+        content: Text(
+          'Are you sure you want to delete "$familyName"?\nThis will permanently delete this family, all its sub-families, and all members.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true && mounted) {
+      setState(() => _loading = true);
+      try {
+        await FamilyService().deleteFamily(widget.docId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('"$familyName" deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting family: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _loading = false);
+        }
+      }
+    }
   }
 }

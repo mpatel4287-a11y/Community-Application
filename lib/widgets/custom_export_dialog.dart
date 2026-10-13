@@ -1,6 +1,7 @@
 // lib/widgets/custom_export_dialog.dart
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/member_model.dart';
 import '../models/subfamily_model.dart';
 import '../services/export_service.dart';
@@ -61,6 +62,7 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
   ExportScope _scope = ExportScope.fullFamily;
   ExportFormat _format = ExportFormat.pdf;
   bool _isExporting = false;
+  String _resolvedFamilyId = '';
 
   List<SubFamilyModel> _subFamilies = [];
   SubFamilyModel? _selectedSubFamily;
@@ -89,10 +91,30 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
   @override
   void initState() {
     super.initState();
+    _resolvedFamilyId = widget.familyId;
     if (widget.initialSubFamilyDocId != null && widget.initialSubFamilyDocId!.isNotEmpty) {
       _scope = ExportScope.subFamily;
     }
+    _initFamilyId();
     _loadSubFamilies();
+  }
+
+  Future<void> _initFamilyId() async {
+    if (_resolvedFamilyId.isNotEmpty) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('families')
+          .doc(widget.mainFamilyDocId)
+          .get();
+      if (doc.exists && mounted) {
+        final idVal = doc.data()?['familyId']?.toString() ?? '';
+        if (idVal.isNotEmpty) {
+          setState(() {
+            _resolvedFamilyId = idVal;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadSubFamilies() async {
@@ -165,6 +187,21 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
       final List<Map<String, dynamic>> exportData = [];
       String exportTitle = widget.familyName;
 
+      String effectiveFamilyId = _resolvedFamilyId.isNotEmpty
+          ? _resolvedFamilyId
+          : widget.familyId;
+      if (effectiveFamilyId.isEmpty) {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('families')
+              .doc(widget.mainFamilyDocId)
+              .get();
+          if (doc.exists) {
+            effectiveFamilyId = doc.data()?['familyId']?.toString() ?? '';
+          }
+        } catch (_) {}
+      }
+
       if (_scope == ExportScope.subFamily && _selectedSubFamily != null) {
         final members = await _memberService.getSubFamilyMembers(
           widget.mainFamilyDocId,
@@ -176,7 +213,7 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
             : 'Sub-Family ${_selectedSubFamily!.subFamilyId}';
         exportData.add({
           'familyDocId': widget.mainFamilyDocId,
-          'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
+          'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
           'familyName': widget.familyName,
           'subFamilyName': subName,
           'subFamilyId': _selectedSubFamily!.subFamilyId,
@@ -216,7 +253,7 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
 
               exportData.add({
                 'familyDocId': widget.mainFamilyDocId,
-                'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
+                'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
                 'familyName': widget.familyName,
                 'subFamilyName': subName,
                 'subFamilyId': sf.subFamilyId,
@@ -229,7 +266,7 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
           if (unassigned.isNotEmpty) {
             exportData.add({
               'familyDocId': widget.mainFamilyDocId,
-              'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
+              'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
               'familyName': widget.familyName,
               'subFamilyName': 'Main Family Members',
               'subFamilyId': '00',
@@ -241,7 +278,7 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
         if (exportData.isEmpty) {
           exportData.add({
             'familyDocId': widget.mainFamilyDocId,
-            'familyId': widget.familyId.isNotEmpty ? widget.familyId : '12345',
+            'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
             'familyName': widget.familyName,
             'members': allMembers,
           });

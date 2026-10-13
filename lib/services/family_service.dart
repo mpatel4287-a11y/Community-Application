@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'counter_service.dart';
 
 class FamilyService {
@@ -81,29 +82,142 @@ class FamilyService {
 
   // ---------------- DELETE FAMILY ----------------
   Future<void> deleteFamily(String familyDocId) async {
-    // Delete all members of this family
-    final members = await _firestore
-        .collection('members')
-        .where('familyDocId', isEqualTo: familyDocId)
-        .get();
+    // 1. Delete all sub-families and their members
+    try {
+      final subFamiliesSnap = await _firestore
+          .collection('families')
+          .doc(familyDocId)
+          .collection('subfamilies')
+          .get();
 
-    for (final doc in members.docs) {
-      await doc.reference.delete();
+      for (final subDoc in subFamiliesSnap.docs) {
+        // Delete all members in this sub-family
+        try {
+          final subMembersSnap =
+              await subDoc.reference.collection('members').get();
+          for (final mDoc in subMembersSnap.docs) {
+            await mDoc.reference.delete();
+          }
+        } catch (e) {
+          debugPrint('Error deleting sub-family members: $e');
+        }
+        // Delete sub-family doc
+        await subDoc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Error deleting sub-families: $e');
     }
 
-    // Delete all groups of this family
-    final groups = await _firestore
-        .collection('families')
-        .doc(familyDocId)
-        .collection('groups')
-        .get();
+    // 2. Delete all members in families/{familyDocId}/members
+    try {
+      final membersSnap = await _firestore
+          .collection('families')
+          .doc(familyDocId)
+          .collection('members')
+          .get();
 
-    for (final doc in groups.docs) {
-      await doc.reference.delete();
+      for (final doc in membersSnap.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Error deleting family members: $e');
     }
 
-    // Delete the family document
+    // 3. Delete all groups of this family
+    try {
+      final groups = await _firestore
+          .collection('families')
+          .doc(familyDocId)
+          .collection('groups')
+          .get();
+
+      for (final doc in groups.docs) {
+        try {
+          final messages = await doc.reference.collection('messages').get();
+          for (final m in messages.docs) {
+            await m.reference.delete();
+          }
+        } catch (_) {}
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Error deleting family groups: $e');
+    }
+
+    // 4. Delete counters in families/{familyDocId}/counters
+    try {
+      final countersSnap = await _firestore
+          .collection('families')
+          .doc(familyDocId)
+          .collection('counters')
+          .get();
+
+      for (final doc in countersSnap.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Error deleting counters: $e');
+    }
+
+    // 5. Delete member_update_requests for this family
+    try {
+      final reqs = await _firestore
+          .collection('member_update_requests')
+          .where('familyDocId', isEqualTo: familyDocId)
+          .get();
+
+      for (final doc in reqs.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Error deleting update requests by familyDocId: $e');
+    }
+
+    // 6. Delete members from collectionGroup('members') where familyDocId == familyDocId
+    try {
+      final cgMembers = await _firestore
+          .collectionGroup('members')
+          .where('familyDocId', isEqualTo: familyDocId)
+          .get();
+
+      for (final doc in cgMembers.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Error in collectionGroup members deletion: $e');
+    }
+
+    // 7. Delete from root members collection if any exist
+    try {
+      final rootMembers = await _firestore
+          .collection('members')
+          .where('familyDocId', isEqualTo: familyDocId)
+          .get();
+
+      for (final doc in rootMembers.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Error in root members deletion: $e');
+    }
+
+    // 8. Delete the family document
     await _firestore.collection('families').doc(familyDocId).delete();
+  }
+
+  /// Delete families by matching name pattern (case-insensitive substring match, e.g. "patel", "demo")
+  Future<int> deleteFamiliesByNamePattern(String namePattern) async {
+    final query = await _firestore.collection('families').get();
+    int count = 0;
+    for (final doc in query.docs) {
+      if (doc.id == '83288') continue; // Never delete admin root account
+      final famName = (doc.data()['familyName'] ?? '').toString().toLowerCase();
+      if (famName.contains(namePattern.toLowerCase())) {
+        await deleteFamily(doc.id);
+        count++;
+      }
+    }
+    return count;
   }
 
   // ---------------- TOGGLE BLOCK FAMILY ----------------

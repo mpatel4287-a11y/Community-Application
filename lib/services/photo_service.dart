@@ -2,7 +2,7 @@
 
 // ignore_for_file: avoid_print
 
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'imagekit_service.dart';
 import 'imagekit_config.dart';
@@ -15,21 +15,29 @@ class PhotoService {
   /// Check if ImageKit is properly configured
   bool get isImageKitConfigured => ImageKitService.isConfigured;
 
-  /// Upload profile photo using ImageKit
+  /// Upload profile photo using ImageKit (supports web, android, iOS)
   Future<String?> uploadProfilePhoto({
     required String memberId,
-    required XFile image,
+    XFile? image,
+    Uint8List? bytes,
   }) async {
     try {
-      // Read the image file
-      final file = File(image.path);
-      final bytes = await file.readAsBytes();
+      Uint8List? rawBytes = bytes;
+      if (rawBytes == null && image != null) {
+        rawBytes = await image.readAsBytes();
+      }
+
+      if (rawBytes == null || rawBytes.isEmpty) {
+        print('Error uploading photo: No image bytes provided');
+        return null;
+      }
+
       final fileName =
           'profile_${memberId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       // Upload to ImageKit
       final photoUrl = await _imageKitService.uploadFile(
-        fileBytes: bytes,
+        fileBytes: rawBytes,
         fileName: fileName,
         folder: ImageKitConfig.profilePhotoFolder,
         customMetadata: {

@@ -7,9 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../models/member_model.dart';
 import '../../../models/organizational_role_model.dart';
 import '../../../services/member_service.dart';
+import '../../../services/photo_service.dart';
+import '../../../services/imagekit_config.dart';
 import '../../../services/role_service.dart';
 import '../../../services/session_manager.dart';
 import '../../../services/language_service.dart';
@@ -188,9 +191,11 @@ class MemberDetailScreen extends StatefulWidget {
 class _MemberDetailScreenState extends State<MemberDetailScreen> {
   final MemberService _memberService = MemberService();
   final RoleService _roleService = RoleService();
+  final PhotoService _photoService = PhotoService();
   MemberModel? _member;
   List<OrganizationalRoleModel> _memberRoles = [];
   bool _loading = true;
+  bool _uploadingPhoto = false;
   String? _familyDocId;
   String? _currentUserRole;
   bool _isAdmin = false;
@@ -254,7 +259,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           _member = member;
           _memberRoles = roles;
           _familyDocId = member?.familyDocId ?? widget.familyDocId ?? '';
-          _isAdmin = isAdmin;
+          _isAdmin = isAdmin || userRole == 'admin' || userRole == 'super_admin';
           _currentUserRole = userRole;
           _loading = false;
         });
@@ -447,6 +452,149 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
   void _showFullScreenImage(String? photoUrl, String fullName, String id) {
     if (photoUrl == null || photoUrl.isEmpty || !photoUrl.startsWith('http')) return;
     FullScreenImageViewer.show(context, photoUrl, tag: 'profile_$id');
+  }
+
+  Future<void> _promptChangeProfilePhoto() async {
+    if (_member == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Change Profile Photo (DP)',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: Colors.blue),
+                title: const Text('Take Photo (Camera)'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadPhoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: Colors.purple),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadPhoto(ImageSource.gallery);
+                },
+              ),
+              if (_member!.photoUrl.isNotEmpty && _member!.photoUrl.startsWith('http')) ...[
+                ListTile(
+                  leading: const Icon(Icons.fullscreen_rounded, color: Colors.teal),
+                  title: const Text('View Full Photo'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showFullScreenImage(_member!.photoUrl, _member!.fullName, _member!.id);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  title: const Text('Remove Photo'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _removeProfilePhoto();
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadPhoto(ImageSource source) async {
+    if (_member == null) return;
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: ImageKitConfig.maxImageWidth.toDouble(),
+        maxHeight: ImageKitConfig.maxImageHeight.toDouble(),
+        imageQuality: ImageKitConfig.imageQuality,
+      );
+
+      if (image == null) return;
+
+      setState(() => _uploadingPhoto = true);
+
+      final photoUrl = await _photoService.uploadProfilePhoto(
+        memberId: _member!.id,
+        image: image,
+      );
+
+      if (photoUrl != null && photoUrl.startsWith('http')) {
+        await _memberService.updateMember(
+          mainFamilyDocId: _member!.familyDocId,
+          subFamilyDocId: _member!.subFamilyDocId,
+          memberId: _member!.id,
+          updates: {'photoUrl': photoUrl},
+        );
+
+        // Reload member
+        await _loadMember();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile photo updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception('Failed to upload image to ImageKit');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Photo upload failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<void> _removeProfilePhoto() async {
+    if (_member == null) return;
+    try {
+      setState(() => _uploadingPhoto = true);
+      await _memberService.updateMember(
+        mainFamilyDocId: _member!.familyDocId,
+        subFamilyDocId: _member!.subFamilyDocId,
+        memberId: _member!.id,
+        updates: {'photoUrl': ''},
+      );
+      await _loadMember();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo removed.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error removing photo: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
   }
 
   @override
@@ -693,33 +841,74 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
           Stack(
             alignment: Alignment.bottomRight,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: borderColor, width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark ? Colors.black38 : const Color(0x10000000),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ProfileImage(
-                  photoUrl: member.photoUrl,
-                  fullName: member.fullName,
-                  radius: 60,
-                  onLongPress: () => _showFullScreenImage(member.photoUrl, member.fullName, member.id),
+              GestureDetector(
+                onTap: (_isAdmin || _currentUserRole == 'manager')
+                    ? _promptChangeProfilePhoto
+                    : () => _showFullScreenImage(member.photoUrl, member.fullName, member.id),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: borderColor, width: 4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark ? Colors.black38 : const Color(0x10000000),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: _uploadingPhoto
+                      ? SizedBox(
+                          width: 120,
+                          height: 120,
+                          child: Center(
+                            child: CircularProgressIndicator(color: theme.colorScheme.primary),
+                          ),
+                        )
+                      : ProfileImage(
+                          photoUrl: member.photoUrl,
+                          fullName: member.fullName,
+                          radius: 60,
+                          onLongPress: () => _showFullScreenImage(member.photoUrl, member.fullName, member.id),
+                        ),
                 ),
               ),
               if (member.role == 'manager')
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    shape: BoxShape.circle,
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.verified_rounded, color: theme.colorScheme.onPrimary, size: 20),
                   ),
-                  child: Icon(Icons.verified_rounded, color: theme.colorScheme.onPrimary, size: 20),
+                ),
+              if (_isAdmin || _currentUserRole == 'manager')
+                Positioned(
+                  bottom: 2,
+                  right: 2,
+                  child: GestureDetector(
+                    onTap: _promptChangeProfilePhoto,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
+                    ),
+                  ),
                 ),
             ],
           ),

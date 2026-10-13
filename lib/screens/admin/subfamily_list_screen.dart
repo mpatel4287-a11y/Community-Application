@@ -31,6 +31,7 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
   final SubFamilyService _subFamilyService = SubFamilyService();
   String _searchQuery = '';
   String? _userRole;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -40,7 +41,11 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
 
   Future<void> _loadRole() async {
     final role = await SessionManager.getRole();
-    setState(() => _userRole = role);
+    final isAdmin = await SessionManager.getIsAdmin();
+    setState(() {
+      _userRole = role;
+      _isAdmin = (isAdmin == true) || role == 'admin' || role == 'super_admin';
+    });
   }
 
   @override
@@ -368,7 +373,7 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                             );
                                           },
                                         ),
-                                        if (_userRole == 'admin')
+                                        if (_isAdmin)
                                           _buildCompactAction(
                                             icon: isActive
                                                 ? Icons.check_circle
@@ -385,7 +390,7 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                               );
                                             },
                                           ),
-                                        if (_userRole == 'admin')
+                                        if (_isAdmin)
                                           _buildCompactAction(
                                             icon: Icons.delete,
                                             color: Colors.red,
@@ -395,8 +400,8 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                                 builder: (c) => AlertDialog(
                                                   title: const Text(
                                                       'Delete Sub Family'),
-                                                  content: const Text(
-                                                    'Are you sure? This deletes all members.',
+                                                  content: Text(
+                                                    'Are you sure you want to delete "${subFamily.subFamilyName}"?\nThis will permanently delete this sub-family and all its members.',
                                                   ),
                                                   actions: [
                                                     TextButton(
@@ -417,13 +422,54 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                                 ),
                                               );
 
-                                              if (ok == true) {
-                                                await _subFamilyService
-                                                    .deleteSubFamily(
-                                                  mainFamilyDocId:
-                                                      widget.mainFamilyDocId,
-                                                  subFamilyDocId: subFamily.id,
+                                              if (ok == true && context.mounted) {
+                                                showDialog(
+                                                  context: context,
+                                                  barrierDismissible: false,
+                                                  builder: (_) => const Center(
+                                                    child: Card(
+                                                      child: Padding(
+                                                        padding: EdgeInsets.all(20),
+                                                        child: Column(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            CircularProgressIndicator(),
+                                                            SizedBox(height: 16),
+                                                            Text('Deleting sub-family & members...'),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
                                                 );
+
+                                                try {
+                                                  await _subFamilyService
+                                                      .deleteSubFamily(
+                                                    mainFamilyDocId:
+                                                        widget.mainFamilyDocId,
+                                                    subFamilyDocId: subFamily.id,
+                                                  );
+                                                  if (context.mounted) {
+                                                    Navigator.pop(context); // close progress dialog
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('"${subFamily.subFamilyName}" deleted successfully'),
+                                                        backgroundColor: Colors.green,
+                                                      ),
+                                                    );
+                                                  }
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    Navigator.pop(context); // close progress dialog
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('Error deleting sub-family: $e'),
+                                                        backgroundColor: Colors.red,
+                                                      ),
+                                                    );
+                                                  }
+                                                }
                                               }
                                             },
                                           ),
@@ -443,7 +489,7 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
           ),
         ],
       ),
-      floatingActionButton: _userRole != 'admin'
+      floatingActionButton: !_isAdmin
           ? null
           : FloatingActionButton(
               backgroundColor: Colors.blue.shade900,
@@ -709,6 +755,13 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
       appBar: AppBar(
         title: const Text('Edit Sub Family'),
         backgroundColor: Colors.blue.shade900,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Delete Sub Family',
+            onPressed: _loading ? null : _deleteSubFamily,
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -717,7 +770,7 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextFormField(
                     controller: _subFamilyNameCtrl,
@@ -746,6 +799,16 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
                   ElevatedButton(
                     onPressed: _submitForm,
                     child: const Text('Update Sub Family'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Delete Sub Family'),
+                    onPressed: _deleteSubFamily,
                   ),
                 ],
               ),
@@ -776,5 +839,62 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteSubFamily() async {
+    final subName = widget.subFamily.subFamilyName;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Delete Sub Family'),
+        content: Text(
+          'Are you sure you want to delete "$subName"?\nThis will permanently delete this sub-family and all its members.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true && mounted) {
+      setState(() => _loading = true);
+      try {
+        await SubFamilyService().deleteSubFamily(
+          mainFamilyDocId: widget.mainFamilyDocId,
+          subFamilyDocId: widget.subFamily.id,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('"$subName" deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting sub-family: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _loading = false);
+        }
+      }
+    }
   }
 }

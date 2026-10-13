@@ -1,6 +1,6 @@
 // ignore_for_file: prefer_final_fields, deprecated_member_use, use_build_context_synchronously, avoid_print, depend_on_referenced_packages, unused_element, unused_field
 
-import 'dart:io';
+import 'dart:typed_data';
 
 
 import 'package:flutter/material.dart';
@@ -158,6 +158,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   final _dktFamilyIdCtrl = TextEditingController();
   String? _profilePhotoUrl;
   String? _pendingPhotoPath; // Store for upload after member creation
+  Uint8List? _pendingPhotoBytes;
   String? _pendingPhotoId;
   final ImagePicker _imagePicker = ImagePicker();
   final PhotoService _photoService = PhotoService();
@@ -269,8 +270,9 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       );
 
       if (image != null) {
-        // Store the photo path locally for preview and later upload
+        final bytes = await image.readAsBytes();
         setState(() {
+          _pendingPhotoBytes = bytes;
           _pendingPhotoPath = image.path;
           _profilePhotoUrl = image.path; // Preview local image
         });
@@ -315,14 +317,12 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
 
       // Upload photo first if there's a pending photo
       String photoUrl = '';
-      if (_pendingPhotoPath != null && _pendingPhotoPath!.isNotEmpty) {
+      if (_pendingPhotoBytes != null && _pendingPhotoBytes!.isNotEmpty) {
         try {
-          final photoFile = XFile(_pendingPhotoPath!);
-          // Generate a temporary member ID for the photo naming
           final tempMemberId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
           final uploadedUrl = await _photoService.uploadProfilePhoto(
             memberId: tempMemberId,
-            image: photoFile,
+            bytes: _pendingPhotoBytes,
           );
           if (uploadedUrl != null && uploadedUrl.startsWith('http')) {
             photoUrl = uploadedUrl;
@@ -463,12 +463,12 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                               child: CircleAvatar(
                                 radius: 60,
                                 backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                backgroundImage: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
-                                    ? (_profilePhotoUrl!.startsWith('http')
-                                        ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
-                                        : FileImage(File(_profilePhotoUrl!)))
-                                    : null,
-                                child: _profilePhotoUrl == null || _profilePhotoUrl!.isEmpty
+                                backgroundImage: _pendingPhotoBytes != null
+                                    ? MemoryImage(_pendingPhotoBytes!) as ImageProvider
+                                    : (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty && _profilePhotoUrl!.startsWith('http')
+                                        ? CachedNetworkImageProvider(_profilePhotoUrl!)
+                                        : null),
+                                child: _pendingPhotoBytes == null && (_profilePhotoUrl == null || _profilePhotoUrl!.isEmpty)
                                     ? Icon(Icons.add_a_photo, size: 40, color: Theme.of(context).colorScheme.primary)
                                     : null,
                               ),
@@ -1306,6 +1306,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   final _dktFamilyIdCtrl = TextEditingController();
   String? _profilePhotoUrl;
   String? _pendingPhotoPath; // New: Store local path for upload on save
+  Uint8List? _pendingPhotoBytes;
   final ImagePicker _imagePicker = ImagePicker();
   List<Map<String, String>> _firms = [];
   String _bloodGroup = '';
@@ -1415,7 +1416,9 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
       );
 
       if (image != null) {
+        final bytes = await image.readAsBytes();
         setState(() {
+          _pendingPhotoBytes = bytes;
           _pendingPhotoPath = image.path;
           _profilePhotoUrl = image.path; // Preview local image
         });
@@ -1440,11 +1443,11 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
     String photoUrl = _profilePhotoUrl ?? '';
 
     // Upload photo if changed
-    if (_pendingPhotoPath != null) {
+    if (_pendingPhotoBytes != null && _pendingPhotoBytes!.isNotEmpty) {
       try {
         final uploadedUrl = await _photoService.uploadProfilePhoto(
           memberId: widget.memberId,
-          image: XFile(_pendingPhotoPath!),
+          bytes: _pendingPhotoBytes,
         );
 
         if (uploadedUrl != null && uploadedUrl.startsWith('http')) {
@@ -1629,21 +1632,22 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                           child: CircleAvatar(
                             radius: 60,
                             backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            backgroundImage: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
-                                ? (_profilePhotoUrl!.startsWith('http')
-                                    ? CachedNetworkImageProvider(_profilePhotoUrl!) as ImageProvider
-                                    : FileImage(File(_profilePhotoUrl!)))
-                                : null,
-                            child: _profilePhotoUrl == null || _profilePhotoUrl!.isEmpty
+                            backgroundImage: _pendingPhotoBytes != null
+                                ? MemoryImage(_pendingPhotoBytes!) as ImageProvider
+                                : (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty && _profilePhotoUrl!.startsWith('http')
+                                    ? CachedNetworkImageProvider(_profilePhotoUrl!)
+                                    : null),
+                            child: _pendingPhotoBytes == null && (_profilePhotoUrl == null || _profilePhotoUrl!.isEmpty)
                                 ? Icon(Icons.add_a_photo, size: 40, color: Theme.of(context).colorScheme.primary)
                                 : null,
                           ),
                         ),
-                        if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty)
+                        if ((_pendingPhotoBytes != null) || (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty))
                           TextButton(
                             onPressed: () => setState(() {
                               _profilePhotoUrl = null;
                               _pendingPhotoPath = null;
+                              _pendingPhotoBytes = null;
                             }),
                             child: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
                           )

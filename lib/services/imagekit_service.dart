@@ -30,11 +30,46 @@ class ImageKitService {
       const String uploadUrl =
           'https://upload.imagekit.io/api/v1/files/upload';
 
-      final request =
+      // 1. Primary method: Direct HTTP Basic Auth with Private Key
+      // This is the most reliable method as it does not suffer from client clock skew or token collisions
+      try {
+        final basicRequest =
+            http.MultipartRequest('POST', Uri.parse(uploadUrl));
+        final authHeader = 'Basic ${base64Encode(utf8.encode('${ImageKitConfig.privateKey.trim()}:'))}';
+        basicRequest.headers['Authorization'] = authHeader;
+
+        basicRequest.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            fileBytes,
+            filename: fileName,
+          ),
+        );
+
+        basicRequest.fields['fileName'] = fileName;
+        basicRequest.fields['folder'] = folder;
+
+        if (customMetadata != null && customMetadata.isNotEmpty) {
+          basicRequest.fields['customMetadata'] = jsonEncode(customMetadata);
+        }
+
+        final response = await basicRequest.send();
+        final responseBody = await response.stream.bytesToString();
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(responseBody);
+          return data['url'] as String?;
+        }
+        print('ImageKit Basic Auth attempt returned ${response.statusCode}: $responseBody');
+      } catch (basicErr) {
+        print('ImageKit Basic Auth attempt error: $basicErr');
+      }
+
+      // 2. Fallback method: Client-side signature auth
+      final sigRequest =
           http.MultipartRequest('POST', Uri.parse(uploadUrl));
 
-      // File
-      request.files.add(
+      sigRequest.files.add(
         http.MultipartFile.fromBytes(
           'file',
           fileBytes,
@@ -42,40 +77,32 @@ class ImageKitService {
         ),
       );
 
-      // Required fields
-      request.fields['fileName'] = fileName;
-      request.fields['folder'] = folder;
+      sigRequest.fields['fileName'] = fileName;
+      sigRequest.fields['folder'] = folder;
 
-      // Optional metadata
-      if (customMetadata != null) {
-        request.fields['customMetadata'] = jsonEncode(customMetadata);
+      if (customMetadata != null && customMetadata.isNotEmpty) {
+        sigRequest.fields['customMetadata'] = jsonEncode(customMetadata);
       }
 
-      // -------- ImageKit AUTH (CORRECT WAY) --------
-      final String token = _generateRandomString(30);
-
+      final String token = _generateRandomString(32);
       final int now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final String expire = (now + 600).toString(); // +10 minutes
-
+      final String expire = (now + 1800).toString(); // +30 minutes
       final String signature = _generateSignature(token, expire);
 
-      request.fields['publicKey'] = ImageKitConfig.publicKey.trim();
-      request.fields['token'] = token;
-      request.fields['expire'] = expire;
-      request.fields['signature'] = signature;
+      sigRequest.fields['publicKey'] = ImageKitConfig.publicKey.trim();
+      sigRequest.fields['token'] = token;
+      sigRequest.fields['expire'] = expire;
+      sigRequest.fields['signature'] = signature;
 
-      // Send
-      final response = await request.send();
-      final responseBody =
-          await response.stream.bytesToString();
+      final sigResponse = await sigRequest.send();
+      final sigResponseBody = await sigResponse.stream.bytesToString();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(responseBody);
+      if (sigResponse.statusCode == 200) {
+        final data = jsonDecode(sigResponseBody);
         return data['url'] as String?;
       }
 
-      print(
-          'ImageKit upload failed: ${response.statusCode} - $responseBody');
+      print('ImageKit signature upload failed: ${sigResponse.statusCode} - $sigResponseBody');
       return null;
     } catch (e) {
       print('ImageKit upload exception: $e');

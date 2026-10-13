@@ -20,10 +20,10 @@ class FamilyListScreen extends StatefulWidget {
 }
 
 class _FamilyListScreenState extends State<FamilyListScreen> {
-  String? _userRole;
   bool _isAdmin = false;
   String? _userFamilyDocId;
   bool _isExporting = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -36,7 +36,6 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
     final isAdmin = await SessionManager.getIsAdmin();
     final familyDocId = await SessionManager.getFamilyDocId();
     setState(() {
-      _userRole = role;
       _isAdmin = (isAdmin == true) || role == 'admin' || role == 'super_admin';
       _userFamilyDocId = familyDocId;
     });
@@ -101,16 +100,29 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('families')
-          .where('isAdmin', isEqualTo: false)
           .snapshots(),
       builder: (context, snapshot) {
         List<QueryDocumentSnapshot> families = [];
         if (snapshot.hasData) {
-          families = List.from(snapshot.data!.docs);
+          families = snapshot.data!.docs.where((doc) {
+            if (doc.id == '83288') return false; // Hide system admin account
+            final d = doc.data() as Map<String, dynamic>;
+            return d['isAdmin'] != true;
+          }).toList();
           
           // NON-ADMIN RESTRICTION: Regular family users can ONLY view their own family!
           if (!_isAdmin && _userFamilyDocId != null && _userFamilyDocId!.isNotEmpty) {
             families = families.where((doc) => doc.id == _userFamilyDocId).toList();
+          }
+
+          if (_searchQuery.trim().isNotEmpty) {
+            final q = _searchQuery.trim().toLowerCase();
+            families = families.where((doc) {
+              final d = doc.data() as Map<String, dynamic>;
+              final name = (d['familyName'] ?? '').toString().toLowerCase();
+              final id = (d['familyId'] ?? '').toString().toLowerCase();
+              return name.contains(q) || id.contains(q);
+            }).toList();
           }
 
           families.sort((a, b) {
@@ -148,17 +160,46 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                 ),
             ],
           ),
-          body: Builder(
-            builder: (context) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: TextField(
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Search families (e.g. Patel, Demo)...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () => setState(() => _searchQuery = ''),
+                          )
+                        : null,
+                  ),
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                ),
+              ),
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-              if (!snapshot.hasData || families.isEmpty) {
-                return const Center(child: Text('No families found'));
-              }
+                    if (!snapshot.hasData || families.isEmpty) {
+                      return Center(
+                        child: Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No families matching "$_searchQuery"'
+                              : 'No families found',
+                        ),
+                      );
+                    }
 
-              return GridView.builder(
+                    return GridView.builder(
                 padding: const EdgeInsets.all(12),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -300,7 +341,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                       );
                                     },
                                   ),
-                                  if (_userRole == 'admin')
+                                  if (_isAdmin)
                                     _buildCompactAction(
                                       icon: isBlocked ? Icons.lock_open : Icons.block,
                                       color: isBlocked ? Colors.green : Colors.orange,
@@ -308,7 +349,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                         await FamilyService().toggleBlockFamily(doc.id);
                                       },
                                     ),
-                                  if (_userRole == 'admin')
+                                  if (_isAdmin)
                                     _buildCompactAction(
                                       icon: Icons.delete,
                                       color: Colors.red,
@@ -317,8 +358,8 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                           context: context,
                                           builder: (c) => AlertDialog(
                                             title: const Text('Delete Family'),
-                                            content: const Text(
-                                              'Are you sure? This deletes all members.',
+                                            content: Text(
+                                              'Are you sure you want to delete "$familyName"?\nThis will permanently delete this family, all its sub-families, and all members.',
                                             ),
                                             actions: [
                                               TextButton(
@@ -336,8 +377,49 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
                                           ),
                                         );
 
-                                        if (ok == true) {
-                                          await FamilyService().deleteFamily(doc.id);
+                                        if (ok == true && context.mounted) {
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (_) => const Center(
+                                              child: Card(
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(20),
+                                                  child: Column(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      CircularProgressIndicator(),
+                                                      SizedBox(height: 16),
+                                                      Text('Deleting family, sub-families & members...'),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+
+                                          try {
+                                            await FamilyService().deleteFamily(doc.id);
+                                            if (context.mounted) {
+                                              Navigator.pop(context); // close progress dialog
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('"$familyName" deleted successfully'),
+                                                  backgroundColor: Colors.green,
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              Navigator.pop(context); // close progress dialog
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Error deleting family: $e'),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
+                                          }
                                         }
                                       },
                                     ),
@@ -353,7 +435,10 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
               );
             },
           ),
-          floatingActionButton: _userRole != 'admin'
+        ),
+      ],
+    ),
+          floatingActionButton: !_isAdmin
               ? null
               : FloatingActionButton(
                   backgroundColor: Colors.blue.shade900,
