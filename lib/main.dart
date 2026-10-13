@@ -402,7 +402,8 @@ class _MyAppState extends State<MyApp> {
       routes: {
         '/login': (_) => const AuthGuard(isLoginRoute: true, child: LoginScreen()),
         '/admin': (_) => const AuthGuard(requireAdmin: true, child: AdminDashboard()),
-        '/admin/families': (_) => const AuthGuard(requireAdmin: true, child: FamilyListScreen()),
+        '/admin/families': (_) => const AuthGuard(requireUser: true, child: FamilyListScreen()),
+        '/user/families': (_) => const AuthGuard(requireUser: true, child: FamilyListScreen()),
         '/admin/groups': (_) => const AuthGuard(requireAdmin: true, child: GroupManagementScreen()),
         '/admin/events': (_) => const AuthGuard(requireAdmin: true, child: EventManagementScreen()),
         '/admin/analytics': (_) => const AuthGuard(requireAdmin: true, child: AnalyticsDashboard()),

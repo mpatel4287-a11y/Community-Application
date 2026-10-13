@@ -21,7 +21,6 @@ class FamilyListScreen extends StatefulWidget {
 
 class _FamilyListScreenState extends State<FamilyListScreen> {
   bool _isAdmin = false;
-  String? _userFamilyDocId;
   bool _isExporting = false;
   String _searchQuery = '';
 
@@ -34,10 +33,8 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
   Future<void> _loadRole() async {
     final role = await SessionManager.getRole();
     final isAdmin = await SessionManager.getIsAdmin();
-    final familyDocId = await SessionManager.getFamilyDocId();
     setState(() {
       _isAdmin = (isAdmin == true) || role == 'admin' || role == 'super_admin';
-      _userFamilyDocId = familyDocId;
     });
   }
 
@@ -126,10 +123,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
             return d['isAdmin'] != true;
           }).toList();
           
-          // NON-ADMIN RESTRICTION: Regular family users can ONLY view their own family!
-          if (!_isAdmin && _userFamilyDocId != null && _userFamilyDocId!.isNotEmpty) {
-            families = families.where((doc) => doc.id == _userFamilyDocId).toList();
-          }
+          // All members and admins can view all families as usual
 
           if (_searchQuery.trim().isNotEmpty) {
             final q = _searchQuery.trim().toLowerCase();

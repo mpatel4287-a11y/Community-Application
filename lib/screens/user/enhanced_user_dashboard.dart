@@ -27,6 +27,7 @@ import 'user_notification_screen.dart';
 import 'settings_screen.dart';
 import 'user_search_tab.dart'; 
 import '../admin/family_list_screen.dart';
+import '../admin/subfamily_list_screen.dart';
 import 'organizational_structure_screen.dart';
 import 'dart:math';
 
@@ -731,12 +732,32 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
           const SizedBox(width: 12),
           // 3) My Family
           Expanded(
-            child: _buildStatCard(
-              lang.translate('my_family'),
-              '${_stats['myFamilyCount'] ?? 0}',
-              Icons.family_restroom,
-              Colors.orange,
-              isDark,
+            child: InkWell(
+              onTap: () async {
+                final familyDocId = await SessionManager.getFamilyDocId();
+                final familyName = await SessionManager.getFamilyName();
+                final familyId = await SessionManager.getFamilyId();
+                if (familyDocId != null && familyDocId.isNotEmpty && mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SubFamilyListScreen(
+                        mainFamilyDocId: familyDocId,
+                        mainFamilyId: familyId?.toString() ?? '',
+                        mainFamilyName: familyName ?? 'My Family',
+                      ),
+                    ),
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: _buildStatCard(
+                lang.translate('my_family'),
+                '${_stats['myFamilyCount'] ?? 0}',
+                Icons.family_restroom,
+                Colors.orange,
+                isDark,
+              ),
             ),
           ),
         ],

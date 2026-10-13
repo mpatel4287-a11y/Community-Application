@@ -14,6 +14,7 @@ import '../../services/member_service.dart';
 import 'family_tree_view.dart';
 import 'digital_id_screen.dart';
 import '../admin/member_list_screen.dart';
+import '../admin/family_list_screen.dart';
 import 'help_faq_screen.dart';
 import 'about_screen.dart';
 import 'privacy_policy_screen.dart';
@@ -318,6 +319,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (!isStaff) ...[
                     _buildSectionHeader(lang.translate('family')),
                     _buildCard([
+                      _buildActionTile(
+                        icon: Icons.groups_2_outlined,
+                        title: 'All Families & Sub-Families',
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const FamilyListScreen(),
+                          ));
+                        },
+                        color: Colors.indigo,
+                      ),
                       _buildActionTile(
                         icon: Icons.account_tree_outlined,
                         title: lang.translate('my_family_tree'),

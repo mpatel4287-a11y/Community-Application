@@ -7,6 +7,7 @@ import '../models/member_model.dart';
 import '../utils/member_sort_helper.dart';
 import '../screens/user/member_detail_screen.dart';
 import '../screens/user/qr_scanner_screen.dart';
+import '../screens/admin/family_list_screen.dart';
 import '../services/theme_service.dart';
 import '../services/language_service.dart';
 import 'package:provider/provider.dart';
@@ -242,7 +243,20 @@ class _UserDashboardState extends State<UserDashboard> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: SizedBox()), // Empty space for symmetry
+                Expanded(
+                  child: _buildQuickAction(
+                    icon: Icons.groups_2_rounded,
+                    label: 'All Families',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FamilyListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
