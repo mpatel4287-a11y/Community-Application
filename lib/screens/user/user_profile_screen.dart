@@ -17,6 +17,7 @@ import 'privacy_policy_screen.dart';
 import 'help_faq_screen.dart';
 import 'about_screen.dart';
 import 'member_update_request_screen.dart';
+import '../../widgets/circular_image_cropper_dialog.dart';
 
 // Helper widget to handle profile images with error handling
 class ProfileImage extends StatefulWidget {
@@ -530,13 +531,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (_currentUser == null) return;
 
     try {
-      setState(() => _uploadingPhoto = true);
-
       final image = await _photoService.pickFromCamera();
-      if (image != null) {
+      if (image != null && mounted) {
+        final rawBytes = await image.readAsBytes();
+        final croppedBytes = await CircularImageCropperDialog.show(
+          context,
+          imageBytes: rawBytes,
+          title: 'Crop Profile Photo',
+        );
+
+        if (croppedBytes == null) {
+          // User canceled crop
+          return;
+        }
+
+        setState(() => _uploadingPhoto = true);
+
         final photoUrl = await _photoService.uploadProfilePhoto(
           memberId: _currentUser!.id,
-          image: image,
+          bytes: croppedBytes,
         );
 
         if (photoUrl != null) {
@@ -583,13 +596,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (_currentUser == null) return;
 
     try {
-      setState(() => _uploadingPhoto = true);
-
       final image = await _photoService.pickImage();
-      if (image != null) {
+      if (image != null && mounted) {
+        final rawBytes = await image.readAsBytes();
+        final croppedBytes = await CircularImageCropperDialog.show(
+          context,
+          imageBytes: rawBytes,
+          title: 'Crop Profile Photo',
+        );
+
+        if (croppedBytes == null) {
+          // User canceled crop
+          return;
+        }
+
+        setState(() => _uploadingPhoto = true);
+
         final photoUrl = await _photoService.uploadProfilePhoto(
           memberId: _currentUser!.id,
-          image: image,
+          bytes: croppedBytes,
         );
 
         if (photoUrl != null) {

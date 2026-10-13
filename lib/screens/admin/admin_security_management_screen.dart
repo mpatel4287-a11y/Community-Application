@@ -19,7 +19,6 @@ class _AdminSecurityManagementScreenState
     extends State<AdminSecurityManagementScreen> {
   final AdminManagementService _adminService = AdminManagementService();
   bool _isLoading = true;
-  bool _isSuperAdmin = false;
 
   final TextEditingController _subAdminPassCtrl = TextEditingController();
   bool _obscureSubAdminPass = true;
@@ -58,7 +57,6 @@ class _AdminSecurityManagementScreenState
     final config = await _adminService.getSubAdminConfig();
     if (mounted) {
       setState(() {
-        _isSuperAdmin = true;
         _isLoading = false;
         _currentPermissions = List<String>.from(
           config['permissions'] ?? AdminManagementService.allPermissionKeys,

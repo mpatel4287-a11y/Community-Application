@@ -19,6 +19,7 @@ import '../../services/photo_service.dart';
 import '../../services/session_manager.dart';
 import '../../widgets/animation_utils.dart';
 import '../user/member_detail_screen.dart';
+import '../../widgets/circular_image_cropper_dialog.dart';
 
 // Placeholder for AddMemberScreen
 class AddMemberScreen extends StatefulWidget {
@@ -269,13 +270,21 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         imageQuality: ImageKitConfig.imageQuality,
       );
 
-      if (image != null) {
+      if (image != null && mounted) {
         final bytes = await image.readAsBytes();
-        setState(() {
-          _pendingPhotoBytes = bytes;
-          _pendingPhotoPath = image.path;
-          _profilePhotoUrl = image.path; // Preview local image
-        });
+        final croppedBytes = await CircularImageCropperDialog.show(
+          context,
+          imageBytes: bytes,
+          title: 'Crop Profile Photo',
+        );
+
+        if (croppedBytes != null && mounted) {
+          setState(() {
+            _pendingPhotoBytes = croppedBytes;
+            _pendingPhotoPath = image.path;
+            _profilePhotoUrl = image.path; // Preview local image
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1415,13 +1424,21 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
         imageQuality: ImageKitConfig.imageQuality,
       );
 
-      if (image != null) {
+      if (image != null && mounted) {
         final bytes = await image.readAsBytes();
-        setState(() {
-          _pendingPhotoBytes = bytes;
-          _pendingPhotoPath = image.path;
-          _profilePhotoUrl = image.path; // Preview local image
-        });
+        final croppedBytes = await CircularImageCropperDialog.show(
+          context,
+          imageBytes: bytes,
+          title: 'Crop Profile Photo',
+        );
+
+        if (croppedBytes != null && mounted) {
+          setState(() {
+            _pendingPhotoBytes = croppedBytes;
+            _pendingPhotoPath = image.path;
+            _profilePhotoUrl = image.path; // Preview local image
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

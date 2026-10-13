@@ -1,6 +1,6 @@
 // lib/screens/user/member_update_request_screen.dart
 
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,6 +10,7 @@ import '../../services/update_request_service.dart';
 import '../../services/photo_service.dart';
 import '../../services/member_service.dart';
 import '../../services/session_manager.dart';
+import '../../widgets/circular_image_cropper_dialog.dart';
 
 class MemberUpdateRequestScreen extends StatefulWidget {
   final MemberModel? targetMember;
@@ -39,6 +40,8 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
 
   // Photo Update State
   XFile? _pickedImage;
+  Uint8List? _pickedImageBytes;
+  Uint8List? _rawOriginalImageBytes;
 
   // Form Controllers
   final _titleController = TextEditingController();
@@ -173,15 +176,60 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
           ? await _photoService.pickFromCamera()
           : await _photoService.pickImage();
 
-      if (image != null) {
-        setState(() {
-          _pickedImage = image;
-        });
+      if (image != null && mounted) {
+        final rawBytes = await image.readAsBytes();
+        _rawOriginalImageBytes = rawBytes;
+
+        // Open the circular image cropper dialog
+        final croppedBytes = await CircularImageCropperDialog.show(
+          context,
+          imageBytes: rawBytes,
+          title: 'Crop Profile Photo',
+        );
+
+        if (croppedBytes != null && mounted) {
+          setState(() {
+            _pickedImageBytes = croppedBytes;
+            _pickedImage = XFile.fromData(
+              croppedBytes,
+              name: 'profile_photo_${DateTime.now().millisecondsSinceEpoch}.png',
+              mimeType: 'image/png',
+            );
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to select image: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _recropImage() async {
+    if (_rawOriginalImageBytes == null) return;
+    try {
+      final croppedBytes = await CircularImageCropperDialog.show(
+        context,
+        imageBytes: _rawOriginalImageBytes!,
+        title: 'Crop Profile Photo',
+      );
+
+      if (croppedBytes != null && mounted) {
+        setState(() {
+          _pickedImageBytes = croppedBytes;
+          _pickedImage = XFile.fromData(
+            croppedBytes,
+            name: 'profile_photo_${DateTime.now().millisecondsSinceEpoch}.png',
+            mimeType: 'image/png',
+          );
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to crop image: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -315,6 +363,8 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
               Navigator.pop(ctx);
               setState(() {
                 _pickedImage = null;
+                _pickedImageBytes = null;
+                _rawOriginalImageBytes = null;
                 _descriptionController.clear();
                 _titleController.clear();
                 _tabController.animateTo(1); // Switch to History tab
@@ -520,6 +570,8 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
                       setState(() {
                         _selectedMember = found;
                         _pickedImage = null;
+                        _pickedImageBytes = null;
+                        _rawOriginalImageBytes = null;
                         _populateFieldsFromMember(found);
                       });
                     }
@@ -658,14 +710,14 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
                             color: _pickedImage != null ? const Color(0xFF10B981) : Colors.teal.shade300,
                             width: 2.5,
                           ),
-                          image: _pickedImage != null
+                          image: _pickedImageBytes != null
                               ? DecorationImage(
-                                  image: FileImage(File(_pickedImage!.path)),
+                                  image: MemoryImage(_pickedImageBytes!),
                                   fit: BoxFit.cover,
                                 )
                               : null,
                         ),
-                        child: _pickedImage == null
+                        child: _pickedImageBytes == null && _pickedImage == null
                             ? const Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -720,14 +772,32 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
             ],
           ),
 
-          if (_pickedImage != null) ...[
+          if (_pickedImage != null || _pickedImageBytes != null) ...[
             const SizedBox(height: 12),
-            Center(
-              child: TextButton.icon(
-                onPressed: () => setState(() => _pickedImage = null),
-                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                label: const Text('Remove attached photo', style: TextStyle(color: Colors.red, fontSize: 13)),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_rawOriginalImageBytes != null) ...[
+                  TextButton.icon(
+                    onPressed: _recropImage,
+                    icon: const Icon(Icons.crop_rotate_rounded, color: Color(0xFF0F766E), size: 18),
+                    label: const Text(
+                      'Adjust Circular Crop',
+                      style: TextStyle(color: Color(0xFF0F766E), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    _pickedImage = null;
+                    _pickedImageBytes = null;
+                    _rawOriginalImageBytes = null;
+                  }),
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                  label: const Text('Remove photo', style: TextStyle(color: Colors.red, fontSize: 13)),
+                ),
+              ],
             ),
           ],
         ],
