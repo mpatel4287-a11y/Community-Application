@@ -190,16 +190,35 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
       String effectiveFamilyId = _resolvedFamilyId.isNotEmpty
           ? _resolvedFamilyId
           : widget.familyId;
-      if (effectiveFamilyId.isEmpty) {
-        try {
-          final doc = await FirebaseFirestore.instance
-              .collection('families')
-              .doc(widget.mainFamilyDocId)
-              .get();
-          if (doc.exists) {
-            effectiveFamilyId = doc.data()?['familyId']?.toString() ?? '';
+      String serialFamilyId = '';
+
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('families')
+            .doc(widget.mainFamilyDocId)
+            .get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          serialFamilyId = data['familyId']?.toString() ?? '';
+          final ysk = data['yskFamilyId']?.toString() ?? data['dktFamilyId']?.toString();
+          if (ysk != null && ysk.isNotEmpty && ysk != '-') {
+            effectiveFamilyId = ysk;
+          } else if (effectiveFamilyId.isEmpty) {
+            effectiveFamilyId = serialFamilyId;
           }
-        } catch (_) {}
+        }
+      } catch (_) {}
+
+      // Helper to discover true YSK Family ID from member list
+      String resolveYskFromMembers(List<MemberModel> members, String fallback) {
+        for (final m in members) {
+          if (m.familyId.isNotEmpty && m.familyId != '-') {
+            if (m.familyId.length > 2 || (serialFamilyId.isNotEmpty && m.familyId != serialFamilyId)) {
+              return m.familyId;
+            }
+          }
+        }
+        return fallback;
       }
 
       if (_scope == ExportScope.subFamily && _selectedSubFamily != null) {
@@ -207,13 +226,16 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
           widget.mainFamilyDocId,
           _selectedSubFamily!.id,
         );
+        final trueYskId = resolveYskFromMembers(members, effectiveFamilyId);
         exportTitle = '${widget.familyName} - ${_selectedSubFamily!.subFamilyName}';
         final subName = _selectedSubFamily!.subFamilyName.isNotEmpty
             ? _selectedSubFamily!.subFamilyName
             : 'Sub-Family ${_selectedSubFamily!.subFamilyId}';
         exportData.add({
           'familyDocId': widget.mainFamilyDocId,
-          'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
+          'familyId': trueYskId.isNotEmpty ? trueYskId : (serialFamilyId.isNotEmpty ? serialFamilyId : '-'),
+          'yskFamilyId': trueYskId,
+          'serialFamilyId': serialFamilyId,
           'familyName': widget.familyName,
           'subFamilyName': subName,
           'subFamilyId': _selectedSubFamily!.subFamilyId,
@@ -226,6 +248,10 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
             : await _subFamilyService.getSubFamilies(widget.mainFamilyDocId);
 
         final List<MemberModel> allMembers = await _memberService.getFamilyMembers(widget.mainFamilyDocId);
+        final familyWideYskId = resolveYskFromMembers(allMembers, effectiveFamilyId);
+        if (familyWideYskId.isNotEmpty && familyWideYskId != '-') {
+          effectiveFamilyId = familyWideYskId;
+        }
 
         if (subFamilies.isNotEmpty) {
           final Set<String> assignedMemberIds = {};
@@ -251,9 +277,12 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
                   ? sf.subFamilyName
                   : 'Sub-Family ${sf.subFamilyId}';
 
+              final sfYskId = resolveYskFromMembers(finalSfMembers, effectiveFamilyId);
               exportData.add({
                 'familyDocId': widget.mainFamilyDocId,
-                'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
+                'familyId': sfYskId.isNotEmpty ? sfYskId : (serialFamilyId.isNotEmpty ? serialFamilyId : '-'),
+                'yskFamilyId': sfYskId,
+                'serialFamilyId': serialFamilyId,
                 'familyName': widget.familyName,
                 'subFamilyName': subName,
                 'subFamilyId': sf.subFamilyId,
@@ -266,7 +295,9 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
           if (unassigned.isNotEmpty) {
             exportData.add({
               'familyDocId': widget.mainFamilyDocId,
-              'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
+              'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : (serialFamilyId.isNotEmpty ? serialFamilyId : '-'),
+              'yskFamilyId': effectiveFamilyId,
+              'serialFamilyId': serialFamilyId,
               'familyName': widget.familyName,
               'subFamilyName': 'Main Family Members',
               'subFamilyId': '00',
@@ -278,7 +309,9 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
         if (exportData.isEmpty) {
           exportData.add({
             'familyDocId': widget.mainFamilyDocId,
-            'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : '-',
+            'familyId': effectiveFamilyId.isNotEmpty ? effectiveFamilyId : (serialFamilyId.isNotEmpty ? serialFamilyId : '-'),
+            'yskFamilyId': effectiveFamilyId,
+            'serialFamilyId': serialFamilyId,
             'familyName': widget.familyName,
             'members': allMembers,
           });

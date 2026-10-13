@@ -34,12 +34,49 @@ enum ExportField {
   String getValue(Map<String, dynamic> famData, MemberModel m) {
     switch (this) {
       case ExportField.familyId:
+        final serial = famData['serialFamilyId']?.toString();
+
+        // 1. If this member has an explicit custom YSK Family ID (e.g. 723124)
+        if (m.familyId.isNotEmpty && m.familyId != '-') {
+          if (m.familyId.length > 2 || (serial != null && serial.isNotEmpty && m.familyId != serial)) {
+            return m.familyId;
+          }
+        }
+
+        // 2. Check if famData has an explicitly resolved yskFamilyId
+        final famYsk = famData['yskFamilyId']?.toString();
+        if (famYsk != null && famYsk.isNotEmpty && famYsk != '-') {
+          if (famYsk.length > 2 || (serial != null && serial.isNotEmpty && famYsk != serial)) {
+            return famYsk;
+          }
+        }
+
+        // 3. Scan all members in this family group to find any member with the true YSK ID (e.g. 723124)
+        final members = famData['members'] as List<MemberModel>? ?? [];
+        for (final other in members) {
+          if (other.familyId.isNotEmpty && other.familyId != '-') {
+            if (other.familyId.length > 2 || (serial != null && serial.isNotEmpty && other.familyId != serial)) {
+              return other.familyId;
+            }
+          }
+        }
+
+        // 4. Check if famData['familyId'] is a custom YSK ID
+        final rawFamId = famData['familyId']?.toString();
+        if (rawFamId != null && rawFamId.isNotEmpty && rawFamId != '-') {
+          if (rawFamId.length > 2 || (serial != null && serial.isNotEmpty && rawFamId != serial)) {
+            return rawFamId;
+          }
+        }
+
+        // 5. Fallback to m.familyId
         if (m.familyId.isNotEmpty && m.familyId != '-') {
           return m.familyId;
         }
-        final idVal = famData['familyId']?.toString();
-        return (idVal != null && idVal.isNotEmpty && idVal != '-')
-            ? idVal
+
+        // 6. Fallback to raw famData['familyId'] or '-'
+        return (rawFamId != null && rawFamId.isNotEmpty && rawFamId != '-')
+            ? rawFamId
             : '-';
       case ExportField.familyName:
         final famName = famData['familyName']?.toString();

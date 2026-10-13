@@ -4,6 +4,7 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -199,6 +200,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   String? _familyDocId;
   String? _currentUserRole;
   bool _isAdmin = false;
+  String _displayYskFamilyId = '';
 
   @override
   void initState() {
@@ -254,10 +256,29 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       // ALWAYS fetch member roles (badge display) after finding the member
       final roles = await _roleService.getMemberRoles(member.mid);
 
+      // Resolve true YSK Family ID if member.familyId is short serial or empty
+      String yskFamilyId = member.familyId;
+      if (yskFamilyId.length <= 2 || yskFamilyId == '-') {
+        try {
+          final fDoc = await FirebaseFirestore.instance
+              .collection('families')
+              .doc(member.familyDocId)
+              .get();
+          if (fDoc.exists) {
+            final ysk = fDoc.data()?['yskFamilyId']?.toString() ??
+                fDoc.data()?['dktFamilyId']?.toString();
+            if (ysk != null && ysk.isNotEmpty && ysk != '-') {
+              yskFamilyId = ysk;
+            }
+          }
+        } catch (_) {}
+      }
+
       if (mounted) {
         setState(() {
           _member = member;
           _memberRoles = roles;
+          _displayYskFamilyId = yskFamilyId;
           _familyDocId = member?.familyDocId ?? widget.familyDocId ?? '';
           _isAdmin = isAdmin || userRole == 'admin' || userRole == 'super_admin';
           _currentUserRole = userRole;
@@ -746,7 +767,13 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                     icon: Icons.people_alt_rounded,
                     children: [
                       _buildPremiumRow(lang.translate('family_name'), member.familyName, Icons.family_restroom_rounded),
-                      _buildPremiumRow(lang.translate('dkt_family_id'), member.familyId, Icons.vpn_key_rounded),
+                      _buildPremiumRow(
+                        lang.translate('dkt_family_id'),
+                        _displayYskFamilyId.isNotEmpty
+                            ? _displayYskFamilyId
+                            : member.familyId,
+                        Icons.vpn_key_rounded,
+                      ),
                       if (member.parentMid.isNotEmpty)
                         _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
                       if (member.spouseMid.isNotEmpty && member.marriageStatus.toLowerCase() == 'married')

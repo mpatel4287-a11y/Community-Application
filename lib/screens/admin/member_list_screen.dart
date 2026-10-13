@@ -404,6 +404,14 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         );
       }
 
+      final enteredYskId = _dktFamilyIdCtrl.text.trim();
+      if (enteredYskId.isNotEmpty && enteredYskId != '-') {
+        await MemberService().syncFamilyYskId(
+          mainFamilyDocId: widget.familyDocId,
+          yskFamilyId: enteredYskId,
+        );
+      }
+
       if (mounted) {
         Navigator.pop(context);
       }
@@ -1540,6 +1548,14 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
           member2Id: spouseMember.id,
           member2SubFamilyDocId: spouseMember.subFamilyDocId,
           relation: _spouseRelation,
+        );
+      }
+
+      final updatedYskId = _dktFamilyIdCtrl.text.trim();
+      if (updatedYskId.isNotEmpty && updatedYskId != '-') {
+        await MemberService().syncFamilyYskId(
+          mainFamilyDocId: widget.familyDocId,
+          yskFamilyId: updatedYskId,
         );
       }
 

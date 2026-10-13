@@ -63,9 +63,25 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
 
         final familyMembers = allMembers.where((m) => m.familyDocId == famId).toList();
 
+        // Check if any member or doc has a true custom YSK Family ID
+        String effectiveYskId = data['yskFamilyId']?.toString() ?? data['dktFamilyId']?.toString() ?? '';
+        if (effectiveYskId.isEmpty) {
+          for (final m in familyMembers) {
+            if (m.familyId.isNotEmpty && m.familyId != '-' && (m.familyId.length > 2 || m.familyId != familyIdVal)) {
+              effectiveYskId = m.familyId;
+              break;
+            }
+          }
+        }
+        if (effectiveYskId.isEmpty) {
+          effectiveYskId = familyIdVal;
+        }
+
         exportData.add({
           'familyDocId': famId,
-          'familyId': familyIdVal,
+          'familyId': effectiveYskId,
+          'yskFamilyId': effectiveYskId,
+          'serialFamilyId': familyIdVal,
           'familyName': familyNameVal,
           'members': familyMembers,
         });

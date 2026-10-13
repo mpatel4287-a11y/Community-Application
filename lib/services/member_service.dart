@@ -243,6 +243,43 @@ class MemberService {
     ).doc(memberId).update(updates);
   }
 
+  // ---------------- SYNC FAMILY YSK ID ACROSS ALL MEMBERS ----------------
+  Future<void> syncFamilyYskId({
+    required String mainFamilyDocId,
+    required String yskFamilyId,
+  }) async {
+    final cleanId = yskFamilyId.trim();
+    if (cleanId.isEmpty || cleanId == '-') return;
+
+    try {
+      // 1. Save to the main family document
+      await _firestore
+          .collection('families')
+          .doc(mainFamilyDocId)
+          .set({'yskFamilyId': cleanId}, SetOptions(merge: true));
+
+      // 2. Fetch all members in this family and batch update their familyId
+      final members = await getFamilyMembers(mainFamilyDocId);
+      final batch = _firestore.batch();
+      int batchCount = 0;
+
+      for (final m in members) {
+        if (m.familyId != cleanId) {
+          final docRef = _getMembersCollection(mainFamilyDocId, m.subFamilyDocId).doc(m.id);
+          batch.update(docRef, {'familyId': cleanId});
+          batchCount++;
+          if (batchCount >= 450) break; // Firestore batch operation limit
+        }
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+    } catch (e) {
+      debugPrint('Error syncing family YSK ID: $e');
+    }
+  }
+
   // ---------------- UPDATE MEMBER ROLE ----------------
   Future<void> updateMemberRole({
     required String mainFamilyDocId,
