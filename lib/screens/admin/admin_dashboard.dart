@@ -403,9 +403,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               const SizedBox(height: 10),
             ],
+            const SizedBox(height: 22),
+          ],
 
-            // 4. Section: Organization & Activities
-            if (hasSectionOrg) ...[
+          // 4. Section: Organization & Activities
+          if (hasSectionOrg) ...[
               FadeInAnimation(
                 delay: const Duration(milliseconds: 400),
                 child: _buildSectionHeader(
@@ -499,9 +501,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               const SizedBox(height: 10),
             ],
+            const SizedBox(height: 22),
+          ],
 
-            // 5. Section: Developer & System Diagnostics Hub
-            if (hasSectionDiagnostics) ...[
+          // 5. Section: Developer & System Diagnostics Hub
+          if (hasSectionDiagnostics) ...[
               FadeInAnimation(
                 delay: const Duration(milliseconds: 580),
                 child: _buildSectionHeader(
