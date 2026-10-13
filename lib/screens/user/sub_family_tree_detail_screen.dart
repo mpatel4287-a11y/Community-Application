@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:screenshot/screenshot.dart';
@@ -14,6 +15,7 @@ class SubFamilyTreeDetailScreen extends StatefulWidget {
   final String subFamilyDocId;
   final String subFamilyId;
   final String subFamilyName;
+  final String? seniority;
 
   const SubFamilyTreeDetailScreen({
     super.key,
@@ -22,6 +24,7 @@ class SubFamilyTreeDetailScreen extends StatefulWidget {
     required this.subFamilyDocId,
     required this.subFamilyId,
     required this.subFamilyName,
+    this.seniority,
   });
 
   @override
@@ -79,11 +82,22 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
 
     // Create maps for quick lookup
     final Map<String, Person> personMap = {}; // MID -> Person
+    final Map<String, Person> personById = {}; // Document ID -> Person
     final Map<String, List<String>> childrenMap = {}; // Parent MID -> List of child MIDs
+
+    // Helper: calculate exact age
+    int calculateMemberAge(MemberModel m) {
+      if (m.age > 0) return m.age;
+      final parsed = MemberModel.parseBirthDate(m.birthDate);
+      if (parsed != null) {
+        return MemberModel.calculateAge(m.birthDate);
+      }
+      return 0;
+    }
 
     // Convert all members to Person objects
     for (final member in members) {
-      final nameParts = member.fullName.split(' ');
+      final nameParts = member.fullName.trim().split(RegExp(r'\s+'));
       final firstName = nameParts.isNotEmpty ? nameParts[0] : member.fullName;
       final lastName = nameParts.length > 1
           ? nameParts.sublist(1).join(' ')
@@ -91,17 +105,15 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
               ? member.surname
               : '';
 
-      // Extract birth year from birthDate
-      int birthYear = DateTime.now().year - member.age;
+      final int memberAge = calculateMemberAge(member);
+      int birthYear = DateTime.now().year - memberAge;
       if (member.birthDate.isNotEmpty) {
         try {
           final parts = member.birthDate.split('/');
           if (parts.length == 3) {
             birthYear = int.parse(parts[2]);
           }
-        } catch (e) {
-          // Use calculated year if parsing fails
-        }
+        } catch (_) {}
       }
 
       final person = Person(
@@ -116,14 +128,18 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
         details: member.nativeHome.isNotEmpty
             ? 'Native: ${member.nativeHome}'
             : null,
-        age: member.age,
-        birthDate: member.birthDate,
+        age: memberAge > 0 ? memberAge : null,
+        birthDate: member.birthDate.isNotEmpty ? member.birthDate : null,
         mid: member.mid,
         relationToHead: member.relationToHead,
         parentIds: member.parentMid.isNotEmpty ? [member.parentMid] : [],
+        spouseId: member.spouseMid.isNotEmpty ? member.spouseMid : null,
       );
 
       personMap[member.mid] = person;
+      if (member.id.isNotEmpty) {
+        personById[member.id] = person;
+      }
 
       // Build children map (parent MID -> children MIDs)
       if (member.parentMid.isNotEmpty && member.parentMid != member.mid) {
@@ -139,6 +155,7 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
       final parentMid = entry.key;
       if (personMap.containsKey(parentMid)) {
         final parent = personMap[parentMid]!;
+        final combinedChildren = {...parent.childrenIds, ...entry.value}.toList();
         personMap[parentMid] = Person(
           id: parent.id,
           firstName: parent.firstName,
@@ -148,120 +165,289 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
           photoUrl: parent.photoUrl,
           details: parent.details,
           age: parent.age,
+          birthDate: parent.birthDate,
           mid: parent.mid,
           relationToHead: parent.relationToHead,
           parentIds: parent.parentIds,
-          childrenIds: entry.value,
+          childrenIds: combinedChildren,
           spouseId: parent.spouseId,
         );
       }
     }
 
-    // Match spouses
-    final List<Person> allPeople = personMap.values.toList();
-    for (final person in allPeople) {
-      if (person.spouseId != null) continue;
-
-      if (person.relationToHead?.toLowerCase() == 'head') {
-        final wife = allPeople.firstWhere(
-          (p) => p.relationToHead?.toLowerCase() == 'wife' && p.spouseId == null,
-          orElse: () => allPeople.firstWhere(
-            (p) => p.relationToHead?.toLowerCase() == 'husband' && p.spouseId == null && p.mid != person.mid,
-            orElse: () => person,
-          ),
-        );
-        if (wife != person) {
-          personMap[person.mid!] = _linkSpouses(person, wife);
-          personMap[wife.mid!] = _linkSpouses(wife, person);
-        }
-      } else if (person.relationToHead?.toLowerCase() == 'son') {
-        try {
-          final dil = allPeople.firstWhere(
-            (p) => p.relationToHead?.toLowerCase() == 'daughter_in_law' && p.spouseId == null,
-          );
-          personMap[person.mid!] = _linkSpouses(person, dil);
-          personMap[dil.mid!] = _linkSpouses(dil, person);
-        } catch (e) {
-          // No unmatched daughter-in-law found
+    // Robust bidirectional spouse matching
+    // 1. Explicit spouseMid / spouseId matching
+    for (final person in List<Person>.from(personMap.values)) {
+      if (person.spouseId != null && person.spouseId!.isNotEmpty) {
+        final spouse = personMap[person.spouseId] ?? personById[person.spouseId];
+        if (spouse != null && spouse.mid != person.mid) {
+          personMap[person.mid!] = _linkSpouses(personMap[person.mid!]!, spouse);
+          personMap[spouse.mid!] = _linkSpouses(personMap[spouse.mid!]!, person);
         }
       }
     }
 
-    // Find head of family
-    MemberModel? headMember;
+    // 2. Reciprocal spouseId matching
+    for (final person in List<Person>.from(personMap.values)) {
+      if (person.spouseId == null) {
+        final spouse = personMap.values.firstWhere(
+          (p) => p.mid != person.mid && (p.spouseId == person.mid || p.spouseId == person.id),
+          orElse: () => person,
+        );
+        if (spouse != person) {
+          personMap[person.mid!] = _linkSpouses(personMap[person.mid!]!, spouse);
+          personMap[spouse.mid!] = _linkSpouses(personMap[spouse.mid!]!, person);
+        }
+      }
+    }
+
+    // 3. Head & Wife/Husband matching
+    Person? headPerson;
     try {
-      headMember = members.firstWhere(
-        (m) => m.relationToHead == 'head' && m.isActive,
+      headPerson = personMap.values.firstWhere(
+        (p) => (p.relationToHead ?? '').toLowerCase() == 'head',
       );
-    } catch (e) {
-      try {
-        headMember = members.firstWhere(
-          (m) => m.parentMid.isEmpty && m.isActive,
-        );
-      } catch (e2) {
-        if (members.isNotEmpty) {
-          headMember = members.first;
+    } catch (_) {
+      final candidates = personMap.values.where((p) => p.parentIds.isEmpty).toList();
+      if (candidates.isNotEmpty) {
+        candidates.sort((a, b) => (b.age ?? 0).compareTo(a.age ?? 0));
+        headPerson = candidates.first;
+      } else if (personMap.isNotEmpty) {
+        headPerson = personMap.values.first;
+      }
+    }
+
+    if (headPerson != null && headPerson.spouseId == null) {
+      final targetSpouseRel = headPerson.gender == Gender.female ? 'husband' : 'wife';
+      final headSpouse = personMap.values.firstWhere(
+        (p) => p.mid != headPerson!.mid &&
+            p.spouseId == null &&
+            ((p.relationToHead ?? '').toLowerCase() == targetSpouseRel ||
+             (p.relationToHead ?? '').toLowerCase() == 'wife'),
+        orElse: () => headPerson!,
+      );
+      if (headSpouse != headPerson) {
+        personMap[headPerson.mid!] = _linkSpouses(personMap[headPerson.mid!]!, headSpouse);
+        personMap[headSpouse.mid!] = _linkSpouses(personMap[headSpouse.mid!]!, headPerson);
+      }
+    }
+
+    // 4. Son & Daughter-in-law matching
+    final unlinkedSons = personMap.values
+        .where((p) => (p.relationToHead ?? '').toLowerCase() == 'son' && p.spouseId == null)
+        .toList();
+    final unlinkedDILs = personMap.values
+        .where((p) => (p.relationToHead ?? '').toLowerCase() == 'daughter_in_law' && p.spouseId == null)
+        .toList();
+
+    // Check shared children first
+    for (final son in List<Person>.from(unlinkedSons)) {
+      for (final dil in List<Person>.from(unlinkedDILs)) {
+        final hasSharedChild = personMap.values.any((c) =>
+            c.parentIds.contains(son.mid) && c.parentIds.contains(dil.mid));
+        if (hasSharedChild) {
+          personMap[son.mid!] = _linkSpouses(personMap[son.mid!]!, dil);
+          personMap[dil.mid!] = _linkSpouses(personMap[dil.mid!]!, son);
+          unlinkedSons.remove(son);
+          unlinkedDILs.remove(dil);
+          break;
         }
       }
     }
 
-    final generations = <List<Person>>[];
-    final processed = <String>{};
-
-    // Build generations starting from head
-    if (headMember != null && headMember.mid.isNotEmpty && personMap.containsKey(headMember.mid)) {
-      final headPerson = personMap[headMember.mid]!;
-      final generation0 = [headPerson];
-      processed.add(headPerson.mid!);
-
-      if (headPerson.spouseId != null && personMap.containsKey(headPerson.spouseId)) {
-        generation0.add(personMap[headPerson.spouseId!]!);
-        processed.add(headPerson.spouseId!);
-      }
-
-      generations.add(generation0);
+    // Sort remaining by age older to younger and pair in order
+    unlinkedSons.sort((a, b) => (b.age ?? 0).compareTo(a.age ?? 0));
+    unlinkedDILs.sort((a, b) => (b.age ?? 0).compareTo(a.age ?? 0));
+    final sonDilMatches = math.min(unlinkedSons.length, unlinkedDILs.length);
+    for (int i = 0; i < sonDilMatches; i++) {
+      final s = unlinkedSons[i];
+      final d = unlinkedDILs[i];
+      personMap[s.mid!] = _linkSpouses(personMap[s.mid!]!, d);
+      personMap[d.mid!] = _linkSpouses(personMap[d.mid!]!, s);
     }
 
-    // Build subsequent generations
-    int currentGenIndex = 0;
-    while (currentGenIndex < generations.length) {
-      final currentLevel = generations[currentGenIndex];
-      final nextLevel = <Person>[];
+    // 5. Daughter & Son-in-law matching
+    final unlinkedDtrs = personMap.values
+        .where((p) => (p.relationToHead ?? '').toLowerCase() == 'daughter' && p.spouseId == null)
+        .toList();
+    final unlinkedSILs = personMap.values
+        .where((p) => (p.relationToHead ?? '').toLowerCase() == 'son_in_law' && p.spouseId == null)
+        .toList();
+    final dtrSilMatches = math.min(unlinkedDtrs.length, unlinkedSILs.length);
+    for (int i = 0; i < dtrSilMatches; i++) {
+      final d = unlinkedDtrs[i];
+      final sil = unlinkedSILs[i];
+      personMap[d.mid!] = _linkSpouses(personMap[d.mid!]!, sil);
+      personMap[sil.mid!] = _linkSpouses(personMap[sil.mid!]!, d);
+    }
 
-      for (final person in currentLevel) {
-        if (person.childrenIds.isNotEmpty) {
-          for (final childMid in person.childrenIds) {
-            if (personMap.containsKey(childMid) && !processed.contains(childMid)) {
-              final child = personMap[childMid]!;
-              nextLevel.add(child);
-              processed.add(child.mid!);
+    // Comparator: Older first (higher age, or earlier birth date)
+    int compareOlderFirst(Person a, Person b) {
+      final ageA = a.age ?? (DateTime.now().year - a.birthYear);
+      final ageB = b.age ?? (DateTime.now().year - b.birthYear);
+      if (ageA != ageB) {
+        return ageB.compareTo(ageA);
+      }
+      if (a.birthDate != null && b.birthDate != null) {
+        final dA = MemberModel.parseBirthDate(a.birthDate!);
+        final dB = MemberModel.parseBirthDate(b.birthDate!);
+        if (dA != null && dB != null) {
+          return dA.compareTo(dB);
+        }
+      }
+      return a.fullName.compareTo(b.fullName);
+    }
 
-              if (child.spouseId != null && 
-                  personMap.containsKey(child.spouseId) && 
-                  !processed.contains(child.spouseId)) {
-                nextLevel.add(personMap[child.spouseId!]!);
-                processed.add(child.spouseId!);
-              }
-            }
+    final Set<String> placedMids = {};
+
+    // Helper: pair members with their spouses side-by-side
+    List<Person> pairWithSpouses(List<Person> items) {
+      final List<Person> result = [];
+      for (final p in items) {
+        final midKey = p.mid ?? p.id;
+        if (placedMids.contains(midKey)) continue;
+
+        Person? spouse;
+        if (p.spouseId != null) {
+          spouse = personMap[p.spouseId] ?? personById[p.spouseId];
+        }
+
+        final spouseKey = spouse != null ? (spouse.mid ?? spouse.id) : null;
+
+        if (spouse != null && spouseKey != null && !placedMids.contains(spouseKey)) {
+          // Husband on left, wife on right (or person first)
+          if (p.gender == Gender.female && spouse.gender == Gender.male) {
+            result.add(spouse);
+            result.add(p);
+          } else {
+            result.add(p);
+            result.add(spouse);
           }
+          placedMids.add(midKey);
+          placedMids.add(spouseKey);
+        } else {
+          result.add(p);
+          placedMids.add(midKey);
         }
       }
+      return result;
+    }
 
-      if (nextLevel.isNotEmpty) {
-        generations.add(nextLevel);
-        currentGenIndex++;
-      } else {
-        break;
+    final List<List<Person>> generations = [];
+
+    // Gen 0: Ancestors (Parents of Head, e.g. Father, Mother)
+    final ancestors = personMap.values.where((p) {
+      final rel = (p.relationToHead ?? '').toLowerCase();
+      return rel == 'father' || rel == 'mother';
+    }).toList();
+    if (ancestors.isNotEmpty) {
+      ancestors.sort(compareOlderFirst);
+      final genAncestors = pairWithSpouses(ancestors);
+      if (genAncestors.isNotEmpty) {
+        generations.add(genAncestors);
       }
     }
 
-    // Add any remaining members
-    final remaining = personMap.values.where((p) => !processed.contains(p.mid)).toList();
+    // Gen: Head of family and Spouse
+    final headCandidates = personMap.values.where((p) {
+      final key = p.mid ?? p.id;
+      return !placedMids.contains(key) && (p.relationToHead ?? '').toLowerCase() == 'head';
+    }).toList();
+
+    if (headCandidates.isEmpty && placedMids.isEmpty) {
+      final noParents = personMap.values.where((p) => p.parentIds.isEmpty).toList();
+      noParents.sort(compareOlderFirst);
+      if (noParents.isNotEmpty) {
+        headCandidates.add(noParents.first);
+      } else if (personMap.isNotEmpty) {
+        headCandidates.add(personMap.values.first);
+      }
+    }
+
+    if (headCandidates.isNotEmpty) {
+      final genHead = pairWithSpouses(headCandidates);
+      if (genHead.isNotEmpty) {
+        generations.add(genHead);
+      }
+    }
+
+    // Gen: Children of Head, strictly sorted older to younger, paired with spouses
+    final updatedHead = personMap.values.firstWhere(
+      (p) => (p.relationToHead ?? '').toLowerCase() == 'head',
+      orElse: () => personMap.values.first,
+    );
+    final headSpouseMid = updatedHead.spouseId;
+
+    final children = personMap.values.where((p) {
+      final key = p.mid ?? p.id;
+      if (placedMids.contains(key)) return false;
+      final rel = (p.relationToHead ?? '').toLowerCase();
+      if (rel == 'son' || rel == 'daughter') return true;
+      if (p.parentIds.contains(updatedHead.mid) || p.parentIds.contains(updatedHead.id)) return true;
+      if (headSpouseMid != null &&
+          (p.parentIds.contains(headSpouseMid) || p.parentIds.contains(headSpouseMid))) {
+        return true;
+      }
+      return false;
+    }).toList();
+
+    children.sort(compareOlderFirst);
+    final genChildren = pairWithSpouses(children);
+    if (genChildren.isNotEmpty) {
+      generations.add(genChildren);
+    }
+
+    // Gen: Grandchildren, strictly sorted older to younger, paired with spouses
+    final grandchildren = personMap.values.where((p) {
+      final key = p.mid ?? p.id;
+      if (placedMids.contains(key)) return false;
+      final rel = (p.relationToHead ?? '').toLowerCase();
+      if (rel == 'grandson' || rel == 'granddaughter') return true;
+      if (p.parentIds.any((parentId) =>
+          genChildren.any((parent) => parent.mid == parentId || parent.id == parentId))) {
+        return true;
+      }
+      return false;
+    }).toList();
+
+    grandchildren.sort(compareOlderFirst);
+    final genGrandchildren = pairWithSpouses(grandchildren);
+    if (genGrandchildren.isNotEmpty) {
+      generations.add(genGrandchildren);
+    }
+
+    // Gen: Great-grandchildren (if any)
+    final greatGrandchildren = personMap.values.where((p) {
+      final key = p.mid ?? p.id;
+      if (placedMids.contains(key)) return false;
+      if (p.parentIds.any((parentId) =>
+          genGrandchildren.any((parent) => parent.mid == parentId || parent.id == parentId))) {
+        return true;
+      }
+      return false;
+    }).toList();
+
+    if (greatGrandchildren.isNotEmpty) {
+      greatGrandchildren.sort(compareOlderFirst);
+      final genGreatGrandchildren = pairWithSpouses(greatGrandchildren);
+      if (genGreatGrandchildren.isNotEmpty) {
+        generations.add(genGreatGrandchildren);
+      }
+    }
+
+    // Remaining members: sorted older to younger, paired with spouses
+    final remaining = personMap.values.where((p) {
+      final key = p.mid ?? p.id;
+      return !placedMids.contains(key);
+    }).toList();
+
     if (remaining.isNotEmpty) {
+      remaining.sort(compareOlderFirst);
+      final genRemaining = pairWithSpouses(remaining);
       if (generations.isEmpty) {
-        generations.add(remaining);
+        generations.add(genRemaining);
       } else {
-        generations.last.addAll(remaining);
+        generations.last.addAll(genRemaining);
       }
     }
 
@@ -269,6 +455,7 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
   }
 
   Person _linkSpouses(Person p1, Person p2) {
+    final spouseKey = p2.mid?.isNotEmpty == true ? p2.mid! : p2.id;
     return Person(
       id: p1.id,
       firstName: p1.firstName,
@@ -278,11 +465,12 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
       photoUrl: p1.photoUrl,
       details: p1.details,
       age: p1.age,
+      birthDate: p1.birthDate,
       mid: p1.mid,
       relationToHead: p1.relationToHead,
       parentIds: p1.parentIds,
-      childrenIds: p1.childrenIds,
-      spouseId: p2.mid,
+      childrenIds: p1.childrenIds.isNotEmpty ? p1.childrenIds : p2.childrenIds,
+      spouseId: spouseKey,
     );
   }
 
@@ -357,12 +545,29 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.subFamilyName,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.onPrimary,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.subFamilyName,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+            if (widget.seniority != null && widget.seniority!.isNotEmpty)
+              Text(
+                widget.seniority == 'older'
+                    ? 'Elder Branch (Older / મોટો પરિવાર)'
+                    : 'Junior Branch (Younger / નાનો પરિવાર)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                  color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.85),
+                ),
+              ),
+          ],
         ),
         backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
@@ -487,14 +692,42 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
                                   ),
                                 ],
                               ),
-                              child: Text(
-                                widget.subFamilyName,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  letterSpacing: 0.5,
-                                ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    widget.subFamilyName,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  if (widget.seniority != null && widget.seniority!.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: widget.seniority == 'older' ? Colors.blue.shade50 : Colors.teal.shade50,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: widget.seniority == 'older' ? Colors.blue.shade300 : Colors.teal.shade300,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        widget.seniority == 'older'
+                                            ? 'Elder Branch (Older / મોટો પરિવાર)'
+                                            : 'Junior Branch (Younger / નાનો પરિવાર)',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: widget.seniority == 'older' ? Colors.blue.shade800 : Colors.teal.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                           ),
@@ -502,7 +735,9 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
                         // Family tree content - Expand to fill remaining space
                         Positioned.fill(
                           child: Padding(
-                            padding: const EdgeInsets.only(top: 60),
+                            padding: EdgeInsets.only(
+                              top: widget.seniority != null && widget.seniority!.isNotEmpty ? 90 : 60,
+                            ),
                             child: LayoutBuilder(
                               builder: (context, constraints) {
                                 // Responsive card sizing

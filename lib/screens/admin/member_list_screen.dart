@@ -20,6 +20,7 @@ import '../../services/session_manager.dart';
 import '../../widgets/animation_utils.dart';
 import '../user/member_detail_screen.dart';
 import '../../widgets/circular_image_cropper_dialog.dart';
+import '../../utils/member_sort_helper.dart';
 
 // Placeholder for AddMemberScreen
 class AddMemberScreen extends StatefulWidget {
@@ -2577,7 +2578,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                   return Center(child: Text(lang.translate('no_members_found')));
                 }
 
-                final members = snapshot.data!.docs.where((doc) {
+                final filteredDocs = snapshot.data!.docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final role = data['role'] ?? 'member';
                   
@@ -2600,16 +2601,9 @@ class _MemberListScreenState extends State<MemberListScreen>
                   final matchesTagChip =
                       _selectedTag.isEmpty || tagsList.contains(_selectedTag);
                   return matchesSearch && matchesTagChip;
-                }).toList()
-                  ..sort((a, b) {
-                    // Sort by createdAt descending in memory
-                    final aCreated = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-                    final bCreated = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
-                    if (aCreated == null && bCreated == null) return 0;
-                    if (aCreated == null) return 1;
-                    if (bCreated == null) return -1;
-                    return bCreated.compareTo(aCreated);
-                  });
+                }).toList();
+
+                final members = MemberSortHelper.sortDocumentSnapshots(filteredDocs);
 
                 if (members.isEmpty) {
                   return const Center(

@@ -24,6 +24,7 @@ class SubFamilyService {
     required String subFamilyName,
     required String headOfFamily,
     String description = '',
+    String seniority = '', // 'older' | 'younger' | ''
   }) async {
     final subFamilyRef = _getSubFamiliesCollection(mainFamilyDocId).doc();
 
@@ -43,6 +44,7 @@ class SubFamilyService {
       description: description.trim(),
       memberCount: 0,
       isActive: true,
+      seniority: seniority.trim().toLowerCase(),
       createdAt: DateTime.now(),
     );
 
@@ -59,6 +61,7 @@ class SubFamilyService {
     String? description,
     bool? isActive,
     int? memberCount,
+    String? seniority,
   }) async {
     final updates = <String, dynamic>{};
 
@@ -67,6 +70,7 @@ class SubFamilyService {
     if (description != null) updates['description'] = description.trim();
     if (isActive != null) updates['isActive'] = isActive;
     if (memberCount != null) updates['memberCount'] = memberCount;
+    if (seniority != null) updates['seniority'] = seniority.trim().toLowerCase();
 
     if (updates.isNotEmpty) {
       updates['updatedAt'] = FieldValue.serverTimestamp();

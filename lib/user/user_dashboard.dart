@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_manager.dart';
 import '../models/member_model.dart';
+import '../utils/member_sort_helper.dart';
 import '../screens/user/member_detail_screen.dart';
 import '../screens/user/qr_scanner_screen.dart';
 import '../services/theme_service.dart';
@@ -336,7 +337,6 @@ class UserMemberListScreen extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collectionGroup('members')
             .where('familyDocId', isEqualTo: familyDocId)
-            .orderBy('fullName')
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -347,12 +347,15 @@ class UserMemberListScreen extends StatelessWidget {
             return Center(child: Text(lang.translate('no_members_found')));
           }
 
+          final rawMembers = snapshot.data!.docs
+              .map((doc) => MemberModel.fromMap(doc.id, doc.data() as Map<String, dynamic>))
+              .toList();
+          final members = MemberSortHelper.sortMembers(rawMembers);
+
           return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
+            itemCount: members.length,
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final member = MemberModel.fromMap(doc.id, data);
+              final member = members[index];
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -367,20 +370,17 @@ class UserMemberListScreen extends StatelessWidget {
                     ),
                   ),
                   title: Text(member.fullName),
-                  subtitle: Text('${member.surname} • ${member.age} years'),
+                  subtitle: Text('${member.surname} • ${member.age} years • ${member.relationToHead.toUpperCase()}'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        return MemberDetailScreen(
-                          memberId: doc.id,
-                          familyDocId: data['familyDocId'] ?? '',
-                          subFamilyDocId: data['subFamilyDocId'] ?? '',
-                        );
-                      },
+                        builder: (_) => MemberDetailScreen(
+                          memberId: member.id,
+                          familyDocId: member.familyDocId,
+                          subFamilyDocId: member.subFamilyDocId,
+                        ),
                       ),
                     );
                   },

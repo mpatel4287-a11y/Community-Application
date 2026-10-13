@@ -11,6 +11,7 @@ class SubFamilyModel {
   final String description;
   final int memberCount;
   final bool isActive;
+  final String seniority; // 'older' | 'younger' | ''
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -25,9 +26,18 @@ class SubFamilyModel {
     this.description = '',
     this.memberCount = 0,
     this.isActive = true,
+    this.seniority = '',
     required this.createdAt,
     this.updatedAt,
   });
+
+  bool get isOlder => seniority.toLowerCase() == 'older';
+  bool get isYounger => seniority.toLowerCase() == 'younger';
+  String get seniorityDisplay {
+    if (isOlder) return 'Elder Sub-Family';
+    if (isYounger) return 'Younger Sub-Family';
+    return '';
+  }
 
   // Create SubFamily from Firestore document
   factory SubFamilyModel.fromMap(String id, Map<String, dynamic> data) {
@@ -42,6 +52,7 @@ class SubFamilyModel {
       description: data['description'] ?? '',
       memberCount: data['memberCount'] ?? 0,
       isActive: data['isActive'] ?? true,
+      seniority: data['seniority'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -59,6 +70,7 @@ class SubFamilyModel {
       'description': description,
       'memberCount': memberCount,
       'isActive': isActive,
+      'seniority': seniority,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
     };
@@ -76,6 +88,7 @@ class SubFamilyModel {
     String? description,
     int? memberCount,
     bool? isActive,
+    String? seniority,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -90,6 +103,7 @@ class SubFamilyModel {
       description: description ?? this.description,
       memberCount: memberCount ?? this.memberCount,
       isActive: isActive ?? this.isActive,
+      seniority: seniority ?? this.seniority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

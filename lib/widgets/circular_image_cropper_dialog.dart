@@ -411,13 +411,17 @@ class _CircularImageCropperDialogState
                     final size = Size(constraints.maxWidth, constraints.maxHeight);
                     if (_viewportSize != size) {
                       _viewportSize = size;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          setState(() {
-                            _initTransformIfReady();
-                          });
-                        }
-                      });
+                      if (!_initializedTransform && _uiImage != null) {
+                        _initTransformIfReady();
+                      } else {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() {
+                              _initTransformIfReady();
+                            });
+                          }
+                        });
+                      }
                     }
 
                     if (_isLoading) {
@@ -472,6 +476,7 @@ class _CircularImageCropperDialogState
                           boundaryMargin: const EdgeInsets.all(double.infinity),
                           panEnabled: !_isCropping,
                           scaleEnabled: !_isCropping,
+                          constrained: false, // Critical: preserve intrinsic image dimensions
                           child: SizedBox(
                             width: _uiImage!.width.toDouble(),
                             height: _uiImage!.height.toDouble(),

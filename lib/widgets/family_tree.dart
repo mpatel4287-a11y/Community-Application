@@ -35,7 +35,17 @@ class _FamilyTreeState extends State<FamilyTree> {
     // Initialize card keys for all persons
     for (final generation in widget.generations) {
       for (final person in generation) {
-        _cardKeys[person.id] = GlobalKey();
+        _cardKeys.putIfAbsent(person.id, () => GlobalKey());
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(FamilyTree oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    for (final generation in widget.generations) {
+      for (final person in generation) {
+        _cardKeys.putIfAbsent(person.id, () => GlobalKey());
       }
     }
   }
@@ -129,96 +139,70 @@ class _FamilyTreeState extends State<FamilyTree> {
   }
 
   Widget _buildGeneration(BuildContext context, List<Person> people, int generationIndex) {
-    // 1. Group people into basic units (couples or individuals)
-    final List<dynamic> baseUnits = []; // Can be Person (single) or List<Person> (couple)
+    final List<Widget> unitWidgets = [];
     final processed = <String>{};
 
     for (int i = 0; i < people.length; i++) {
       final person = people[i];
       if (processed.contains(person.id)) continue;
 
+      Person? spouse;
       if (person.spouseId != null) {
-        final spouseIndex = people.indexWhere((p) => p.mid == person.spouseId);
-        if (spouseIndex != -1 && !processed.contains(people[spouseIndex].id)) {
-          baseUnits.add([person, people[spouseIndex]]);
-          processed.add(person.id);
-          processed.add(people[spouseIndex].id);
-          continue;
+        for (final p in people) {
+          if (!processed.contains(p.id) &&
+              p.id != person.id &&
+              (p.id == person.spouseId || (p.mid != null && p.mid == person.spouseId))) {
+            spouse = p;
+            break;
+          }
         }
       }
 
-      baseUnits.add(person);
-      processed.add(person.id);
-    }
+      if (spouse != null) {
+        processed.add(person.id);
+        processed.add(spouse.id);
 
-    // 2. Group units into rows
-    // Singles group together (up to 3), couples stay in their own row
-    final List<Widget> rows = [];
-    List<Person> currentSinglesGroup = [];
+        Person husband = person;
+        Person wife = spouse;
+        if (person.gender == Gender.female && spouse.gender == Gender.male) {
+          husband = spouse;
+          wife = person;
+        }
 
-    void flushSingles() {
-      if (currentSinglesGroup.isNotEmpty) {
-        rows.add(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: currentSinglesGroup.map((p) {
-              return Padding(
-                padding: EdgeInsets.symmetric(horizontal: widget.siblingSpacing),
-                child: _buildAnimatedPerson(context, p, generationIndex, people.indexOf(p)),
-              );
-            }).toList(),
-          )
-        );
-        currentSinglesGroup = [];
-      }
-    }
-
-    for (final unit in baseUnits) {
-      if (unit is List<Person>) {
-        // Married couple - needs its own row
-        flushSingles();
-        rows.add(
+        unitWidgets.add(
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildAnimatedPerson(context, unit[0], generationIndex, people.indexOf(unit[0])),
-              SizedBox(width: widget.siblingSpacing),
-              _buildAnimatedPerson(context, unit[1], generationIndex, people.indexOf(unit[1])),
+              _buildPersonCard(context, husband),
+              SizedBox(width: widget.siblingSpacing * 1.5),
+              _buildPersonCard(context, wife),
             ],
-          )
+          ),
         );
       } else {
-        // Single person - group with other singles
-        currentSinglesGroup.add(unit as Person);
-        if (currentSinglesGroup.length >= 3) {
-          flushSingles();
-        }
+        processed.add(person.id);
+        unitWidgets.add(
+          _buildPersonCard(context, person),
+        );
       }
     }
-    flushSingles();
 
-    return Container(
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: rows.map((row) => Padding(
-          padding: EdgeInsets.only(bottom: widget.siblingSpacing * 3),
-          child: row,
-        )).toList(),
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        for (int i = 0; i < unitWidgets.length; i++) ...[
+          if (i > 0) SizedBox(width: widget.siblingSpacing * 2.5),
+          unitWidgets[i],
+        ],
+      ],
     );
   }
 
-  Widget _buildAnimatedPerson(BuildContext context, Person person, int generationIndex, int index) {
-    // Remove SlideInAnimation here as it triggers continuous layout updates 
-    // during the animation period, causing infinite rebuild cycles with CustomPainter.
-    return _buildPersonCard(context, person);
-  }
-
   Widget _buildPersonCard(BuildContext context, Person person) {
+    final key = _cardKeys.putIfAbsent(person.id, () => GlobalKey());
     return Container(
-      key: _cardKeys[person.id],
+      key: key,
       child: PersonCard(
         person: person,
         width: widget.cardWidth,
@@ -236,8 +220,6 @@ class _FamilyTreeState extends State<FamilyTree> {
   }
 }
 
-// We need a prefix or different way to avoid Rect collision if needed, but Flutter's Rect is fine.
-// Using dart:ui Rect explicitly or just trust the scope.
 // Custom painter to draw connecting lines between family members
 class _FamilyTreePainter extends CustomPainter {
   final List<List<Person>> generations;
@@ -245,7 +227,7 @@ class _FamilyTreePainter extends CustomPainter {
   final double generationSpacing;
   final Color lineColor;
   final Color marriageColor;
-  
+
   _FamilyTreePainter({
     required this.generations,
     required this.cardPositions,
@@ -258,7 +240,13 @@ class _FamilyTreePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (cardPositions.isEmpty) return;
 
-    final paint = Paint()
+    final marriagePaint = Paint()
+      ..color = marriageColor
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final treePaint = Paint()
       ..color = lineColor
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
@@ -266,114 +254,160 @@ class _FamilyTreePainter extends CustomPainter {
 
     final processedCouples = <String>{};
 
-    // Draw lines from parents to children
+    // 1. Draw marriage double lines between spouses
+    for (final generation in generations) {
+      for (final person in generation) {
+        if (processedCouples.contains(person.id)) continue;
+        if (person.spouseId == null) continue;
+
+        Person? spouse;
+        for (final g in generations) {
+          for (final p in g) {
+            if (p.id != person.id &&
+                (p.id == person.spouseId || (p.mid != null && p.mid == person.spouseId))) {
+              spouse = p;
+              break;
+            }
+          }
+          if (spouse != null) break;
+        }
+
+        if (spouse == null) continue;
+        processedCouples.add(person.id);
+        processedCouples.add(spouse.id);
+
+        final r1 = cardPositions[person.id];
+        final r2 = cardPositions[spouse.id];
+        if (r1 == null || r2 == null) continue;
+
+        final leftRect = r1.center.dx < r2.center.dx ? r1 : r2;
+        final rightRect = r1.center.dx < r2.center.dx ? r2 : r1;
+
+        final midY = (leftRect.center.dy + rightRect.center.dy) / 2;
+        final startX = leftRect.right;
+        final endX = rightRect.left;
+
+        if (endX > startX) {
+          canvas.drawLine(
+            Offset(startX, midY - 2.5),
+            Offset(endX, midY - 2.5),
+            marriagePaint,
+          );
+          canvas.drawLine(
+            Offset(startX, midY + 2.5),
+            Offset(endX, midY + 2.5),
+            marriagePaint,
+          );
+        }
+      }
+    }
+
+    // 2. Draw parent-child connector lines
     for (int genIndex = 0; genIndex < generations.length - 1; genIndex++) {
       final currentGen = generations[genIndex];
       final nextGen = generations[genIndex + 1];
 
-      // Group people in currentGen by family units (couples or single parents)
+      final processedParents = <String>{};
+
       for (final person in currentGen) {
-        if (processedCouples.contains(person.id)) continue;
+        if (processedParents.contains(person.id)) continue;
 
-        Offset? sourcePos;
-        
-        final parentRect = cardPositions[person.id];
-        if (parentRect == null) continue;
-
-        if (person.spouseId != null && cardPositions.containsKey(person.spouseId)) {
-          final spouseRect = cardPositions[person.spouseId]!;
-          
-          // Draw marriage line (black and bold as per user request)
-          final marriagePaint = Paint()
-            ..color = marriageColor
-            ..strokeWidth = 3.0
-            ..style = PaintingStyle.stroke
-            ..strokeCap = StrokeCap.round;
-
-          canvas.drawLine(
-            Offset(math.min(parentRect.right, spouseRect.right), parentRect.center.dy),
-            Offset(math.max(parentRect.left, spouseRect.left), parentRect.center.dy),
-            marriagePaint,
-          );
-
-          // Family branch point is midpoint between they two cards
-          sourcePos = Offset((parentRect.center.dx + spouseRect.center.dx) / 2, parentRect.center.dy);
-          processedCouples.add(person.id);
-          processedCouples.add(person.spouseId!);
-        } else {
-          // Single parent
-          sourcePos = Offset(parentRect.center.dx, parentRect.bottom);
-          processedCouples.add(person.id);
-        }
-
-        // Find children of this parent (or spouse)
-        final children = nextGen.where((child) => 
-          child.parentIds.contains(person.mid) || 
-          (person.spouseId != null && child.parentIds.contains(person.spouseId))
-        ).toList();
-
-        if (children.isEmpty) continue;
-
-        // Get children target positions (top center of the child's unit)
-        final List<double> childTargetXs = [];
-
-        for (final child in children) {
-          final childRect = cardPositions[child.id];
-          if (childRect == null) continue;
-
-          // Check if child is part of a couple in the next generation to center the line
-          if (child.spouseId != null && cardPositions.containsKey(child.spouseId)) {
-             final childSpouseRect = cardPositions[child.spouseId]!;
-             // Target X is center of the child couple
-             childTargetXs.add((childRect.center.dx + childSpouseRect.center.dx) / 2);
-          } else {
-             childTargetXs.add(childRect.center.dx);
+        Person? spouse;
+        if (person.spouseId != null) {
+          for (final p in currentGen) {
+            if (p.id != person.id &&
+                (p.id == person.spouseId || (p.mid != null && p.mid == person.spouseId))) {
+              spouse = p;
+              break;
+            }
           }
         }
 
+        processedParents.add(person.id);
+        if (spouse != null) {
+          processedParents.add(spouse.id);
+        }
+
+        final pRect = cardPositions[person.id];
+        if (pRect == null) continue;
+
+        Offset sourcePos;
+        if (spouse != null && cardPositions.containsKey(spouse.id)) {
+          final sRect = cardPositions[spouse.id]!;
+          sourcePos = Offset(
+            (pRect.center.dx + sRect.center.dx) / 2,
+            math.max(pRect.bottom, sRect.bottom),
+          );
+        } else {
+          sourcePos = Offset(pRect.center.dx, pRect.bottom);
+        }
+
+        // Find children of this parent / couple in nextGen
+        final children = nextGen.where((c) {
+          final mP1 = (person.mid != null && c.parentIds.contains(person.mid)) ||
+              c.parentIds.contains(person.id);
+          final mP2 = spouse != null &&
+              (((spouse.mid != null && c.parentIds.contains(spouse.mid))) ||
+                  c.parentIds.contains(spouse.id));
+          if (mP1 || mP2) return true;
+
+          final cP1 = (c.mid != null && person.childrenIds.contains(c.mid)) ||
+              person.childrenIds.contains(c.id);
+          final cP2 = spouse != null &&
+              (((c.mid != null && spouse.childrenIds.contains(c.mid))) ||
+                  spouse.childrenIds.contains(c.id));
+          if (cP1 || cP2) return true;
+
+          // Fallback for Gen 0 when parentIds are empty in Firestore
+          if (genIndex == 0 && c.parentIds.isEmpty) {
+            final rel = (c.relationToHead ?? '').toLowerCase();
+            if (rel == 'son' || rel == 'daughter' || rel.isEmpty) return true;
+          }
+          return false;
+        }).toList();
+
         if (children.isEmpty) continue;
 
-        // Get children target points
+        // Get target points (top of each child card)
         final List<Offset> childTargets = [];
         for (final child in children) {
-          final childRect = cardPositions[child.id];
-          if (childRect == null) continue;
-
-          double targetX;
-          if (child.spouseId != null && cardPositions.containsKey(child.spouseId)) {
-            final childSpouseRect = cardPositions[child.spouseId]!;
-            targetX = (childRect.center.dx + childSpouseRect.center.dx) / 2;
-          } else {
-            targetX = childRect.center.dx;
+          final cRect = cardPositions[child.id];
+          if (cRect != null) {
+            childTargets.add(Offset(cRect.center.dx, cRect.top));
           }
-          childTargets.add(Offset(targetX, childRect.center.dy));
         }
 
         if (childTargets.isEmpty) continue;
 
-        // Draw Vertical Spine Layout
-        // 1. Vertical spine from source down to the last child's Y
-        final lastChildY = childTargets.last.dy;
-        
-        // Use a slightly offset X if children are centered to avoid going THROUGH them?
-        // Actually, user might want it to the left. Let's see.
-        // For now, draw it at sourceX and let's see how it looks.
-        // If sourcePos.dx == all childTarget.dx, it's just one vertical line.
-        
-        canvas.drawLine(
-          sourcePos,
-          Offset(sourcePos.dx, lastChildY),
-          paint,
-        );
+        // Calculate bus bar Y level (halfway between bottom of parent and top of children)
+        final minChildTop = childTargets.map((t) => t.dy).reduce(math.min);
+        final busY = (sourcePos.dy + minChildTop) / 2;
 
-        // 2. Horizontal branches from spine to each child
-        for (final target in childTargets) {
-          if (target.dx != sourcePos.dx) {
-            canvas.drawLine(
-              Offset(sourcePos.dx, target.dy),
-              target,
-              paint,
-            );
+        if (childTargets.length == 1) {
+          final target = childTargets.first;
+          // Vertical drop from parent to busY
+          canvas.drawLine(sourcePos, Offset(sourcePos.dx, busY), treePaint);
+          // Horizontal to target X
+          if ((sourcePos.dx - target.dx).abs() > 1.0) {
+            canvas.drawLine(Offset(sourcePos.dx, busY), Offset(target.dx, busY), treePaint);
+          }
+          // Vertical drop down to child
+          canvas.drawLine(Offset(target.dx, busY), target, treePaint);
+        } else {
+          final minX = childTargets.map((t) => t.dx).reduce(math.min);
+          final maxX = childTargets.map((t) => t.dx).reduce(math.max);
+          final busLeft = math.min(sourcePos.dx, minX);
+          final busRight = math.max(sourcePos.dx, maxX);
+
+          // Vertical drop from parent to busY
+          canvas.drawLine(sourcePos, Offset(sourcePos.dx, busY), treePaint);
+
+          // Horizontal bus bar
+          canvas.drawLine(Offset(busLeft, busY), Offset(busRight, busY), treePaint);
+
+          // Vertical drops to each child
+          for (final target in childTargets) {
+            canvas.drawLine(Offset(target.dx, busY), target, treePaint);
           }
         }
       }

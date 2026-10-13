@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/member_model.dart';
+import '../utils/member_sort_helper.dart';
 import 'subfamily_service.dart'; // Added import
 
 class MemberService {
@@ -366,9 +367,10 @@ class MemberService {
         .where('isActive', isEqualTo: true)
         .get();
         
-    return snapshot.docs
+    final members = snapshot.docs
         .map((d) => MemberModel.fromMap(d.id, d.data()))
         .toList();
+    return MemberSortHelper.sortMembers(members);
   }
 
   Future<List<MemberModel>> getFamilyMembers(String mainFamilyDocId) async {
@@ -407,10 +409,10 @@ class MemberService {
             .where('familyDocId', isEqualTo: mainFamilyDocId)
             .where('isActive', isEqualTo: true)
             .get();
-        return snapshot.docs.map((d) => MemberModel.fromMap(d.id, d.data())).toList();
+        all = snapshot.docs.map((d) => MemberModel.fromMap(d.id, d.data())).toList();
       } catch (_) {}
     }
-    return all;
+    return MemberSortHelper.sortMembers(all);
   }
 
   // ---------------- GET ALL MEMBERS (ADMIN - from all families) ----------------

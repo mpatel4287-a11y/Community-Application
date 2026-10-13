@@ -78,20 +78,25 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
       // 3. Aggregate data
       final List<Map<String, dynamic>> subFamilyList = [];
       
-      // Sort sub-families: Main Family first, then alphabetical
-      // Create a list of indices to sort
+      // Sort sub-families: Main Family first, then Elder, then Younger, then alphabetical
       final List<int> indices = List.generate(subFamilies.length, (i) => i);
       indices.sort((a, b) {
         final sfA = subFamilies[a];
         final sfB = subFamilies[b];
         
-        // Check if one is Main (usually empty subFamilyId or specific name)
-        // Adjust logic based on your convention. Assuming 'Main' name or empty ID
-        final isMainA = sfA.subFamilyId == 'Main' || sfA.subFamilyName.contains('Main');
-        final isMainB = sfB.subFamilyId == 'Main' || sfB.subFamilyName.contains('Main');
+        final isMainA = sfA.subFamilyId == 'Main' ||
+            sfA.subFamilyId == '01' ||
+            sfA.subFamilyName.toLowerCase().contains('main');
+        final isMainB = sfB.subFamilyId == 'Main' ||
+            sfB.subFamilyId == '01' ||
+            sfB.subFamilyName.toLowerCase().contains('main');
 
         if (isMainA && !isMainB) return -1;
         if (!isMainA && isMainB) return 1;
+
+        // Elder before Younger
+        if (sfA.isOlder && !sfB.isOlder) return -1;
+        if (!sfA.isOlder && sfB.isOlder) return 1;
         
         return sfA.subFamilyName.compareTo(sfB.subFamilyName);
       });
@@ -110,6 +115,7 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
              'docId': sf.id,
              'id': sf.subFamilyId.isEmpty ? 'Main' : sf.subFamilyId,
              'name': sf.subFamilyName,
+             'seniority': sf.seniority,
              'memberCount': members.length,
              'members': members,
            });
@@ -153,6 +159,7 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
           subFamilyDocId: subFamily['docId'],
           subFamilyId: subFamily['id'],
           subFamilyName: subFamily['name'],
+          seniority: subFamily['seniority'] as String?,
         ),
       ),
     );
@@ -267,13 +274,60 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
                                           color: Theme.of(context).colorScheme.onSurface,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '$memberCount ${memberCount == 1 ? 'member' : 'members'}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '$memberCount ${memberCount == 1 ? 'member' : 'members'}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                          if ((subFamily['seniority'] as String?)?.isNotEmpty == true) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: subFamily['seniority'] == 'older'
+                                                    ? Colors.amber.shade100
+                                                    : Colors.teal.shade100,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: subFamily['seniority'] == 'older'
+                                                      ? Colors.amber.shade600
+                                                      : Colors.teal.shade600,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    subFamily['seniority'] == 'older'
+                                                        ? Icons.star_rounded
+                                                        : Icons.child_care_rounded,
+                                                    size: 13,
+                                                    color: subFamily['seniority'] == 'older'
+                                                        ? Colors.amber.shade900
+                                                        : Colors.teal.shade900,
+                                                  ),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    subFamily['seniority'] == 'older' ? 'Elder Branch (Older)' : 'Junior Branch (Younger)',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: subFamily['seniority'] == 'older'
+                                                          ? Colors.amber.shade900
+                                                          : Colors.teal.shade900,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ],
                                   ),

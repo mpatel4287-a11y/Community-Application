@@ -18,15 +18,17 @@ class UpdateRequestService {
   Future<String> submitRequest({
     required MemberUpdateRequestModel request,
     XFile? newPhotoFile,
+    Uint8List? newPhotoBytes,
   }) async {
     try {
       String uploadedPhotoUrl = request.newPhotoUrl;
 
       // Upload image if attached
-      if (newPhotoFile != null) {
+      if (newPhotoBytes != null || newPhotoFile != null) {
         final photoUrl = await _photoService.uploadProfilePhoto(
           memberId: request.memberId.isNotEmpty ? request.memberId : request.memberMid,
           image: newPhotoFile,
+          bytes: newPhotoBytes,
         );
 
         if (photoUrl != null && photoUrl.isNotEmpty) {

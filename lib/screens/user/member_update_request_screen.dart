@@ -322,6 +322,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
       await _updateRequestService.submitRequest(
         request: request,
         newPhotoFile: _pickedImage,
+        newPhotoBytes: _pickedImageBytes,
       );
 
       if (mounted) {

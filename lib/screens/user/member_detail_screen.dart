@@ -22,6 +22,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../admin/member_list_screen.dart';
 import 'member_update_request_screen.dart';
 import '../../widgets/full_screen_image_viewer.dart';
+import '../../widgets/circular_image_cropper_dialog.dart';
 
 // Helper widget to handle profile images with error handling
 class ProfileImage extends StatefulWidget {
@@ -548,11 +549,22 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
 
       if (image == null) return;
 
+      final rawBytes = await image.readAsBytes();
+      if (!mounted) return;
+
+      final croppedBytes = await CircularImageCropperDialog.show(
+        context,
+        imageBytes: rawBytes,
+        title: 'Crop Profile Photo',
+      );
+
+      if (croppedBytes == null || !mounted) return;
+
       setState(() => _uploadingPhoto = true);
 
       final photoUrl = await _photoService.uploadProfilePhoto(
         memberId: _member!.id,
-        image: image,
+        bytes: croppedBytes,
       );
 
       if (photoUrl != null && photoUrl.startsWith('http')) {

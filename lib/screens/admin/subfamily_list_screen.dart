@@ -122,7 +122,23 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                   final searchLower = _searchQuery.toLowerCase();
                   return name.contains(searchLower) ||
                       head.contains(searchLower);
-                }).toList();
+                }).toList()
+                  ..sort((a, b) {
+                    final isMainA = a.subFamilyId == '01' ||
+                        a.subFamilyId == 'Main' ||
+                        a.subFamilyName.toLowerCase().contains('main');
+                    final isMainB = b.subFamilyId == '01' ||
+                        b.subFamilyId == 'Main' ||
+                        b.subFamilyName.toLowerCase().contains('main');
+                    if (isMainA && !isMainB) return -1;
+                    if (!isMainA && isMainB) return 1;
+
+                    // Elder sub-families come before Younger
+                    if (a.isOlder && !b.isOlder) return -1;
+                    if (!a.isOlder && b.isOlder) return 1;
+
+                    return a.subFamilyName.compareTo(b.subFamilyName);
+                  });
 
                 if (subFamilies.isEmpty) {
                   return const Center(
@@ -228,6 +244,53 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                       ),
                                     ),
                                     const Spacer(),
+                                    if (subFamily.seniority.isNotEmpty) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: subFamily.isOlder
+                                              ? Colors.amber.shade50
+                                              : Colors.teal.shade50,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: subFamily.isOlder
+                                                ? Colors.amber.shade400
+                                                : Colors.teal.shade400,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              subFamily.isOlder
+                                                  ? Icons.star_rounded
+                                                  : Icons.child_care_rounded,
+                                              size: 11,
+                                              color: subFamily.isOlder
+                                                  ? Colors.amber.shade900
+                                                  : Colors.teal.shade800,
+                                            ),
+                                            const SizedBox(width: 2),
+                                            Text(
+                                              subFamily.isOlder ? 'OLDER' : 'YOUNGER',
+                                              style: TextStyle(
+                                                fontSize: 8.5,
+                                                color: subFamily.isOlder
+                                                    ? Colors.amber.shade900
+                                                    : Colors.teal.shade800,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
                                     if (!isActive)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
@@ -553,6 +616,7 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
   final _subFamilyNameCtrl = TextEditingController();
   final _headOfFamilyCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  String _seniority = 'older'; // 'older' | 'younger'
   bool _loading = false;
 
   @override
@@ -576,6 +640,7 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
         subFamilyName: _subFamilyNameCtrl.text.trim(),
         headOfFamily: _headOfFamilyCtrl.text.trim(),
         description: _descriptionCtrl.text.trim(),
+        seniority: _seniority,
       );
 
       if (mounted) {
@@ -631,6 +696,63 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
                     ),
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Sub-Family Seniority / Order *',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Specify whether this sub-family is the older or younger branch of the family',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          avatar: Icon(
+                            Icons.star_rounded,
+                            size: 18,
+                            color: _seniority == 'older' ? Colors.white : Colors.amber.shade800,
+                          ),
+                          label: const Text('Older (Elder Branch)'),
+                          selected: _seniority == 'older',
+                          selectedColor: Colors.amber.shade700,
+                          labelStyle: TextStyle(
+                            color: _seniority == 'older' ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSelected: (selected) {
+                            if (selected) setState(() => _seniority = 'older');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ChoiceChip(
+                          avatar: Icon(
+                            Icons.child_care_rounded,
+                            size: 18,
+                            color: _seniority == 'younger' ? Colors.white : Colors.teal.shade800,
+                          ),
+                          label: const Text('Younger (Junior Branch)'),
+                          selected: _seniority == 'younger',
+                          selectedColor: Colors.teal.shade700,
+                          labelStyle: TextStyle(
+                            color: _seniority == 'younger' ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSelected: (selected) {
+                            if (selected) setState(() => _seniority = 'younger');
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -698,6 +820,7 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
   final _subFamilyNameCtrl = TextEditingController();
   final _headOfFamilyCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  late String _seniority;
   bool _loading = false;
 
   @override
@@ -706,6 +829,7 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
     _subFamilyNameCtrl.text = widget.subFamily.subFamilyName;
     _headOfFamilyCtrl.text = widget.subFamily.headOfFamily;
     _descriptionCtrl.text = widget.subFamily.description;
+    _seniority = widget.subFamily.seniority.isEmpty ? 'older' : widget.subFamily.seniority;
   }
 
   @override
@@ -728,6 +852,7 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
         subFamilyName: _subFamilyNameCtrl.text.trim(),
         headOfFamily: _headOfFamilyCtrl.text.trim(),
         description: _descriptionCtrl.text.trim(),
+        seniority: _seniority,
       );
 
       if (mounted) {
@@ -788,6 +913,63 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
                     ),
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Sub-Family Seniority / Order *',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Specify whether this sub-family is the older or younger branch of the family',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          avatar: Icon(
+                            Icons.star_rounded,
+                            size: 18,
+                            color: _seniority == 'older' ? Colors.white : Colors.amber.shade800,
+                          ),
+                          label: const Text('Older (Elder Branch)'),
+                          selected: _seniority == 'older',
+                          selectedColor: Colors.amber.shade700,
+                          labelStyle: TextStyle(
+                            color: _seniority == 'older' ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSelected: (selected) {
+                            if (selected) setState(() => _seniority = 'older');
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ChoiceChip(
+                          avatar: Icon(
+                            Icons.child_care_rounded,
+                            size: 18,
+                            color: _seniority == 'younger' ? Colors.white : Colors.teal.shade800,
+                          ),
+                          label: const Text('Younger (Junior Branch)'),
+                          selected: _seniority == 'younger',
+                          selectedColor: Colors.teal.shade700,
+                          labelStyle: TextStyle(
+                            color: _seniority == 'younger' ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onSelected: (selected) {
+                            if (selected) setState(() => _seniority = 'younger');
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
