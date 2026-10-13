@@ -183,6 +183,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final lang = Provider.of<LanguageService>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final hasMetrics = _canAccess('families') ||
+        _canAccess('members') ||
+        _canAccess('member_update_requests');
+
+    final hasSectionDirectory = (!isManager && _canAccess('families')) ||
+        _canAccess('members') ||
+        _canAccess('member_update_requests') ||
+        _canAccess('managers');
+
+    final hasSectionOrg = _canAccess('roles') ||
+        _canAccess('groups') ||
+        _canAccess('events') ||
+        _canAccess('firms') ||
+        _canAccess('notifications');
+
+    final hasSectionDiagnostics = (!isManager && _canAccess('analytics')) ||
+        _canAccess('system_health') ||
+        _canAccess('settings') ||
+        _isSuperAdmin;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -266,25 +286,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
 
             // 2. Realtime Quick Counters Grid
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 200),
-              beginOffset: const Offset(0, 0.1),
-              child: _buildRealtimeMetricsRow(context),
-            ),
-
-            const SizedBox(height: 22),
+            if (hasMetrics) ...[
+              SlideInAnimation(
+                delay: const Duration(milliseconds: 200),
+                beginOffset: const Offset(0, 0.1),
+                child: _buildRealtimeMetricsRow(context),
+              ),
+              const SizedBox(height: 22),
+            ],
 
             // 3. Section: Directory & Community Members
-            FadeInAnimation(
-              delay: const Duration(milliseconds: 250),
-              child: _buildSectionHeader(
-                title: lang.translate('family_members'),
-                subtitle: 'Manage community records & approvals',
-                icon: Icons.badge_outlined,
-                accentColor: const Color(0xFF0284C7),
+            if (hasSectionDirectory) ...[
+              FadeInAnimation(
+                delay: const Duration(milliseconds: 250),
+                child: _buildSectionHeader(
+                  title: lang.translate('family_members'),
+                  subtitle: 'Manage community records & approvals',
+                  icon: Icons.badge_outlined,
+                  accentColor: const Color(0xFF0284C7),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
             if (!isManager && _canAccess('families')) ...[
               SlideInAnimation(
@@ -382,19 +404,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(height: 10),
             ],
 
-            const SizedBox(height: 22),
-
             // 4. Section: Organization & Activities
-            FadeInAnimation(
-              delay: const Duration(milliseconds: 400),
-              child: _buildSectionHeader(
-                title: lang.translate('organization'),
-                subtitle: 'Community committees, groups & events',
-                icon: Icons.account_tree_outlined,
-                accentColor: const Color(0xFF7C3AED),
+            if (hasSectionOrg) ...[
+              FadeInAnimation(
+                delay: const Duration(milliseconds: 400),
+                child: _buildSectionHeader(
+                  title: lang.translate('organization'),
+                  subtitle: 'Community committees, groups & events',
+                  icon: Icons.account_tree_outlined,
+                  accentColor: const Color(0xFF7C3AED),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
             if (_canAccess('roles')) ...[
               SlideInAnimation(
@@ -479,19 +500,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(height: 10),
             ],
 
-            const SizedBox(height: 22),
-
             // 5. Section: Developer & System Diagnostics Hub
-            FadeInAnimation(
-              delay: const Duration(milliseconds: 580),
-              child: _buildSectionHeader(
-                title: 'Developer & Diagnostics Hub',
-                subtitle: 'Real-time telemetry, health & system controls',
-                icon: Icons.terminal_rounded,
-                accentColor: const Color(0xFF10B981),
+            if (hasSectionDiagnostics) ...[
+              FadeInAnimation(
+                delay: const Duration(milliseconds: 580),
+                child: _buildSectionHeader(
+                  title: 'Developer & Diagnostics Hub',
+                  subtitle: 'Real-time telemetry, health & system controls',
+                  icon: Icons.terminal_rounded,
+                  accentColor: const Color(0xFF10B981),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
             if (!isManager && _canAccess('analytics')) ...[
               SlideInAnimation(
@@ -563,7 +583,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               const SizedBox(height: 10),
             ],
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 12),
+          ],
+
+          const SizedBox(height: 24),
           ],
         ),
       ),
@@ -576,8 +599,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   // ---------------- METRICS ROW ----------------
   Widget _buildRealtimeMetricsRow(BuildContext context) {
-    return Row(
-      children: [
+    final showFamilies = _canAccess('families');
+    final showMembers = _canAccess('members');
+    final showRequests = _canAccess('member_update_requests');
+
+    if (!showFamilies && !showMembers && !showRequests) {
+      return const SizedBox.shrink();
+    }
+
+    final items = <Widget>[];
+
+    if (showFamilies) {
+      items.add(
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: _firestore.collection('families').where('isAdmin', isEqualTo: false).snapshots(),
@@ -592,7 +625,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             },
           ),
         ),
-        const SizedBox(width: 8),
+      );
+    }
+
+    if (showMembers) {
+      if (items.isNotEmpty) items.add(const SizedBox(width: 8));
+      items.add(
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: _firestore.collectionGroup('members').snapshots(),
@@ -607,7 +645,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             },
           ),
         ),
-        const SizedBox(width: 8),
+      );
+    }
+
+    if (showRequests) {
+      if (items.isNotEmpty) items.add(const SizedBox(width: 8));
+      items.add(
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: _firestore
@@ -626,8 +669,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             },
           ),
         ),
-      ],
-    );
+      );
+    }
+
+    return Row(children: items);
   }
 
   Widget _buildMetricBadge({

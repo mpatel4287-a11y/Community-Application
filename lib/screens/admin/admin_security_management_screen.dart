@@ -22,9 +22,7 @@ class _AdminSecurityManagementScreenState
   bool _isSuperAdmin = false;
 
   final TextEditingController _subAdminPassCtrl = TextEditingController();
-  final TextEditingController _mainAdminPassCtrl = TextEditingController();
   bool _obscureSubAdminPass = true;
-  bool _obscureMainAdminPass = true;
 
   List<String> _currentPermissions = [];
   bool _isSavingPermissions = false;
@@ -38,7 +36,6 @@ class _AdminSecurityManagementScreenState
   @override
   void dispose() {
     _subAdminPassCtrl.dispose();
-    _mainAdminPassCtrl.dispose();
     super.dispose();
   }
 
@@ -194,38 +191,6 @@ class _AdminSecurityManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error updating password: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _updateMainAdminPassword() async {
-    final pwd = _mainAdminPassCtrl.text.trim();
-    if (pwd.length < 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password must be at least 4 characters long.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    try {
-      await _adminService.updateMainAdminPassword(pwd);
-      _mainAdminPassCtrl.clear();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Super Admin master password successfully updated!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating master password: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -588,53 +553,6 @@ class _AdminSecurityManagementScreenState
                             ),
                           ),
                           onPressed: _updateSubAdminPassword,
-                          child: const Text('Update'),
-                        ),
-                      ],
-                    ),
-
-                    const Divider(height: 28),
-
-                    // Change Main Admin Password
-                    const Text(
-                      'Change My Super Admin Password',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _mainAdminPassCtrl,
-                            obscureText: _obscureMainAdminPass,
-                            decoration: InputDecoration(
-                              hintText: 'Enter new master password',
-                              isDense: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscureMainAdminPass ? Icons.visibility_off : Icons.visibility,
-                                  size: 20,
-                                ),
-                                onPressed: () =>
-                                    setState(() => _obscureMainAdminPass = !_obscureMainAdminPass),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade900,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: _updateMainAdminPassword,
                           child: const Text('Update'),
                         ),
                       ],
