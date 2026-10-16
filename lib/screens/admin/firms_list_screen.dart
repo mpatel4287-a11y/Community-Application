@@ -168,16 +168,18 @@ class _FirmsListScreenState extends State<FirmsListScreen> {
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const CreateFirmScreen()),
-                            );
-                          },
-                          child: const Text('Create Firm'),
-                        )
+                        if (_isAdmin) ...[
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const CreateFirmScreen()),
+                              );
+                            },
+                            child: const Text('Create Firm'),
+                          ),
+                        ],
                       ],
                     ),
                   );

@@ -21,6 +21,8 @@ import 'privacy_policy_screen.dart';
 import 'member_update_request_screen.dart';
 import '../admin/admin_update_requests_screen.dart';
 import '../../widgets/full_screen_image_viewer.dart';
+import '../../services/update_request_service.dart';
+import '../../models/member_update_request_model.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _textScale = 1.0;
   
   final MemberService _memberService = MemberService();
+  final UpdateRequestService _updateRequestService = UpdateRequestService();
   MemberModel? _currentUser;
 
   @override
@@ -786,6 +789,117 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showDeleteAccountDialog() async {
+    // Resolve member details
+    final memberDocId = await SessionManager.getMemberDocId() ?? _currentUser?.id ?? '';
+    final memberMid = await SessionManager.getMemberId() ?? _currentUser?.mid ?? '';
+    final familyDocId = await SessionManager.getFamilyDocId() ?? _currentUser?.familyDocId ?? '';
+    final subFamilyDocId = await SessionManager.getSubFamilyDocId() ?? _currentUser?.subFamilyDocId ?? '';
+
+    // Check if there is already an active pending deletion request
+    MemberUpdateRequestModel? pendingReq;
+    try {
+      pendingReq = await _updateRequestService.getPendingDeletionRequest(
+        memberId: memberDocId,
+        memberMid: memberMid,
+      );
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    if (pendingReq != null) {
+      // Show pending status modal
+      final withdraw = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.hourglass_top_rounded, color: Colors.orange),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Deletion Request Pending', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Status: Awaiting Administrator Approval',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Requested on: ${pendingReq!.createdAt.day}/${pendingReq.createdAt.month}/${pendingReq.createdAt.year}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Your account remains active and normal as usual. It will only be permanently deleted once an administrator accepts and approves your request.\n\nIf the admin rejects the request, your account will stay normal.',
+                style: TextStyle(fontSize: 13, height: 1.4),
+              ),
+              if (pendingReq.description.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Reason note: "${pendingReq.description}"',
+                  style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.white),
+              onPressed: () => Navigator.pop(ctx, true),
+              label: const Text('Withdraw Request', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+
+      if (withdraw == true && mounted) {
+        try {
+          await _updateRequestService.cancelRequest(pendingReq.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account deletion request withdrawn. Your account remains normal and active.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error withdrawing request: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+      return;
+    }
+
+    // No pending request: show request creation dialog
+    final reasonController = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -794,28 +908,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.red),
             SizedBox(width: 8),
-            Text('Delete Account & Data', style: TextStyle(fontSize: 18)),
+            Expanded(
+              child: Text('Delete Account & Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Are you sure you want to request account deletion?',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Under Google Play Data Safety policies, you have the right to request permanent deletion of your profile, authentication credentials, and uploaded photos.',
-              style: TextStyle(fontSize: 13, height: 1.4),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Proceeding will submit your deletion request, log you out immediately, and deactivate your account.',
-              style: TextStyle(fontSize: 13, color: Colors.redAccent, height: 1.4),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Are you sure you want to request account deletion?',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Under Google Play Data Safety policies, you have the right to request permanent deletion of your profile, authentication credentials, and uploaded photos.',
+                style: TextStyle(fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.25)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '• Your deletion request will be sent to the administrator for review.\n• When the admin accepts, your account will get deleted.\n• If the admin rejects, your account will stay normal as usual.\n• Your account remains active while the request is pending.',
+                      style: TextStyle(fontSize: 12, height: 1.45, color: Colors.blueGrey),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: reasonController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Reason for deletion (Optional)',
+                  hintText: 'Enter reason or details...',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(10),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -828,24 +971,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Request Deletion', style: TextStyle(color: Colors.white)),
+            child: const Text('Submit Request to Admin', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
 
     if (confirm == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Account deletion request submitted. Logging out...'),
-          backgroundColor: Colors.red.shade700,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 1));
-      await AuthService().logout();
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
+      try {
+        final request = MemberUpdateRequestModel(
+          id: '',
+          memberId: memberDocId.isNotEmpty ? memberDocId : memberMid,
+          memberMid: memberMid,
+          memberName: _currentUser?.fullName ?? _familyName ?? 'Member',
+          familyDocId: familyDocId,
+          subFamilyDocId: subFamilyDocId,
+          familyName: _familyName ?? _currentUser?.familyName ?? '',
+          requestedByPhone: _currentUser?.phone ?? '',
+          requestType: 'account_deletion',
+          title: 'Permanent Account Deletion Request',
+          description: reasonController.text.trim().isNotEmpty
+              ? reasonController.text.trim()
+              : 'User requested permanent account deletion under Data Safety policy.',
+          status: 'pending',
+          createdAt: DateTime.now(),
+        );
+
+        await _updateRequestService.submitRequest(request: request);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Account deletion request submitted to admin. Your account remains normal until approved.'),
+              backgroundColor: Colors.teal.shade700,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to submit deletion request: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

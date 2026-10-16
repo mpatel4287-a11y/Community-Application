@@ -172,6 +172,7 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
             child: Row(
               children: [
                 _buildCategoryChip('all', 'All Types', Icons.dashboard_outlined),
+                _buildCategoryChip('account_deletion', 'Deletion Requests', Icons.person_remove_outlined),
                 _buildCategoryChip('photo_update', 'Photo', Icons.camera_alt_outlined),
                 _buildCategoryChip('contact_info', 'Contact', Icons.phone_outlined),
                 _buildCategoryChip('personal_details', 'Personal', Icons.badge_outlined),
@@ -391,6 +392,40 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
               ],
             ),
 
+            // Account Deletion Warning Banner
+            if (req.requestType == 'account_deletion') ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18),
+                        SizedBox(width: 6),
+                        Text(
+                          'Permanent Account Deletion Request',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      '• Under Google Play Data Safety policies, this member has requested permanent deletion of their account.\n• When approved: The member record will be permanently deleted from the database.\n• When rejected: The request is dismissed and the member account remains active and normal as usual.',
+                      style: TextStyle(fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Visual Difference / Preview Section
             if (req.requestType == 'photo_update' || req.newPhotoUrl.isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -478,6 +513,11 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
     Color color = Colors.grey;
 
     switch (type) {
+      case 'account_deletion':
+        icon = Icons.person_remove_rounded;
+        label = 'Account Deletion';
+        color = Colors.red;
+        break;
       case 'photo_update':
         icon = Icons.camera_alt;
         label = 'Photo';
@@ -673,6 +713,7 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
 
   Widget _buildActionButtons(MemberUpdateRequestModel req, ThemeData theme) {
     final isPending = req.status == 'pending';
+    final isDeletion = req.requestType == 'account_deletion';
 
     return Row(
       children: [
@@ -681,13 +722,22 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
           flex: 3,
           child: ElevatedButton.icon(
             onPressed: () => _openReviewAndEditDialog(req),
-            icon: Icon(isPending ? Icons.edit_attributes_rounded : Icons.visibility_outlined, size: 17),
+            icon: Icon(
+              isDeletion
+                  ? (isPending ? Icons.gavel_rounded : Icons.visibility_outlined)
+                  : (isPending ? Icons.edit_attributes_rounded : Icons.visibility_outlined),
+              size: 17,
+            ),
             label: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(isPending ? 'Review & Edit' : 'View Details'),
+              child: Text(
+                isDeletion
+                    ? (isPending ? 'Review Deletion' : 'View Details')
+                    : (isPending ? 'Review & Edit' : 'View Details'),
+              ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F766E),
+              backgroundColor: isDeletion ? Colors.blueGrey.shade800 : const Color(0xFF0F766E),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -697,18 +747,28 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
 
         if (isPending) ...[
           const SizedBox(width: 8),
-          // Quick Approve Button
+          // Quick Approve / Delete Button
           Expanded(
             flex: 2,
             child: OutlinedButton.icon(
               onPressed: () => _quickApprove(req),
-              icon: const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 17),
-              label: const FittedBox(
+              icon: Icon(
+                isDeletion ? Icons.delete_forever : Icons.check_circle_outline,
+                color: isDeletion ? Colors.red : const Color(0xFF10B981),
+                size: 17,
+              ),
+              label: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text('Approve', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                child: Text(
+                  isDeletion ? 'Delete' : 'Approve',
+                  style: TextStyle(
+                    color: isDeletion ? Colors.red : const Color(0xFF10B981),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF10B981)),
+                side: BorderSide(color: isDeletion ? Colors.red : const Color(0xFF10B981)),
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -720,13 +780,13 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
             flex: 2,
             child: OutlinedButton.icon(
               onPressed: () => _promptRejectDialog(req),
-              icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 17),
+              icon: const Icon(Icons.cancel_outlined, color: Colors.orange, size: 17),
               label: const FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text('Reject', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                child: Text('Reject', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
+                side: const BorderSide(color: Colors.orange),
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -777,19 +837,27 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
   }
 
   Future<void> _quickApprove(MemberUpdateRequestModel req) async {
+    final isDeletion = req.requestType == 'account_deletion';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: Color(0xFF10B981)),
-            SizedBox(width: 8),
-            Text('Approve Request'),
+            Icon(
+              isDeletion ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
+              color: isDeletion ? Colors.red : const Color(0xFF10B981),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(isDeletion ? 'Approve Account Deletion' : 'Approve Request'),
+            ),
           ],
         ),
         content: Text(
-          'Are you sure you want to approve this request for ${req.memberName}? The requested changes will be directly applied to the Samaj database.',
+          isDeletion
+              ? 'Are you sure you want to approve account deletion for ${req.memberName} (${req.memberMid})?\n\nThis will permanently delete their account and member record from the database. This action cannot be undone.'
+              : 'Are you sure you want to approve this request for ${req.memberName}? The requested changes will be directly applied to the Samaj database.',
         ),
         actions: [
           TextButton(
@@ -798,8 +866,8 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-            child: const Text('Approve & Apply', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: isDeletion ? Colors.red : const Color(0xFF10B981)),
+            child: Text(isDeletion ? 'Delete Permanently' : 'Approve & Apply', style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -811,23 +879,26 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
           request: req,
           approvedUpdates: req.fieldUpdates,
           approvedPhotoUrl: req.newPhotoUrl.isNotEmpty ? req.newPhotoUrl : null,
-          adminNote: 'Approved by Committee',
+          adminNote: isDeletion ? 'Account permanently deleted by Admin' : 'Approved by Committee',
         );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully applied changes for ${req.memberName}!'),
-            backgroundColor: const Color(0xFF10B981),
+            content: Text(isDeletion
+                ? 'Account of ${req.memberName} (${req.memberMid}) has been permanently deleted.'
+                : 'Successfully applied changes for ${req.memberName}!'),
+            backgroundColor: isDeletion ? Colors.red.shade700 : const Color(0xFF10B981),
           ),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to apply update: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
   Future<void> _promptRejectDialog(MemberUpdateRequestModel req) async {
+    final isDeletion = req.requestType == 'account_deletion';
     final noteController = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -835,7 +906,7 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.cancel_outlined, color: Colors.red),
+            Icon(Icons.cancel_outlined, color: Colors.orange),
             SizedBox(width: 8),
             Text('Reject Request'),
           ],
@@ -844,14 +915,18 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Provide a reason for rejecting this update request for ${req.memberName}:'),
+            Text(isDeletion
+                ? 'Provide a reason for rejecting the account deletion request for ${req.memberName}. Their account will remain active and normal as usual:'
+                : 'Provide a reason for rejecting this update request for ${req.memberName}:'),
             const SizedBox(height: 12),
             TextField(
               controller: noteController,
               maxLines: 2,
-              decoration: const InputDecoration(
-                hintText: 'e.g. Photo not clear, invalid contact number...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: isDeletion
+                    ? 'e.g. Identity could not be verified, requested accidentally...'
+                    : 'e.g. Photo not clear, invalid contact number...',
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -863,7 +938,7 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('Reject', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -874,10 +949,17 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
       try {
         await _updateService.rejectRequest(
           requestId: req.id,
-          adminNote: noteController.text.trim().isNotEmpty ? noteController.text.trim() : 'Rejected by admin committee',
+          adminNote: noteController.text.trim().isNotEmpty
+              ? noteController.text.trim()
+              : (isDeletion ? 'Account deletion rejected by admin. Account stays normal.' : 'Rejected by admin committee'),
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request marked as rejected'), backgroundColor: Colors.orange),
+          SnackBar(
+            content: Text(isDeletion
+                ? 'Account deletion request rejected. Member account remains normal as usual.'
+                : 'Request marked as rejected'),
+            backgroundColor: Colors.orange,
+          ),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -914,6 +996,11 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
 
   // ---------------- DETAILED REVIEW & EDIT MODAL ----------------
   void _openReviewAndEditDialog(MemberUpdateRequestModel req) {
+    if (req.requestType == 'account_deletion') {
+      _showAccountDeletionReviewDialog(req);
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -943,6 +1030,103 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
             );
           }
         },
+      ),
+    );
+  }
+
+  void _showAccountDeletionReviewDialog(MemberUpdateRequestModel req) {
+    final isPending = req.status == 'pending';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.person_remove_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text('Account Deletion Review', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Member: ${req.memberName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(height: 4),
+                    Text('MID: ${req.memberMid}', style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F766E))),
+                    Text('Family: ${req.familyName}', style: TextStyle(color: Colors.grey.shade700)),
+                    if (req.requestedByPhone.isNotEmpty)
+                      Text('Phone: ${req.requestedByPhone}', style: TextStyle(color: Colors.grey.shade700)),
+                    const SizedBox(height: 6),
+                    Text('Submitted: ${req.createdAt.day}/${req.createdAt.month}/${req.createdAt.year}', style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Reason provided by member:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  req.description.isNotEmpty ? req.description : 'No reason provided.',
+                  style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
+                ),
+              ),
+              if (req.adminNote.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text('Admin Note: ${req.adminNote}', style: const TextStyle(fontSize: 12, color: Colors.blue)),
+              ],
+              const SizedBox(height: 14),
+              const Text(
+                '• Approve: Permanently deletes the member record and login access from the Samaj database.\n• Reject: Dismisses the request and the user account stays active and normal as usual.',
+                style: TextStyle(fontSize: 12, height: 1.4, color: Colors.blueGrey),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          if (isPending) ...[
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _promptRejectDialog(req);
+              },
+              child: const Text('Reject Request', style: TextStyle(color: Colors.white)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _quickApprove(req);
+              },
+              child: const Text('Approve & Delete', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ],
       ),
     );
   }

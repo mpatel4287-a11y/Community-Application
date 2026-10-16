@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/member_model.dart';
+import '../utils/member_sort_helper.dart';
 
 enum ExportField {
   familyId('familyId', 'YSK Family ID'),
@@ -166,7 +167,8 @@ class ExportService {
       // Add Data Rows grouped by Sub-Family
       for (int i = 0; i < familiesData.length; i++) {
         final fam = familiesData[i];
-        final List<MemberModel> members = fam['members'] as List<MemberModel>? ?? [];
+        final List<MemberModel> rawMembers = fam['members'] as List<MemberModel>? ?? [];
+        final List<MemberModel> members = MemberSortHelper.sortMembers(rawMembers);
 
         // If multiple sub-families, insert a clear section banner row
         if (hasMultipleGroups || fam['subFamilyName'] != null) {
@@ -331,7 +333,8 @@ class ExportService {
 
             for (int i = 0; i < familiesData.length; i++) {
               final fam = familiesData[i];
-              final List<MemberModel> members = fam['members'] as List<MemberModel>? ?? [];
+              final List<MemberModel> rawMembers = fam['members'] as List<MemberModel>? ?? [];
+              final List<MemberModel> members = MemberSortHelper.sortMembers(rawMembers);
               if (members.isEmpty) continue;
 
               final List<List<String>> subRows = [];

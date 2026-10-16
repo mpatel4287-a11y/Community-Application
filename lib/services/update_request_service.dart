@@ -111,6 +111,38 @@ class UpdateRequestService {
     String adminNote = '',
   }) async {
     try {
+      // Handle account deletion request specifically
+      if (request.requestType == 'account_deletion') {
+        final memberIdToDel = request.memberId.isNotEmpty ? request.memberId : request.memberMid;
+        await _memberService.deleteMember(
+          mainFamilyDocId: request.familyDocId,
+          subFamilyDocId: request.subFamilyDocId,
+          memberId: memberIdToDel,
+        );
+
+        // Also sweep any matching docs by MID across collectionGroup
+        if (request.memberMid.isNotEmpty) {
+          try {
+            final q = await _firestore
+                .collectionGroup('members')
+                .where('mid', isEqualTo: request.memberMid)
+                .get();
+            for (final doc in q.docs) {
+              await doc.reference.delete();
+            }
+          } catch (_) {}
+        }
+
+        // Mark request as approved (account deleted)
+        final Map<String, dynamic> requestUpdates = {
+          'status': 'approved',
+          'adminNote': adminNote.isNotEmpty ? adminNote : 'Account permanently deleted by Admin',
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        await _firestore.collection(_collectionName).doc(request.id).update(requestUpdates);
+        return;
+      }
+
       final Map<String, dynamic> memberUpdates = Map<String, dynamic>.from(approvedUpdates);
 
       // Handle photo update
@@ -185,6 +217,35 @@ class UpdateRequestService {
   // ---------------- DELETE REQUEST ----------------
   Future<void> deleteRequest(String requestId) async {
     await _firestore.collection(_collectionName).doc(requestId).delete();
+  }
+
+  // ---------------- CANCEL REQUEST (BY USER) ----------------
+  Future<void> cancelRequest(String requestId) async {
+    await _firestore.collection(_collectionName).doc(requestId).delete();
+  }
+
+  // ---------------- GET PENDING DELETION REQUEST ----------------
+  Future<MemberUpdateRequestModel?> getPendingDeletionRequest({
+    required String memberId,
+    String? memberMid,
+  }) async {
+    try {
+      final snap = await _firestore
+          .collection(_collectionName)
+          .where('requestType', isEqualTo: 'account_deletion')
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      for (final doc in snap.docs) {
+        final req = MemberUpdateRequestModel.fromMap(doc.id, doc.data());
+        if (req.memberId == memberId || (memberMid != null && memberMid.isNotEmpty && req.memberMid == memberMid)) {
+          return req;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting pending deletion request: $e');
+    }
+    return null;
   }
 }
 

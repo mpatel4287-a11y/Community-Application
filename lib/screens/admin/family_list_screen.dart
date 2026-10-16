@@ -8,6 +8,7 @@ import '../../services/export_service.dart';
 import '../../services/session_manager.dart';
 import '../../widgets/animation_utils.dart';
 import '../../widgets/custom_export_dialog.dart';
+import '../../utils/member_sort_helper.dart';
 import 'add_family_screen.dart';
 import 'edit_family_screen.dart';
 import 'subfamily_list_screen.dart';
@@ -58,7 +59,8 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
         final familyIdVal = data['familyId']?.toString() ?? '-';
         final familyNameVal = data['familyName']?.toString() ?? 'Family';
 
-        final familyMembers = allMembers.where((m) => m.familyDocId == famId).toList();
+        final rawFamilyMembers = allMembers.where((m) => m.familyDocId == famId).toList();
+        final familyMembers = MemberSortHelper.sortMembers(rawFamilyMembers);
 
         // Check if any member or doc has a true custom YSK Family ID
         String effectiveYskId = data['yskFamilyId']?.toString() ?? data['dktFamilyId']?.toString() ?? '';
