@@ -106,6 +106,8 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
     final query = _searchController.text.toLowerCase().trim();
     
     _filteredMembers = widget.allMembers.where((member) {
+      if (member.isLate) return false;
+
       // Text search
       final matchesSearch = query.isEmpty ||
           member.fullName.toLowerCase().contains(query) ||

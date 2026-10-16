@@ -43,6 +43,11 @@ class Person {
       ? MemberModel.isBirthdayTodayFromDate(birthDate!)
       : false;
 
+  bool get isLate =>
+      isDeceased ||
+      (tod != null && tod!.isNotEmpty) ||
+      firstName.toLowerCase().startsWith('late ');
+
   String get fullName => '$firstName $lastName';
   String get initials {
     String res = '';

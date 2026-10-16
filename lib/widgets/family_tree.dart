@@ -207,12 +207,13 @@ class _FamilyTreeState extends State<FamilyTree> {
         person: person,
         width: widget.cardWidth,
         height: widget.cardHeight,
-        onTap: () => _showPersonDetails(context, person),
+        onTap: person.isLate ? null : () => _showPersonDetails(context, person),
       ),
     );
   }
 
   void _showPersonDetails(BuildContext context, Person person) {
+    if (person.isLate) return;
     showDialog(
       context: context,
       builder: (context) => PersonDetailDialog(person: person),

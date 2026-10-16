@@ -566,8 +566,13 @@ class MemberService {
 
   // ---------------- GET MEMBER COUNT (ALL FAMILIES) ----------------
   Future<int> getMemberCount() async {
-    final snapshot = await _firestore.collectionGroup('members').count().get();
-    return snapshot.count ?? 0;
+    final snapshot = await _firestore.collectionGroup('members').get();
+    return snapshot.docs.where((doc) {
+      final data = doc.data();
+      final isDeceased = data['isDeceased'] == true ||
+          (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
+      return !isDeceased;
+    }).length;
   }
 
   // ---------------- STREAM MEMBER COUNT (ALL FAMILIES) ----------------
@@ -575,7 +580,12 @@ class MemberService {
     return _firestore
         .collectionGroup('members')
         .snapshots()
-        .map((snap) => snap.docs.length);
+        .map((snap) => snap.docs.where((doc) {
+              final data = doc.data();
+              final isDeceased = data['isDeceased'] == true ||
+                  (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
+              return !isDeceased;
+            }).length);
   }
 
   // ---------------- GET UNMARRIED COUNT (ALL FAMILIES) ----------------
@@ -583,9 +593,13 @@ class MemberService {
     final snapshot = await _firestore
         .collectionGroup('members')
         .where('marriageStatus', isEqualTo: 'unmarried')
-        .count()
         .get();
-    return snapshot.count ?? 0;
+    return snapshot.docs.where((doc) {
+      final data = doc.data();
+      final isDeceased = data['isDeceased'] == true ||
+          (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
+      return !isDeceased;
+    }).length;
   }
 
   // ---------------- GET ACTIVE MEMBER COUNT (ALL FAMILIES) ----------------
@@ -593,9 +607,13 @@ class MemberService {
     final snapshot = await _firestore
         .collectionGroup('members')
         .where('isActive', isEqualTo: true)
-        .count()
         .get();
-    return snapshot.count ?? 0;
+    return snapshot.docs.where((doc) {
+      final data = doc.data();
+      final isDeceased = data['isDeceased'] == true ||
+          (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
+      return !isDeceased;
+    }).length;
   }
 
   // ---------------- GET ALL UNIQUE TAGS (ALL FAMILIES) ----------------
@@ -685,8 +703,13 @@ class MemberService {
     final snapshot = await _getMembersCollection(
       mainFamilyDocId,
       subFamilyDocId,
-    ).count().get();
-    return snapshot.count ?? 0;
+    ).get();
+    return snapshot.docs.where((doc) {
+      final data = doc.data();
+      final isDeceased = data['isDeceased'] == true ||
+          (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
+      return !isDeceased;
+    }).length;
   }
 
   // ---------------- CHECK IF SUB-FAMILY HAS HEAD ----------------

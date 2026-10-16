@@ -98,5 +98,49 @@ void main() {
       final displayName = father.isLate ? 'Late ${father.fullName}' : father.fullName;
       expect(displayName, 'Rameshbhai Patel');
     });
+
+    test('Person isLate returns true if isDeceased or tod is set', () {
+      final p1 = Person(
+        id: 'p1',
+        firstName: 'Late Lalbhai',
+        lastName: 'Patel',
+        birthYear: 1930,
+        gender: Gender.male,
+        isDeceased: true,
+      );
+      expect(p1.isLate, isTrue);
+
+      final p2 = Person(
+        id: 'p2',
+        firstName: 'Lalbhai',
+        lastName: 'Patel',
+        birthYear: 1930,
+        gender: Gender.male,
+        tod: '10/05/2012',
+      );
+      expect(p2.isLate, isTrue);
+
+      final p3 = Person(
+        id: 'p3',
+        firstName: 'Kantibhai',
+        lastName: 'Patel',
+        birthYear: 1980,
+        gender: Gender.male,
+      );
+      expect(p3.isLate, isFalse);
+    });
+
+    test('Candidate parent filter selects only married members', () {
+      final members = [
+        MemberModel.empty().copyWith(id: 'm1', mid: 'MID-1', fullName: 'Dad', marriageStatus: 'married'),
+        MemberModel.empty().copyWith(id: 'm2', mid: 'MID-2', fullName: 'Son', marriageStatus: 'unmarried'),
+        MemberModel.empty().copyWith(id: 'm3', mid: 'MID-3', fullName: 'Mom', marriageStatus: 'Married'),
+        MemberModel.empty().copyWith(id: 'm4', mid: 'MID-4', fullName: 'Baby', marriageStatus: 'single'),
+      ];
+
+      final eligible = members.where((m) => m.marriageStatus.toLowerCase() == 'married').toList();
+      expect(eligible.length, 2);
+      expect(eligible.map((e) => e.mid).toList(), ['MID-1', 'MID-3']);
+    });
   });
 }

@@ -113,8 +113,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
                 final members = snapshot.data!;
 
-                // Filter by search query
+                // Filter by search query (and exclude late members from active cards)
                 final filteredMembers = members.where((member) {
+                  if (member.isLate) return false;
                   final matchesSearch =
                       _searchQuery.isEmpty ||
                       member.fullName.toLowerCase().contains(
@@ -357,7 +358,7 @@ class MemberSearchDelegate extends SearchDelegate {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final members = snapshot.data!;
+        final members = snapshot.data!.where((m) => !m.isLate).toList();
         if (members.isEmpty) {
           return const Center(child: Text('No results found'));
         }

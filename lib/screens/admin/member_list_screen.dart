@@ -184,6 +184,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   List<String> _allFirmNames = [];
   bool _loading = false;
   String? _selectedSpouseMid;
+  String? _selectedParentMid;
   String _spouseRelation = 'none';
   List<MemberModel> _familyMembers = [];
   String _currentUserRole = 'member';
@@ -199,7 +200,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       _relationToHead = widget.initialRelationToHead!;
     }
     _loadUserRole();
-    if (widget.initialParentMid != null) {
+    if (widget.initialParentMid != null && widget.initialParentMid!.isNotEmpty) {
+      _selectedParentMid = widget.initialParentMid!;
       _parentMidCtrl.text = widget.initialParentMid!;
     }
     _checkExistingHead();
@@ -1084,18 +1086,89 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTextField(_dktFamilyIdCtrl, lang.translate('dkt_family_id'),
-                                    hint: 'Enter DKT Family ID'),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildTextField(_parentMidCtrl, lang.translate('parent_member_id'),
-                                    hint: 'Enter parent MID'),
-                              ),
-                            ],
+                          _buildTextField(
+                            _dktFamilyIdCtrl,
+                            lang.translate('dkt_family_id'),
+                            hint: 'Enter YSK / DKT Family ID',
+                          ),
+                          const SizedBox(height: 12),
+                          Builder(
+                            builder: (context) {
+                              // Show only particular sub-family members who are married
+                              final eligibleParents = _familyMembers.where((m) =>
+                                m.marriageStatus.toLowerCase() == 'married'
+                              ).toList();
+
+                              final currentVal = _selectedParentMid ??
+                                  (_parentMidCtrl.text.isNotEmpty ? _parentMidCtrl.text : '');
+
+                              return DropdownButtonFormField<String>(
+                                value: (currentVal.isEmpty ||
+                                        eligibleParents.any((m) => m.mid == currentVal) ||
+                                        currentVal == _selectedParentMid)
+                                    ? currentVal
+                                    : '',
+                                isExpanded: true,
+                                decoration: InputDecoration(
+                                  labelText: '${lang.translate('parent_member_id')} (Married Parents Only)',
+                                  hintText: 'Select Parent MID',
+                                  filled: true,
+                                  fillColor: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.grey.shade900
+                                      : Colors.grey.shade50,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.grey.shade800
+                                          : Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                items: [
+                                  DropdownMenuItem<String>(
+                                    value: '',
+                                    child: Text(lang.translate('none')),
+                                  ),
+                                  if (currentVal.isNotEmpty &&
+                                      !eligibleParents.any((m) => m.mid == currentVal))
+                                    DropdownMenuItem<String>(
+                                      value: currentVal,
+                                      child: Text('Current: $currentVal'),
+                                    ),
+                                  ...eligibleParents.map((m) {
+                                    final lateTag = m.isLate ? 'Late ' : '';
+                                    final rel = m.relationToHead.isNotEmpty && m.relationToHead != 'none'
+                                        ? ' • ${m.relationToHead}'
+                                        : '';
+                                    return DropdownMenuItem<String>(
+                                      value: m.mid,
+                                      child: Text(
+                                        '$lateTag${m.fullName} (${m.mid})$rel',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }),
+                                ],
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedParentMid = val ?? '';
+                                    _parentMidCtrl.text = _selectedParentMid!;
+                                  });
+                                },
+                              );
+                            },
                           ),
                           const SizedBox(height: 16),
                           Container(
@@ -1508,6 +1581,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   List<String> _tags = [];
   List<String> _allFirmNames = [];
   String? _selectedSpouseMid;
+  String? _selectedParentMid;
   String _spouseRelation = 'none'; // wife_of | husband_of | none
   List<MemberModel> _familyMembers = [];
   String _currentUserRole = 'member';
@@ -1777,6 +1851,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
       _nativeHomeCtrl.text = member.nativeHome;
       _dktFamilyIdCtrl.text = member.familyId;
       _parentMidCtrl.text = member.parentMid;
+      _selectedParentMid = member.parentMid;
       _tags = List.from(member.tags);
       _firms = List.from(member.firms);
       _profilePhotoUrl = member.photoUrl;
@@ -2385,8 +2460,86 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildTextField(_dktFamilyIdCtrl, lang.translate('dkt_family_id'), hint: 'Enter YSK Family ID'),
-                      const SizedBox(height: 12),
-                      _buildTextField(_parentMidCtrl, lang.translate('parent_member_id'), hint: 'Enter parent MID (optional)'),
+                      Builder(
+                        builder: (context) {
+                          // Show only particular sub-family members who are married (and not current member)
+                          final eligibleParents = _familyMembers.where((m) =>
+                            m.id != widget.memberId &&
+                            (m.mid.isEmpty || m.mid != _memberMid) &&
+                            m.marriageStatus.toLowerCase() == 'married'
+                          ).toList();
+
+                          final currentVal = _selectedParentMid ??
+                              (_parentMidCtrl.text.isNotEmpty ? _parentMidCtrl.text : '');
+
+                          return DropdownButtonFormField<String>(
+                            value: (currentVal.isEmpty ||
+                                    eligibleParents.any((m) => m.mid == currentVal) ||
+                                    currentVal == _selectedParentMid)
+                                ? currentVal
+                                : '',
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: '${lang.translate('parent_member_id')} (Married Parents Only)',
+                              hintText: 'Select Parent MID',
+                              filled: true,
+                              fillColor: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey.shade900
+                                  : Colors.grey.shade50,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            items: [
+                              DropdownMenuItem<String>(
+                                value: '',
+                                child: Text(lang.translate('none')),
+                              ),
+                              if (currentVal.isNotEmpty &&
+                                  !eligibleParents.any((m) => m.mid == currentVal))
+                                DropdownMenuItem<String>(
+                                  value: currentVal,
+                                  child: Text('Current: $currentVal'),
+                                ),
+                              ...eligibleParents.map((m) {
+                                final lateTag = m.isLate ? 'Late ' : '';
+                                final rel = m.relationToHead.isNotEmpty && m.relationToHead != 'none'
+                                    ? ' • ${m.relationToHead}'
+                                    : '';
+                                return DropdownMenuItem<String>(
+                                  value: m.mid,
+                                  child: Text(
+                                    '$lateTag${m.fullName} (${m.mid})$rel',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedParentMid = val ?? '';
+                                _parentMidCtrl.text = _selectedParentMid!;
+                              });
+                            },
+                          );
+                        },
+                      ),
                       const SizedBox(height: 12),
                       Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -2912,6 +3065,10 @@ class _MemberListScreenState extends State<MemberListScreen>
 
                 final filteredDocs = snapshot.data!.docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
+                  final isDeceased = data['isDeceased'] == true ||
+                      (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
+                  if (isDeceased) return false;
+
                   final role = data['role'] ?? 'member';
                   
                   // Role Filter

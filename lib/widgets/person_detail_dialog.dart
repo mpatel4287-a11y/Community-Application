@@ -15,6 +15,9 @@ class PersonDetailDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (person.isLate) {
+      return const SizedBox.shrink();
+    }
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),

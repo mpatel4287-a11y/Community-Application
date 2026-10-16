@@ -72,20 +72,28 @@ class _PersonCardState extends State<PersonCard>
 
   @override
   Widget build(BuildContext context) {
+    final isLate = widget.person.isLate;
     return MouseRegion(
+      cursor: (widget.onTap != null && !isLate)
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       onEnter: (_) {
-        _animationController.forward();
+        if (!isLate) {
+          _animationController.forward();
+        }
       },
       onExit: (_) {
-        _animationController.reverse();
+        if (!isLate) {
+          _animationController.reverse();
+        }
       },
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: isLate ? null : widget.onTap,
         child: AnimatedBuilder(
           animation: _animationController,
           builder: (context, child) {
             return Transform.scale(
-              scale: _scaleAnimation.value,
+              scale: isLate ? 1.0 : _scaleAnimation.value,
               child: Container(
                 width: widget.width,
                 constraints: BoxConstraints(
@@ -103,8 +111,8 @@ class _PersonCardState extends State<PersonCard>
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
-                      blurRadius: _elevationAnimation.value,
-                      offset: Offset(0, _elevationAnimation.value / 2),
+                      blurRadius: isLate ? 2.0 : _elevationAnimation.value,
+                      offset: Offset(0, (isLate ? 2.0 : _elevationAnimation.value) / 2),
                     ),
                   ],
                 ),
@@ -140,11 +148,13 @@ class _PersonCardState extends State<PersonCard>
 
   Widget _buildPhoto() {
     return GestureDetector(
-      onLongPress: () {
-        if (widget.person.photoUrl != null) {
-          FullScreenImageViewer.show(context, widget.person.photoUrl!, tag: 'tree_${widget.person.id}');
-        }
-      },
+      onLongPress: widget.person.isLate
+          ? null
+          : () {
+              if (widget.person.photoUrl != null) {
+                FullScreenImageViewer.show(context, widget.person.photoUrl!, tag: 'tree_${widget.person.id}');
+              }
+            },
       child: CircleAvatar(
         radius: 25,
         backgroundColor: _photoBackgroundColor,

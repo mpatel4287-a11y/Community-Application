@@ -151,22 +151,23 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
   void _calculateStats() {
     if (_allMembers.isEmpty) return;
 
-    final total = _allMembers.length;
-    final active = _allMembers.where((m) => m.isActive).length;
+    final livingMembers = _allMembers.where((m) => !m.isLate).toList();
+    final total = livingMembers.length;
+    final active = livingMembers.where((m) => m.isActive).length;
     
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final newThisMonth = _allMembers.where((m) => m.createdAt.isAfter(startOfMonth)).length;
+    final newThisMonth = livingMembers.where((m) => m.createdAt.isAfter(startOfMonth)).length;
 
     int myFamilyCount = 0;
     final familyId = _familyDocId ?? _currentUser?.familyDocId;
     if (familyId != null && familyId.isNotEmpty) {
-      myFamilyCount = _allMembers.where((m) => m.familyDocId == familyId).length;
+      myFamilyCount = livingMembers.where((m) => m.familyDocId == familyId).length;
     }
 
     // Calculate firm stats
     final Map<String, int> firmsMap = {};
-    for (final member in _allMembers) {
+    for (final member in livingMembers) {
       for (final firm in member.firms) {
         final firmName = firm['name'] ?? '';
         if (firmName.isNotEmpty) {
@@ -191,6 +192,9 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
     final suggestions = <MemberModel>[];
     final availableMembers = List<MemberModel>.from(_allMembers);
 
+    // Filter out late members
+    availableMembers.removeWhere((m) => m.isLate);
+
     // Filter out current user
     if (_currentUser != null) {
       availableMembers.removeWhere((m) => m.id == _currentUser!.id);
@@ -210,7 +214,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
     final weekAgo = now.subtract(const Duration(days: 7));
 
     _newMembers = _allMembers.where((member) {
-      return member.createdAt.isAfter(weekAgo);
+      return !member.isLate && member.createdAt.isAfter(weekAgo);
     }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     if (_newMembers.length > 10) {

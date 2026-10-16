@@ -598,6 +598,8 @@ class _UserExploreScreenState extends State<UserExploreScreen> {
 
         // Apply filters
         final filteredMembers = members.where((member) {
+          if (member.isLate) return false;
+
           // Check search query
           final searchLower = _searchQuery.toLowerCase();
           final matchesSearch =
