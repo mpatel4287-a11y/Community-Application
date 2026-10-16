@@ -80,5 +80,23 @@ void main() {
       expect(m2.tod, '20/10/2021');
       expect(m2.isLate, isTrue);
     });
+
+    test('Late member title format prefixes Late when displayed', () {
+      final father = MemberModel.empty().copyWith(
+        fullName: 'Rameshbhai Patel',
+        isDeceased: true,
+      );
+      final displayName = father.isLate ? 'Late ${father.fullName}' : father.fullName;
+      expect(displayName, 'Late Rameshbhai Patel');
+    });
+
+    test('Non-late member title format shows plain name', () {
+      final father = MemberModel.empty().copyWith(
+        fullName: 'Rameshbhai Patel',
+        isDeceased: false,
+      );
+      final displayName = father.isLate ? 'Late ${father.fullName}' : father.fullName;
+      expect(displayName, 'Rameshbhai Patel');
+    });
   });
 }

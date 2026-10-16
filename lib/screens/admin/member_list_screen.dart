@@ -28,6 +28,8 @@ class AddMemberScreen extends StatefulWidget {
   final String familyName;
   final String? subFamilyDocId; // NEW: Optional sub-family ID
   final String? initialParentMid;
+  final String? initialGender;
+  final String? initialRelationToHead;
 
   const AddMemberScreen({
     super.key,
@@ -35,6 +37,8 @@ class AddMemberScreen extends StatefulWidget {
     required this.familyName,
     this.subFamilyDocId,
     this.initialParentMid,
+    this.initialGender,
+    this.initialRelationToHead,
   });
 
   @override
@@ -188,6 +192,12 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   void initState() {
     super.initState();
     _isCommon = widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty;
+    if (widget.initialGender != null && widget.initialGender!.isNotEmpty) {
+      _gender = widget.initialGender!;
+    }
+    if (widget.initialRelationToHead != null && widget.initialRelationToHead!.isNotEmpty) {
+      _relationToHead = widget.initialRelationToHead!;
+    }
     _loadUserRole();
     if (widget.initialParentMid != null) {
       _parentMidCtrl.text = widget.initialParentMid!;

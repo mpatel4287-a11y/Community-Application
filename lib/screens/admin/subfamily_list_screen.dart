@@ -9,6 +9,8 @@ import '../../widgets/animation_utils.dart';
 import 'member_list_screen.dart';
 import '../../services/session_manager.dart';
 import '../user/family_tree_view.dart';
+import '../user/member_detail_screen.dart';
+import '../../models/member_model.dart';
 
 
 class SubFamilyListScreen extends StatefulWidget {
@@ -29,6 +31,7 @@ class SubFamilyListScreen extends StatefulWidget {
 
 class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
   final SubFamilyService _subFamilyService = SubFamilyService();
+  final MemberService _memberService = MemberService();
   String _searchQuery = '';
   String? _userRole;
   bool _isAdmin = false;
@@ -89,105 +92,9 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
             ),
           ),
 
-          // Common Family Elders Card (Parents common to all sub-families)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MemberListScreen(
-                        familyDocId: widget.mainFamilyDocId,
-                        familyName: '${widget.mainFamilyName} (Common Elders)',
-                        subFamilyDocId: '', // Root collection for common elders
-                      ),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.amber.shade50,
-                        Colors.orange.shade50,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.amber.shade300, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.amber.shade100.withOpacity(0.5),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade700,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.stars_rounded, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Common Parents & Elders',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Colors.brown.shade900,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.amber.shade200,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    'સામાન્ય વડીલ',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.brown.shade800,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Father & Mother shared across all sub-families (બધા પેટા-પરિવાર માટે સામાન્ય માતા-પિતા)',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.brown.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.amber.shade900),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Common Parents Side-by-Side Boxes (Father & Mother)
+          _buildParentsSection(),
+          const SizedBox(height: 4),
 
           Expanded(
             child: StreamBuilder<List<SubFamilyModel>>(
@@ -706,6 +613,373 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
               },
               child: const Icon(Icons.add),
             ),
+    );
+  }
+
+  Widget _buildParentsSection() {
+    return StreamBuilder<List<MemberModel>>(
+      stream: _memberService.streamSubFamilyMembers(widget.mainFamilyDocId, ''),
+      builder: (context, snapshot) {
+        final members = snapshot.data ?? [];
+
+        // 1. Identify Father
+        MemberModel? father;
+        try {
+          father = members.firstWhere(
+            (m) =>
+                m.gender.toLowerCase() == 'male' &&
+                (m.relationToHead.toLowerCase().contains('father') ||
+                    m.relationToHead.toLowerCase() == 'head'),
+          );
+        } catch (_) {
+          try {
+            father = members.firstWhere((m) => m.gender.toLowerCase() == 'male');
+          } catch (_) {
+            if (members.isNotEmpty) father = members.first;
+          }
+        }
+
+        // 2. Identify Mother
+        MemberModel? mother;
+        try {
+          mother = members.firstWhere(
+            (m) =>
+                m.gender.toLowerCase() == 'female' &&
+                (m.relationToHead.toLowerCase().contains('mother') ||
+                    m.relationToHead.toLowerCase() == 'wife'),
+          );
+        } catch (_) {
+          try {
+            mother = members.firstWhere((m) => m.gender.toLowerCase() == 'female');
+          } catch (_) {
+            final remaining = members.where((m) => m.id != father?.id).toList();
+            if (remaining.isNotEmpty) mother = remaining.first;
+          }
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Parents (માતા-પિતા)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey.shade800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_isAdmin)
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MemberListScreen(
+                              familyDocId: widget.mainFamilyDocId,
+                              familyName: '${widget.mainFamilyName} (Common Elders)',
+                              subFamilyDocId: '',
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Manage Elders >',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildParentBox(
+                        title: 'Father (પિતા)',
+                        member: father,
+                        isFather: true,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildParentBox(
+                        title: 'Mother (માતા)',
+                        member: mother,
+                        isFather: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildParentBox({
+    required String title,
+    required MemberModel? member,
+    required bool isFather,
+  }) {
+    if (member == null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddMemberScreen(
+                  familyDocId: widget.mainFamilyDocId,
+                  familyName: widget.mainFamilyName,
+                  subFamilyDocId: '',
+                  initialGender: isFather ? 'male' : 'female',
+                  initialRelationToHead: isFather ? 'head' : 'wife',
+                ),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300, width: 1.2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isFather ? Icons.person_rounded : Icons.person_2_rounded,
+                      size: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.add_circle_outline_rounded, size: 13, color: Colors.blue.shade700),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Add',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final bool isLate = member.isLate;
+
+    if (isLate) {
+      // Deceased / Late member rectangle box:
+      // "and if late then just show late in front of name thats it"
+      // "and for late show only name feild rest of other things just hide and nothing should happen when click on rectangle box"
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Text('🕊️', style: TextStyle(fontSize: 11)),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Late ${member.fullName}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF334155),
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Active / Alive member rectangle box:
+    // "and if not late then when we click on that rectangle father box it should show all details as usual"
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MemberDetailScreen(
+                memberId: member.id,
+                familyDocId: widget.mainFamilyDocId,
+                subFamilyDocId: '',
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isFather
+                  ? [
+                      const Color(0xFFEFF6FF),
+                      const Color(0xFFDBEAFE),
+                    ]
+                  : [
+                      const Color(0xFFFFF1F2),
+                      const Color(0xFFFFE4E6),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isFather ? const Color(0xFF93C5FD) : const Color(0xFFFECDD3),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (isFather ? const Color(0xFF3B82F6) : const Color(0xFFF43F5E))
+                    .withValues(alpha: 0.08),
+                blurRadius: 4,
+                offset: const Offset(0, 1.5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isFather ? Icons.person_rounded : Icons.person_2_rounded,
+                    size: 14,
+                    color: isFather ? const Color(0xFF1D4ED8) : const Color(0xFFBE123C),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: isFather ? const Color(0xFF1D4ED8) : const Color(0xFFBE123C),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 10,
+                    color: isFather ? const Color(0xFF2563EB) : const Color(0xFFE11D48),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                member.fullName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                  height: 1.2,
+                ),
+              ),
+              if (member.phone.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Icon(Icons.phone, size: 10, color: Colors.blueGrey.shade600),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        member.phone,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.blueGrey.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -724,118 +724,160 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               child: Column(
                 children: [
-                  // Quick Action Row (Integrated style)
-                  _buildPremiumQuickActions(member, lang),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Personal Information Block
-                  _buildPremiumSection(
-                    title: lang.translate('personal_info'),
-                    icon: Icons.person_rounded,
-                    children: [
-                      _buildPremiumRow(
-                        lang.translate('full_name'), 
-                        member.surname.isNotEmpty 
-                          ? '${member.fullName} ${member.surname}' 
-                          : member.fullName, 
-                        Icons.person_outline
-                      ),
-                      _buildPremiumRow(lang.translate('gender'), lang.translate(member.gender.toLowerCase()), Icons.wc_rounded),
-                      _buildPremiumRow(lang.translate('age'), '${member.age} ${lang.translate('years')}', Icons.cake_outlined),
-                      _buildPremiumRow(lang.translate('birth_date'), member.birthDate, Icons.calendar_today_rounded),
-                      if (member.bloodGroup.isNotEmpty)
-                        _buildPremiumRow(lang.translate('blood_group'), member.bloodGroup, Icons.bloodtype_outlined),
-                      _buildPremiumRow(lang.translate('marriage_status'), lang.translate(member.marriageStatus.toLowerCase()), Icons.favorite_border_rounded),
-                      if (member.education.isNotEmpty)
-                        _buildPremiumRow(lang.translate('education'), member.education, Icons.school_outlined),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Heritage & Origins Block
-                  _buildPremiumSection(
-                    title: 'Heritage & Origins',
-                    icon: Icons.history_edu_rounded,
-                    children: [
-                      if (member.fatherName.isNotEmpty)
-                        _buildPremiumRow(lang.translate('father_name'), member.fatherName, Icons.person_pin_rounded),
-                      if (member.motherName.isNotEmpty)
-                        _buildPremiumRow(lang.translate('mother_name'), member.motherName, Icons.person_pin_rounded),
-                      if (member.nativeHome.isNotEmpty)
-                        _buildPremiumRow(lang.translate('native_home'), member.nativeHome, Icons.home_rounded),
-                      if (member.gotra.isNotEmpty)
-                        _buildPremiumRow(lang.translate('gotra'), member.gotra, Icons.account_tree_outlined),
-                      _buildPremiumRow('Surdhan', member.surdhan, Icons.auto_awesome_rounded),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Family Details Block
-                  _buildPremiumSection(
-                    title: lang.translate('family_info'),
-                    icon: Icons.people_alt_rounded,
-                    children: [
-                      _buildPremiumRow(lang.translate('family_name'), member.familyName, Icons.family_restroom_rounded),
-                      _buildPremiumRow(
-                        lang.translate('dkt_family_id'),
-                        _displayYskFamilyId.isNotEmpty
-                            ? _displayYskFamilyId
-                            : member.familyId,
-                        Icons.vpn_key_rounded,
-                      ),
-                      if (member.parentMid.isNotEmpty)
-                        _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
-                      if (member.spouseMid.isNotEmpty && member.marriageStatus.toLowerCase() == 'married')
-                        _buildPremiumSpouseRow(lang, member.spouseMid),
-                      if (member.tod.isNotEmpty)
-                        _buildPremiumRow(lang.translate('date_of_death'), member.tod, Icons.heart_broken_rounded, isDestructive: true),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Contact & Location Block
-                  _buildPremiumSection(
-                    title: lang.translate('contact_info'),
-                    icon: Icons.contact_mail_rounded,
-                    children: [
-                      _buildPremiumRow(lang.translate('phone'), member.phone, Icons.phone_enabled_rounded),
-                      if (member.email.isNotEmpty)
-                        _buildPremiumRow('Email Address', member.email, Icons.alternate_email_rounded),
-                      _buildPremiumLocationRow(
-                        lang.translate('address'),
-                        member.address,
-                        member.googleMapLink,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Social Presence Block
-                  _buildPremiumSection(
-                    title: 'Social Presence',
-                    icon: Icons.public_rounded,
-                    children: [
-                      if (member.whatsapp.isNotEmpty)
-                        _buildPremiumSocialRow('WhatsApp', member.whatsapp, Icons.chat_bubble_outline_rounded),
-                      if (member.instagram.isNotEmpty)
-                        _buildPremiumSocialRow('Instagram', member.instagram, Icons.camera_alt_outlined),
-                      if (member.facebook.isNotEmpty)
-                        _buildPremiumSocialRow('Facebook', member.facebook, Icons.facebook_rounded),
-                    ],
-                  ),
-
-                  if (member.firms.isNotEmpty) ...[
-                    const SizedBox(height: 20),
+                  if (member.isLate) ...[
+                    // Strictly Name (and death date if entered), hiding all other fields
                     _buildPremiumSection(
-                      title: 'Firms & Business',
-                      icon: Icons.business_center_rounded,
-                      children: member.firms.map((firm) => _buildPremiumFirmRow(firm)).toList(),
+                      title: lang.translate('personal_info'),
+                      icon: Icons.person_rounded,
+                      children: [
+                        _buildPremiumRow(
+                          lang.translate('full_name'), 
+                          member.surname.isNotEmpty 
+                            ? 'Late ${member.fullName} ${member.surname}' 
+                            : 'Late ${member.fullName}', 
+                          Icons.person_outline
+                        ),
+                        if (member.tod.isNotEmpty)
+                          _buildPremiumRow(
+                            lang.translate('date_of_death'), 
+                            member.tod, 
+                            Icons.heart_broken_rounded, 
+                            isDestructive: true
+                          ),
+                      ],
                     ),
+
+                    const SizedBox(height: 20),
+
+                    _buildPremiumSection(
+                      title: lang.translate('family_info'),
+                      icon: Icons.people_alt_rounded,
+                      children: [
+                        _buildPremiumRow(lang.translate('family_name'), member.familyName, Icons.family_restroom_rounded),
+                        if (_displayYskFamilyId.isNotEmpty || member.familyId.isNotEmpty)
+                          _buildPremiumRow(
+                            lang.translate('dkt_family_id'),
+                            _displayYskFamilyId.isNotEmpty
+                                ? _displayYskFamilyId
+                                : member.familyId,
+                            Icons.vpn_key_rounded,
+                          ),
+                      ],
+                    ),
+                  ] else ...[
+                    // Quick Action Row (Integrated style)
+                    _buildPremiumQuickActions(member, lang),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Personal Information Block
+                    _buildPremiumSection(
+                      title: lang.translate('personal_info'),
+                      icon: Icons.person_rounded,
+                      children: [
+                        _buildPremiumRow(
+                          lang.translate('full_name'), 
+                          member.surname.isNotEmpty 
+                            ? '${member.fullName} ${member.surname}' 
+                            : member.fullName, 
+                          Icons.person_outline
+                        ),
+                        _buildPremiumRow(lang.translate('gender'), lang.translate(member.gender.toLowerCase()), Icons.wc_rounded),
+                        _buildPremiumRow(lang.translate('age'), '${member.age} ${lang.translate('years')}', Icons.cake_outlined),
+                        _buildPremiumRow(lang.translate('birth_date'), member.birthDate, Icons.calendar_today_rounded),
+                        if (member.bloodGroup.isNotEmpty)
+                          _buildPremiumRow(lang.translate('blood_group'), member.bloodGroup, Icons.bloodtype_outlined),
+                        _buildPremiumRow(lang.translate('marriage_status'), lang.translate(member.marriageStatus.toLowerCase()), Icons.favorite_border_rounded),
+                        if (member.education.isNotEmpty)
+                          _buildPremiumRow(lang.translate('education'), member.education, Icons.school_outlined),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Heritage & Origins Block
+                    _buildPremiumSection(
+                      title: 'Heritage & Origins',
+                      icon: Icons.history_edu_rounded,
+                      children: [
+                        if (member.fatherName.isNotEmpty)
+                          _buildPremiumRow(lang.translate('father_name'), member.fatherName, Icons.person_pin_rounded),
+                        if (member.motherName.isNotEmpty)
+                          _buildPremiumRow(lang.translate('mother_name'), member.motherName, Icons.person_pin_rounded),
+                        if (member.nativeHome.isNotEmpty)
+                          _buildPremiumRow(lang.translate('native_home'), member.nativeHome, Icons.home_rounded),
+                        if (member.gotra.isNotEmpty)
+                          _buildPremiumRow(lang.translate('gotra'), member.gotra, Icons.account_tree_outlined),
+                        _buildPremiumRow('Surdhan', member.surdhan, Icons.auto_awesome_rounded),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Family Details Block
+                    _buildPremiumSection(
+                      title: lang.translate('family_info'),
+                      icon: Icons.people_alt_rounded,
+                      children: [
+                        _buildPremiumRow(lang.translate('family_name'), member.familyName, Icons.family_restroom_rounded),
+                        _buildPremiumRow(
+                          lang.translate('dkt_family_id'),
+                          _displayYskFamilyId.isNotEmpty
+                              ? _displayYskFamilyId
+                              : member.familyId,
+                          Icons.vpn_key_rounded,
+                        ),
+                        if (member.parentMid.isNotEmpty)
+                          _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
+                        if (member.spouseMid.isNotEmpty && member.marriageStatus.toLowerCase() == 'married')
+                          _buildPremiumSpouseRow(lang, member.spouseMid),
+                        if (member.tod.isNotEmpty)
+                          _buildPremiumRow(lang.translate('date_of_death'), member.tod, Icons.heart_broken_rounded, isDestructive: true),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Contact & Location Block
+                    _buildPremiumSection(
+                      title: lang.translate('contact_info'),
+                      icon: Icons.contact_mail_rounded,
+                      children: [
+                        _buildPremiumRow(lang.translate('phone'), member.phone, Icons.phone_enabled_rounded),
+                        if (member.email.isNotEmpty)
+                          _buildPremiumRow('Email Address', member.email, Icons.alternate_email_rounded),
+                        _buildPremiumLocationRow(
+                          lang.translate('address'),
+                          member.address,
+                          member.googleMapLink,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Social Presence Block
+                    _buildPremiumSection(
+                      title: 'Social Presence',
+                      icon: Icons.public_rounded,
+                      children: [
+                        if (member.whatsapp.isNotEmpty)
+                          _buildPremiumSocialRow('WhatsApp', member.whatsapp, Icons.chat_bubble_outline_rounded),
+                        if (member.instagram.isNotEmpty)
+                          _buildPremiumSocialRow('Instagram', member.instagram, Icons.camera_alt_outlined),
+                        if (member.facebook.isNotEmpty)
+                          _buildPremiumSocialRow('Facebook', member.facebook, Icons.facebook_rounded),
+                      ],
+                    ),
+
+                    if (member.firms.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _buildPremiumSection(
+                        title: 'Firms & Business',
+                        icon: Icons.business_center_rounded,
+                        children: member.firms.map((firm) => _buildPremiumFirmRow(firm)).toList(),
+                      ),
+                    ],
                   ],
 
                   if (_isAdmin) ...[
@@ -958,7 +1000,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
             children: [
               Flexible(
                 child: Text(
-                  member.fullName,
+                  member.isLate ? 'Late ${member.fullName}' : member.fullName,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 24,
@@ -968,7 +1010,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                   ),
                 ),
               ),
-              if (member.isBirthdayToday) ...[
+              if (!member.isLate && member.isBirthdayToday) ...[
                 const SizedBox(width: 8),
                 Tooltip(
                   message: 'Birthday Today!',
