@@ -88,6 +88,107 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
+
+          // Common Family Elders Card (Parents common to all sub-families)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MemberListScreen(
+                        familyDocId: widget.mainFamilyDocId,
+                        familyName: '${widget.mainFamilyName} (Common Elders)',
+                        subFamilyDocId: '', // Root collection for common elders
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.amber.shade50,
+                        Colors.orange.shade50,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.amber.shade300, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.amber.shade100.withOpacity(0.5),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade700,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.stars_rounded, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Common Parents & Elders',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Colors.brown.shade900,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade200,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'સામાન્ય વડીલ',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.brown.shade800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Father & Mother shared across all sub-families (બધા પેટા-પરિવાર માટે સામાન્ય માતા-પિતા)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.brown.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.amber.shade900),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           Expanded(
             child: StreamBuilder<List<SubFamilyModel>>(
               stream: _subFamilyService.streamSubFamilies(
@@ -133,9 +234,10 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                     if (isMainA && !isMainB) return -1;
                     if (!isMainA && isMainB) return 1;
 
-                    // Elder sub-families come before Younger
-                    if (a.isOlder && !b.isOlder) return -1;
-                    if (!a.isOlder && b.isOlder) return 1;
+                    // Order wise: 1 is oldest, 2 is younger than 1, 3 is younger than 2, etc.
+                    if (a.orderNumber != b.orderNumber) {
+                      return a.orderNumber.compareTo(b.orderNumber);
+                    }
 
                     return a.subFamilyName.compareTo(b.subFamilyName);
                   });
@@ -244,19 +346,19 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                       ),
                                     ),
                                     const Spacer(),
-                                    if (subFamily.seniority.isNotEmpty) ...[
+                                    if (subFamily.orderNumber > 0 || subFamily.seniority.isNotEmpty) ...[
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 6,
                                           vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: subFamily.isOlder
+                                          color: subFamily.orderNumber == 1
                                               ? Colors.amber.shade50
                                               : Colors.teal.shade50,
                                           borderRadius: BorderRadius.circular(6),
                                           border: Border.all(
-                                            color: subFamily.isOlder
+                                            color: subFamily.orderNumber == 1
                                                 ? Colors.amber.shade400
                                                 : Colors.teal.shade400,
                                             width: 1,
@@ -266,25 +368,25 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
-                                              subFamily.isOlder
+                                              subFamily.orderNumber == 1
                                                   ? Icons.star_rounded
-                                                  : Icons.child_care_rounded,
+                                                  : Icons.format_list_numbered_rounded,
                                               size: 11,
-                                              color: subFamily.isOlder
+                                              color: subFamily.orderNumber == 1
                                                   ? Colors.amber.shade900
                                                   : Colors.teal.shade800,
                                             ),
                                             const SizedBox(width: 2),
                                             Text(
-                                              subFamily.isOlder ? 'OLDER' : 'YOUNGER',
+                                              subFamily.orderNumber == 1 ? '#1 (OLDEST)' : '#${subFamily.orderNumber}',
                                               style: TextStyle(
                                                 fontSize: 8.5,
-                                                color: subFamily.isOlder
+                                                color: subFamily.orderNumber == 1
                                                     ? Colors.amber.shade900
                                                     : Colors.teal.shade800,
                                                 fontWeight: FontWeight.bold,
                                                 letterSpacing: 0.3,
-                                              ),
+                                             ),
                                             ),
                                           ],
                                         ),
@@ -616,7 +718,8 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
   final _subFamilyNameCtrl = TextEditingController();
   final _headOfFamilyCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
-  String _seniority = 'older'; // 'older' | 'younger'
+  final _orderCtrl = TextEditingController(text: '1');
+  int _orderNumber = 1;
   bool _loading = false;
 
   @override
@@ -624,6 +727,7 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
     _subFamilyNameCtrl.dispose();
     _headOfFamilyCtrl.dispose();
     _descriptionCtrl.dispose();
+    _orderCtrl.dispose();
     super.dispose();
   }
 
@@ -640,7 +744,8 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
         subFamilyName: _subFamilyNameCtrl.text.trim(),
         headOfFamily: _headOfFamilyCtrl.text.trim(),
         description: _descriptionCtrl.text.trim(),
-        seniority: _seniority,
+        orderNumber: _orderNumber,
+        seniority: _orderNumber.toString(),
       );
 
       if (mounted) {
@@ -699,7 +804,7 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Sub-Family Seniority / Order *',
+                    'Sub-Family Order Number (Seniority) *',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -707,49 +812,86 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Specify whether this sub-family is the older or younger branch of the family',
+                    'Enter order number: 1 is oldest/first, 2 is younger than 1, 3 is younger than 1 & 2, etc.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(
-                        child: ChoiceChip(
-                          avatar: Icon(
-                            Icons.star_rounded,
-                            size: 18,
-                            color: _seniority == 'older' ? Colors.white : Colors.amber.shade800,
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.remove),
+                        onPressed: _orderNumber > 1
+                            ? () {
+                                setState(() {
+                                  _orderNumber--;
+                                  _orderCtrl.text = _orderNumber.toString();
+                                });
+                              }
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 75,
+                        child: TextFormField(
+                          controller: _orderCtrl,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          label: const Text('Older (Elder Branch)'),
-                          selected: _seniority == 'older',
-                          selectedColor: Colors.amber.shade700,
-                          labelStyle: TextStyle(
-                            color: _seniority == 'older' ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          onSelected: (selected) {
-                            if (selected) setState(() => _seniority = 'older');
+                          onChanged: (val) {
+                            final parsed = int.tryParse(val.trim());
+                            if (parsed != null && parsed >= 1) {
+                              setState(() => _orderNumber = parsed);
+                            }
                           },
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          setState(() {
+                            _orderNumber++;
+                            _orderCtrl.text = _orderNumber.toString();
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: ChoiceChip(
-                          avatar: Icon(
-                            Icons.child_care_rounded,
-                            size: 18,
-                            color: _seniority == 'younger' ? Colors.white : Colors.teal.shade800,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _orderNumber == 1 ? Colors.amber.shade50 : Colors.teal.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _orderNumber == 1 ? Colors.amber.shade300 : Colors.teal.shade300,
+                            ),
                           ),
-                          label: const Text('Younger (Junior Branch)'),
-                          selected: _seniority == 'younger',
-                          selectedColor: Colors.teal.shade700,
-                          labelStyle: TextStyle(
-                            color: _seniority == 'younger' ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
+                          child: Row(
+                            children: [
+                              Icon(
+                                _orderNumber == 1 ? Icons.star_rounded : Icons.format_list_numbered_rounded,
+                                size: 18,
+                                color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  _orderNumber == 1
+                                      ? '#1: Oldest / 1st Branch'
+                                      : '#$_orderNumber: Younger than #${_orderNumber - 1}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          onSelected: (selected) {
-                            if (selected) setState(() => _seniority = 'younger');
-                          },
                         ),
                       ),
                     ],
@@ -820,7 +962,8 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
   final _subFamilyNameCtrl = TextEditingController();
   final _headOfFamilyCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
-  late String _seniority;
+  late final TextEditingController _orderCtrl;
+  late int _orderNumber;
   bool _loading = false;
 
   @override
@@ -829,7 +972,8 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
     _subFamilyNameCtrl.text = widget.subFamily.subFamilyName;
     _headOfFamilyCtrl.text = widget.subFamily.headOfFamily;
     _descriptionCtrl.text = widget.subFamily.description;
-    _seniority = widget.subFamily.seniority.isEmpty ? 'older' : widget.subFamily.seniority;
+    _orderNumber = widget.subFamily.orderNumber > 0 ? widget.subFamily.orderNumber : 1;
+    _orderCtrl = TextEditingController(text: _orderNumber.toString());
   }
 
   @override
@@ -837,6 +981,7 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
     _subFamilyNameCtrl.dispose();
     _headOfFamilyCtrl.dispose();
     _descriptionCtrl.dispose();
+    _orderCtrl.dispose();
     super.dispose();
   }
 
@@ -852,7 +997,8 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
         subFamilyName: _subFamilyNameCtrl.text.trim(),
         headOfFamily: _headOfFamilyCtrl.text.trim(),
         description: _descriptionCtrl.text.trim(),
-        seniority: _seniority,
+        orderNumber: _orderNumber,
+        seniority: _orderNumber.toString(),
       );
 
       if (mounted) {
@@ -916,7 +1062,7 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Sub-Family Seniority / Order *',
+                    'Sub-Family Order Number (Seniority) *',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -924,49 +1070,86 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Specify whether this sub-family is the older or younger branch of the family',
+                    'Enter order number: 1 is oldest/first, 2 is younger than 1, 3 is younger than 1 & 2, etc.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(
-                        child: ChoiceChip(
-                          avatar: Icon(
-                            Icons.star_rounded,
-                            size: 18,
-                            color: _seniority == 'older' ? Colors.white : Colors.amber.shade800,
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.remove),
+                        onPressed: _orderNumber > 1
+                            ? () {
+                                setState(() {
+                                  _orderNumber--;
+                                  _orderCtrl.text = _orderNumber.toString();
+                                });
+                              }
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 75,
+                        child: TextFormField(
+                          controller: _orderCtrl,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          label: const Text('Older (Elder Branch)'),
-                          selected: _seniority == 'older',
-                          selectedColor: Colors.amber.shade700,
-                          labelStyle: TextStyle(
-                            color: _seniority == 'older' ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          onSelected: (selected) {
-                            if (selected) setState(() => _seniority = 'older');
+                          onChanged: (val) {
+                            final parsed = int.tryParse(val.trim());
+                            if (parsed != null && parsed >= 1) {
+                              setState(() => _orderNumber = parsed);
+                            }
                           },
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          setState(() {
+                            _orderNumber++;
+                            _orderCtrl.text = _orderNumber.toString();
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: ChoiceChip(
-                          avatar: Icon(
-                            Icons.child_care_rounded,
-                            size: 18,
-                            color: _seniority == 'younger' ? Colors.white : Colors.teal.shade800,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _orderNumber == 1 ? Colors.amber.shade50 : Colors.teal.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _orderNumber == 1 ? Colors.amber.shade300 : Colors.teal.shade300,
+                            ),
                           ),
-                          label: const Text('Younger (Junior Branch)'),
-                          selected: _seniority == 'younger',
-                          selectedColor: Colors.teal.shade700,
-                          labelStyle: TextStyle(
-                            color: _seniority == 'younger' ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
+                          child: Row(
+                            children: [
+                              Icon(
+                                _orderNumber == 1 ? Icons.star_rounded : Icons.format_list_numbered_rounded,
+                                size: 18,
+                                color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  _orderNumber == 1
+                                      ? '#1: Oldest / 1st Branch'
+                                      : '#$_orderNumber: Younger than #${_orderNumber - 1}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          onSelected: (selected) {
-                            if (selected) setState(() => _seniority = 'younger');
-                          },
                         ),
                       ),
                     ],

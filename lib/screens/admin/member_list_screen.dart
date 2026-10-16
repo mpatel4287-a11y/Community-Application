@@ -171,6 +171,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   String _relationToHead = 'none';
   String _subFamilyHeadRelation = '';
   bool _hasFamilyHead = false;
+  bool _isCommon = false;
+  bool _isMinorNoPhone = false;
   List<String> _tags = [];
   List<Map<String, String>> _firms = [];
   List<String> _allFirmNames = [];
@@ -183,6 +185,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   @override
   void initState() {
     super.initState();
+    _isCommon = widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty;
     _loadUserRole();
     if (widget.initialParentMid != null) {
       _parentMidCtrl.text = widget.initialParentMid!;
@@ -315,7 +318,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
 
       // Get subFamilyId if subFamilyDocId is provided
       String subFamilyId = '';
-      if (widget.subFamilyDocId != null) {
+      if (widget.subFamilyDocId != null && widget.subFamilyDocId!.isNotEmpty) {
         final subFamilyDoc = await FirebaseFirestore.instance
             .collection('families')
             .doc(widget.familyDocId)
@@ -357,8 +360,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
 
       final newMemberId = await MemberService().addMemberWithId(
         mainFamilyDocId: widget.familyDocId,
-        subFamilyDocId: widget.subFamilyDocId ?? '',
-        subFamilyId: subFamilyId,
+        subFamilyDocId: _isCommon ? '' : (widget.subFamilyDocId ?? ''),
+        subFamilyId: _isCommon ? '00' : subFamilyId,
         familyId: _dktFamilyIdCtrl.text.trim().isEmpty
             ? familyId
             : _dktFamilyIdCtrl.text.trim(),
@@ -390,6 +393,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         relationToHead: _relationToHead,
         subFamilyHeadRelationToMainHead: _subFamilyHeadRelation,
         spouseMid: _selectedSpouseMid ?? '',
+        isCommon: _isCommon,
       );
 
       // If a spouse was selected, link them
@@ -398,7 +402,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         await MemberService().updateSpouseLink(
           mainFamilyDocId: widget.familyDocId,
           member1Id: newMemberId,
-          member1SubFamilyDocId: widget.subFamilyDocId ?? '',
+          member1SubFamilyDocId: _isCommon ? '' : (widget.subFamilyDocId ?? ''),
           member2Id: spouseMember.id,
           member2SubFamilyDocId: spouseMember.subFamilyDocId,
           relation: _spouseRelation,
@@ -660,12 +664,39 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: _isMinorNoPhone ? Colors.teal.shade50 : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _isMinorNoPhone ? Colors.teal.shade300 : Colors.grey.shade200),
+                            ),
+                            child: SwitchListTile(
+                              value: _isMinorNoPhone,
+                              onChanged: (val) {
+                                setState(() {
+                                  _isMinorNoPhone = val;
+                                });
+                              },
+                              title: const Text('Minor / Young Child (No Mobile Phone)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                              subtitle: const Text('સગીર બાળક (મોબાઇલ નંબર નથી) - Phone is optional', style: TextStyle(fontSize: 11)),
+                              secondary: Icon(Icons.child_care, color: _isMinorNoPhone ? Colors.teal : Colors.grey),
+                              activeColor: Colors.teal,
+                              dense: true,
+                            ),
+                          ),
                           Row(
                             children: [
                               Expanded(
-                                child: _buildTextField(_phoneCtrl, '${lang.translate('phone')} *',
-                                    keyboardType: TextInputType.phone,
-                                    validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                                child: _buildTextField(
+                                  _phoneCtrl,
+                                  _isMinorNoPhone ? '${lang.translate('phone')} (Optional / સગીર)' : '${lang.translate('phone')} *',
+                                  keyboardType: TextInputType.phone,
+                                  validator: (v) {
+                                    if (_isMinorNoPhone) return null;
+                                    return (v == null || v.trim().isEmpty) ? 'Required' : null;
+                                  },
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -954,6 +985,27 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                             ],
                           ),
                           const SizedBox(height: 16),
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: _isCommon ? Colors.amber.shade50 : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _isCommon ? Colors.amber.shade400 : Colors.grey.shade200),
+                            ),
+                            child: SwitchListTile(
+                              value: _isCommon,
+                              onChanged: (val) {
+                                setState(() {
+                                  _isCommon = val;
+                                });
+                              },
+                              title: const Text('Common Family Elder / Parents (સામાન્ય વડીલ)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              subtitle: const Text('Check for Father & Mother common across all sub-families (બધા પેટા-પરિવાર માટે સામાન્ય વડીલ)', style: TextStyle(fontSize: 11)),
+                              secondary: Icon(Icons.stars_rounded, color: _isCommon ? Colors.amber.shade800 : Colors.grey),
+                              activeColor: Colors.amber.shade800,
+                              dense: true,
+                            ),
+                          ),
                           DropdownButtonFormField<String>(
                             value: _relationToHead,
                             decoration: InputDecoration(
@@ -985,7 +1037,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                             ],
                             onChanged: (val) => setState(() => _relationToHead = val ?? 'none'),
                           ),
-                          if (_relationToHead == 'head' && widget.subFamilyDocId != null) ...[
+                          if (_relationToHead == 'head' && widget.subFamilyDocId != null && widget.subFamilyDocId!.isNotEmpty && !_isCommon) ...[
                             const SizedBox(height: 12),
                             TextFormField(
                               initialValue: _subFamilyHeadRelation,
@@ -1336,6 +1388,8 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   bool _loading = true;
   bool _hasFamilyHead = false;
   bool _alreadyHead = false; // Is THIS member currently the head?
+  bool _isCommon = false;
+  bool _isMinorNoPhone = false;
   List<String> _tags = [];
   List<String> _allFirmNames = [];
   String? _selectedSpouseMid;
@@ -1528,6 +1582,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
           'facebook': _facebookCtrl.text.trim(),
           'firms': _firms,
           'tags': _tags,
+          'isCommon': _isCommon,
           'parentMid': _parentMidCtrl.text.trim(),
           'password': _passwordCtrl.text.trim(),
           'familyId': _dktFamilyIdCtrl.text.trim(),
@@ -1614,6 +1669,8 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
       _selectedSpouseMid = member.spouseMid.isEmpty ? null : member.spouseMid;
       _spouseRelation = member.spouseRelation.isEmpty ? 'none' : member.spouseRelation;
       _alreadyHead = _relationToHead == 'head';
+      _isCommon = member.isCommon || (widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty);
+      _isMinorNoPhone = member.phone.trim().isEmpty;
       if (_memberMid.isEmpty) {
         _memberMid = MemberModel.generateMid(member.familyId, member.subFamilyId);
       }
@@ -1839,12 +1896,39 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: _isMinorNoPhone ? Colors.teal.shade50 : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _isMinorNoPhone ? Colors.teal.shade300 : Colors.grey.shade200),
+                        ),
+                        child: SwitchListTile(
+                          value: _isMinorNoPhone,
+                          onChanged: (val) {
+                            setState(() {
+                              _isMinorNoPhone = val;
+                            });
+                          },
+                          title: const Text('Minor / Young Child (No Mobile Phone)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          subtitle: const Text('સગીર બાળક (મોબાઇલ નંબર નથી) - Phone is optional', style: TextStyle(fontSize: 11)),
+                          secondary: Icon(Icons.child_care, color: _isMinorNoPhone ? Colors.teal : Colors.grey),
+                          activeColor: Colors.teal,
+                          dense: true,
+                        ),
+                      ),
                       Row(
                         children: [
                           Expanded(
-                            child: _buildTextField(_phoneCtrl, '${lang.translate('phone')} *',
-                                keyboardType: TextInputType.phone,
-                                validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                            child: _buildTextField(
+                              _phoneCtrl,
+                              _isMinorNoPhone ? '${lang.translate('phone')} (Optional / સગીર)' : '${lang.translate('phone')} *',
+                              keyboardType: TextInputType.phone,
+                              validator: (v) {
+                                if (_isMinorNoPhone) return null;
+                                return (v == null || v.trim().isEmpty) ? 'Required' : null;
+                              },
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -2086,6 +2170,27 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                       const SizedBox(height: 12),
                       _buildTextField(_parentMidCtrl, lang.translate('parent_member_id'), hint: 'Enter parent MID (optional)'),
                       const SizedBox(height: 12),
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: _isCommon ? Colors.amber.shade50 : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _isCommon ? Colors.amber.shade400 : Colors.grey.shade200),
+                        ),
+                        child: SwitchListTile(
+                          value: _isCommon,
+                          onChanged: (val) {
+                            setState(() {
+                              _isCommon = val;
+                            });
+                          },
+                          title: const Text('Common Family Elder / Parents (સામાન્ય વડીલ)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          subtitle: const Text('Check for Father & Mother common across all sub-families (બધા પેટા-પરિવાર માટે સામાન્ય વડીલ)', style: TextStyle(fontSize: 11)),
+                          secondary: Icon(Icons.stars_rounded, color: _isCommon ? Colors.amber.shade800 : Colors.grey),
+                          activeColor: Colors.amber.shade800,
+                          dense: true,
+                        ),
+                      ),
                       DropdownButtonFormField<String>(
                         value: _relationToHead,
                         decoration: InputDecoration(
@@ -2116,7 +2221,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                         ],
                         onChanged: (v) => setState(() => _relationToHead = v ?? 'none'),
                       ),
-                      if (_relationToHead == 'head' && widget.subFamilyDocId != null) ...[
+                      if (_relationToHead == 'head' && widget.subFamilyDocId != null && widget.subFamilyDocId!.isNotEmpty && !_isCommon) ...[
                         const SizedBox(height: 12),
                         TextFormField(
                           initialValue: _subFamilyHeadRelation,
@@ -2339,14 +2444,16 @@ class _MemberListScreenState extends State<MemberListScreen>
       _membersStream = FirebaseFirestore.instance
           .collectionGroup('members')
           .snapshots();
+    } else if (widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty) {
+      final path = 'families/${widget.familyDocId}/members';
+      print('  Query root common elders path: $path');
+      _membersStream = FirebaseFirestore.instance
+          .collection('families')
+          .doc(widget.familyDocId)
+          .collection('members')
+          .orderBy('createdAt', descending: true)
+          .snapshots();
     } else {
-      // Ensure we have required IDs for subfamily query
-      if (widget.familyDocId == null || widget.subFamilyDocId == null) {
-        print('ERROR: Missing required IDs for subfamily query');
-        print('  familyDocId: ${widget.familyDocId}');
-        print('  subFamilyDocId: ${widget.subFamilyDocId}');
-      }
-      
       final path = 'families/${widget.familyDocId}/subfamilies/${widget.subFamilyDocId}/members';
       print('  Query path: $path');
       
@@ -2375,6 +2482,13 @@ class _MemberListScreenState extends State<MemberListScreen>
         if (widget.isGlobal) {
           _membersStream = FirebaseFirestore.instance
               .collectionGroup('members')
+              .snapshots();
+        } else if (widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty) {
+          _membersStream = FirebaseFirestore.instance
+              .collection('families')
+              .doc(widget.familyDocId)
+              .collection('members')
+              .orderBy('createdAt', descending: true)
               .snapshots();
         } else {
           _membersStream = FirebaseFirestore.instance
@@ -2791,6 +2905,52 @@ class _MemberListScreenState extends State<MemberListScreen>
                                   ),
                                 ),
                                 
+                                if (data['isCommon'] == true || data['isCommonElder'] == true) ...[
+                                  const SizedBox(height: 3),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.shade100,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.amber.shade700, width: 0.8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.stars_rounded, size: 10, color: Colors.amber.shade900),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          'Common Elder',
+                                          style: TextStyle(
+                                            fontSize: 8.5,
+                                            color: Colors.amber.shade900,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                if ((data['phone'] == null || data['phone'].toString().trim().isEmpty) && ((data['age'] ?? 0) < 18)) ...[
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.teal.shade50,
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: Colors.teal.shade300, width: 0.6),
+                                    ),
+                                    child: Text(
+                                      '👶 Minor',
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        color: Colors.teal.shade800,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+
                                 const SizedBox(height: 3),
 
                                 // AGE Badge

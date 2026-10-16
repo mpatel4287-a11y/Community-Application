@@ -16,6 +16,7 @@ class SubFamilyTreeDetailScreen extends StatefulWidget {
   final String subFamilyId;
   final String subFamilyName;
   final String? seniority;
+  final int? orderNumber;
 
   const SubFamilyTreeDetailScreen({
     super.key,
@@ -25,7 +26,27 @@ class SubFamilyTreeDetailScreen extends StatefulWidget {
     required this.subFamilyId,
     required this.subFamilyName,
     this.seniority,
+    this.orderNumber,
   });
+
+  int get effectiveOrder {
+    if (orderNumber != null && orderNumber! > 0) return orderNumber!;
+    if (seniority != null && seniority!.isNotEmpty) {
+      final s = seniority!.toLowerCase().trim();
+      if (s == 'older') return 1;
+      if (s == 'younger') return 2;
+      return int.tryParse(s) ?? 0;
+    }
+    return 0;
+  }
+
+  String get orderDescription {
+    final ord = effectiveOrder;
+    if (ord == 1) return 'Sub-Family #1 (Oldest Branch / મોટો પરિવાર)';
+    if (ord == 2) return 'Sub-Family #2 (Younger than #1 / નાનો પરિવાર)';
+    if (ord > 2) return 'Sub-Family #$ord (Younger than #${ord - 1})';
+    return '';
+  }
 
   @override
   State<SubFamilyTreeDetailScreen> createState() => _SubFamilyTreeDetailScreenState();
@@ -134,6 +155,7 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
         relationToHead: member.relationToHead,
         parentIds: member.parentMid.isNotEmpty ? [member.parentMid] : [],
         spouseId: member.spouseMid.isNotEmpty ? member.spouseMid : null,
+        isCommon: member.isCommon,
       );
 
       personMap[member.mid] = person;
@@ -335,10 +357,10 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
 
     final List<List<Person>> generations = [];
 
-    // Gen 0: Ancestors (Parents of Head, e.g. Father, Mother)
+    // Gen 0: Ancestors / Common Family Elders (Parents of Head, e.g. Father, Mother, or Common Elders)
     final ancestors = personMap.values.where((p) {
       final rel = (p.relationToHead ?? '').toLowerCase();
-      return rel == 'father' || rel == 'mother';
+      return p.isCommon || rel == 'father' || rel == 'mother';
     }).toList();
     if (ancestors.isNotEmpty) {
       ancestors.sort(compareOlderFirst);
@@ -556,11 +578,9 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
                 color: Theme.of(context).colorScheme.onPrimary,
               ),
             ),
-            if (widget.seniority != null && widget.seniority!.isNotEmpty)
+            if (widget.orderDescription.isNotEmpty)
               Text(
-                widget.seniority == 'older'
-                    ? 'Elder Branch (Older / મોટો પરિવાર)'
-                    : 'Junior Branch (Younger / નાનો પરિવાર)',
+                widget.orderDescription,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.normal,
@@ -704,25 +724,23 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
                                       letterSpacing: 0.5,
                                     ),
                                   ),
-                                  if (widget.seniority != null && widget.seniority!.isNotEmpty) ...[
+                                  if (widget.orderDescription.isNotEmpty) ...[
                                     const SizedBox(height: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: widget.seniority == 'older' ? Colors.blue.shade50 : Colors.teal.shade50,
+                                        color: widget.effectiveOrder == 1 ? Colors.amber.shade50 : Colors.teal.shade50,
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
-                                          color: widget.seniority == 'older' ? Colors.blue.shade300 : Colors.teal.shade300,
+                                          color: widget.effectiveOrder == 1 ? Colors.amber.shade300 : Colors.teal.shade300,
                                         ),
                                       ),
                                       child: Text(
-                                        widget.seniority == 'older'
-                                            ? 'Elder Branch (Older / મોટો પરિવાર)'
-                                            : 'Junior Branch (Younger / નાનો પરિવાર)',
+                                        widget.orderDescription,
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
-                                          color: widget.seniority == 'older' ? Colors.blue.shade800 : Colors.teal.shade800,
+                                          color: widget.effectiveOrder == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
                                         ),
                                       ),
                                     ),
@@ -736,7 +754,7 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
                         Positioned.fill(
                           child: Padding(
                             padding: EdgeInsets.only(
-                              top: widget.seniority != null && widget.seniority!.isNotEmpty ? 90 : 60,
+                              top: widget.orderDescription.isNotEmpty ? 90 : 60,
                             ),
                             child: LayoutBuilder(
                               builder: (context, constraints) {

@@ -52,6 +52,7 @@ class MemberModel {
   final String role; // member | manager
   final List<String> tags; // admin only, max 15 chars
   final bool isActive;
+  final bool isCommon; // Common family elder / parent shared across all sub-families
   final String parentMid; // for family tree (parent member ID)
   final String relationToHead; // head | wife | daughter | son | daughter_in_law | grandson | grandsister | none
   final String subFamilyHeadRelationToMainHead; // for joint family linking
@@ -94,6 +95,7 @@ class MemberModel {
     required this.role,
     required this.tags,
     required this.isActive,
+    this.isCommon = false,
     required this.parentMid,
     this.relationToHead = 'none',
     this.subFamilyHeadRelationToMainHead = '',
@@ -233,6 +235,7 @@ class MemberModel {
       'role': role,
       'tags': tags,
       'isActive': isActive,
+      'isCommon': isCommon,
       'parentMid': parentMid,
       'relationToHead': relationToHead,
       'subFamilyHeadRelationToMainHead': subFamilyHeadRelationToMainHead,
@@ -287,6 +290,7 @@ class MemberModel {
       role: data['role'] ?? 'member',
       tags: List<String>.from(data['tags'] ?? []),
       isActive: data['isActive'] ?? true,
+      isCommon: data['isCommon'] == true || data['isCommonElder'] == true,
       parentMid: data['parentMid'] ?? '',
       relationToHead: data['relationToHead'] ?? 'none',
       subFamilyHeadRelationToMainHead: data['subFamilyHeadRelationToMainHead'] ?? '',
@@ -331,6 +335,7 @@ class MemberModel {
     String? role,
     List<String>? tags,
     bool? isActive,
+    bool? isCommon,
     String? parentMid,
     String? relationToHead,
     String? subFamilyHeadRelationToMainHead,
@@ -372,6 +377,7 @@ class MemberModel {
       role: role ?? this.role,
       tags: tags ?? this.tags,
       isActive: isActive ?? this.isActive,
+      isCommon: isCommon ?? this.isCommon,
       parentMid: parentMid ?? this.parentMid,
       relationToHead: relationToHead ?? this.relationToHead,
       subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead ?? this.subFamilyHeadRelationToMainHead,
@@ -417,6 +423,7 @@ class MemberModel {
       role: 'member',
       tags: [],
       isActive: true,
+      isCommon: false,
       parentMid: '',
       relationToHead: 'none',
       subFamilyHeadRelationToMainHead: '',

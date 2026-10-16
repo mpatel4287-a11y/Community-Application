@@ -63,6 +63,7 @@ class MemberService {
     String relationToHead = 'none',
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
+    bool isCommon = false,
   }) async {
     final age = MemberModel.calculateAge(birthDate);
 
@@ -91,7 +92,7 @@ class MemberService {
     ).doc();
 
     // Generate MID using new pattern: F{XX}-S{XX}-{XXX}
-    final mid = MemberModel.generateMid(familyId, subFamilyId);
+    final mid = MemberModel.generateMid(familyId, subFamilyId.isEmpty ? '00' : subFamilyId);
 
     final member = MemberModel(
       id: memberRef.id,
@@ -127,6 +128,7 @@ class MemberService {
       role: 'member',
       tags: cleanedTags,
       isActive: true,
+      isCommon: isCommon || subFamilyDocId.isEmpty,
       parentMid: parentMid.trim(),
       relationToHead: relationToHead,
       subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead,
@@ -137,10 +139,12 @@ class MemberService {
     await memberRef.set(member.toMap());
 
     // Update member count in sub-family
-    await SubFamilyService().incrementMemberCount(
-      mainFamilyDocId: mainFamilyDocId,
-      subFamilyDocId: subFamilyDocId,
-    );
+    if (subFamilyDocId.isNotEmpty) {
+      await SubFamilyService().incrementMemberCount(
+        mainFamilyDocId: mainFamilyDocId,
+        subFamilyDocId: subFamilyDocId,
+      );
+    }
 
     return memberRef.id;
   }
@@ -179,6 +183,7 @@ class MemberService {
     String relationToHead = 'none',
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
+    bool isCommon = false,
   }) => addMember(
     mainFamilyDocId: mainFamilyDocId,
     subFamilyDocId: subFamilyDocId,
@@ -212,6 +217,7 @@ class MemberService {
     relationToHead: relationToHead,
     subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead,
     spouseMid: spouseMid,
+    isCommon: isCommon,
   );
 
   // ---------------- UPDATE MEMBER ----------------
@@ -321,10 +327,12 @@ class MemberService {
     ).doc(memberId).delete();
 
     // Update member count in sub-family
-    await SubFamilyService().decrementMemberCount(
-      mainFamilyDocId: mainFamilyDocId,
-      subFamilyDocId: subFamilyDocId,
-    );
+    if (subFamilyDocId.isNotEmpty) {
+      await SubFamilyService().decrementMemberCount(
+        mainFamilyDocId: mainFamilyDocId,
+        subFamilyDocId: subFamilyDocId,
+      );
+    }
   }
 
   // ---------------- GET MEMBER ----------------
@@ -348,14 +356,46 @@ class MemberService {
     String mainFamilyDocId,
     String subFamilyDocId,
   ) {
-    return _getMembersCollection(mainFamilyDocId, subFamilyDocId)
-        .orderBy('createdAt', descending: true)
+    if (subFamilyDocId.isEmpty) {
+      return _firestore
+          .collection('families')
+          .doc(mainFamilyDocId)
+          .collection('members')
+          .snapshots()
+          .map(
+            (snap) => MemberSortHelper.sortMembers(
+              snap.docs.map((d) => MemberModel.fromMap(d.id, d.data())).toList(),
+            ),
+          );
+    }
+
+    final subStream = _getMembersCollection(mainFamilyDocId, subFamilyDocId)
         .snapshots()
-        .map(
-          (snap) => snap.docs
-              .map((d) => MemberModel.fromMap(d.id, d.data()))
-              .toList(),
-        );
+        .map((snap) => snap.docs.map((d) => MemberModel.fromMap(d.id, d.data())).toList());
+
+    final rootStream = _firestore
+        .collection('families')
+        .doc(mainFamilyDocId)
+        .collection('members')
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => MemberModel.fromMap(d.id, d.data())).toList());
+
+    return Rx.combineLatest2<List<MemberModel>, List<MemberModel>, List<MemberModel>>(
+      subStream,
+      rootStream,
+      (subMembers, rootMembers) {
+        final Map<String, MemberModel> unique = {};
+        for (final m in rootMembers) {
+          final key = m.mid.isNotEmpty ? m.mid : m.id;
+          unique[key] = m;
+        }
+        for (final m in subMembers) {
+          final key = m.mid.isNotEmpty ? m.mid : m.id;
+          unique[key] = m;
+        }
+        return MemberSortHelper.sortMembers(unique.values.toList());
+      },
+    );
   }
 
   // ---------------- GET MEMBERS BY SUB-FAMILY (ONE-TIME) ----------------
@@ -363,14 +403,41 @@ class MemberService {
     String mainFamilyDocId,
     String subFamilyDocId,
   ) async {
-    final snapshot = await _getMembersCollection(mainFamilyDocId, subFamilyDocId)
-        .where('isActive', isEqualTo: true)
-        .get();
-        
-    final members = snapshot.docs
-        .map((d) => MemberModel.fromMap(d.id, d.data()))
-        .toList();
-    return MemberSortHelper.sortMembers(members);
+    final List<MemberModel> all = [];
+
+    // 1. Fetch common elders from root family collection
+    try {
+      final rootSnap = await _firestore
+          .collection('families')
+          .doc(mainFamilyDocId)
+          .collection('members')
+          .where('isActive', isEqualTo: true)
+          .get();
+      all.addAll(rootSnap.docs.map((d) => MemberModel.fromMap(d.id, d.data())));
+    } catch (e) {
+      debugPrint('Error getting root common elders: $e');
+    }
+
+    // 2. Fetch members for the specified sub-family
+    if (subFamilyDocId.isNotEmpty) {
+      try {
+        final snapshot = await _getMembersCollection(mainFamilyDocId, subFamilyDocId)
+            .where('isActive', isEqualTo: true)
+            .get();
+        all.addAll(snapshot.docs.map((d) => MemberModel.fromMap(d.id, d.data())));
+      } catch (e) {
+        debugPrint('Error getting sub-family members: $e');
+      }
+    }
+
+    // Deduplicate members by mid or id
+    final Map<String, MemberModel> unique = {};
+    for (final m in all) {
+      final key = m.mid.isNotEmpty ? m.mid : m.id;
+      unique[key] = m;
+    }
+
+    return MemberSortHelper.sortMembers(unique.values.toList());
   }
 
   Future<List<MemberModel>> getFamilyMembers(String mainFamilyDocId) async {
@@ -412,7 +479,13 @@ class MemberService {
         all = snapshot.docs.map((d) => MemberModel.fromMap(d.id, d.data())).toList();
       } catch (_) {}
     }
-    return MemberSortHelper.sortMembers(all);
+
+    final Map<String, MemberModel> unique = {};
+    for (final m in all) {
+      final key = m.mid.isNotEmpty ? m.mid : m.id;
+      unique[key] = m;
+    }
+    return MemberSortHelper.sortMembers(unique.values.toList());
   }
 
   // ---------------- GET ALL MEMBERS (ADMIN - from all families) ----------------

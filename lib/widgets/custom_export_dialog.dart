@@ -257,7 +257,12 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
           final Set<String> assignedMemberIds = {};
 
           final sortedSubFamilies = List<SubFamilyModel>.from(subFamilies)
-            ..sort((a, b) => a.subFamilyId.compareTo(b.subFamilyId));
+            ..sort((a, b) {
+              if (a.orderNumber != b.orderNumber) {
+                return a.orderNumber.compareTo(b.orderNumber);
+              }
+              return a.subFamilyId.compareTo(b.subFamilyId);
+            });
 
           for (final sf in sortedSubFamilies) {
             final sfMembers = allMembers.where((m) =>

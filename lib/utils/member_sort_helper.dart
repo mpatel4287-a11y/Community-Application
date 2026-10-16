@@ -41,24 +41,43 @@ class MemberSortHelper {
       return a.fullName.compareTo(b.fullName);
     }
 
-    // 1. Find Head of family
+    // 1. Find Head of family (Prioritize common root elder / parent head)
     MemberModel? head;
     try {
       head = members.firstWhere(
-        (m) => m.relationToHead.toLowerCase() == 'head' && m.isActive,
+        (m) =>
+            (m.isCommon || m.subFamilyDocId.isEmpty) &&
+            m.relationToHead.toLowerCase() == 'head' &&
+            m.isActive,
       );
     } catch (_) {
       try {
-        head = members.firstWhere((m) => m.relationToHead.toLowerCase() == 'head');
+        head = members.firstWhere(
+          (m) => m.relationToHead.toLowerCase() == 'head' && m.isActive,
+        );
       } catch (_) {
-        // Fallback: oldest active member without parentMid
-        final candidates = members.where((m) => m.parentMid.isEmpty).toList();
-        if (candidates.isNotEmpty) {
-          candidates.sort(compareOlderFirst);
-          head = candidates.first;
-        } else if (members.isNotEmpty) {
-          final sortedAll = List<MemberModel>.from(members)..sort(compareOlderFirst);
-          head = sortedAll.first;
+        try {
+          head = members.firstWhere(
+            (m) => (m.isCommon || m.subFamilyDocId.isEmpty) && m.relationToHead.toLowerCase() == 'head',
+          );
+        } catch (_) {
+          try {
+            head = members.firstWhere((m) => m.relationToHead.toLowerCase() == 'head');
+          } catch (_) {
+            // Fallback: oldest active member without parentMid (prefer common)
+            final candidates = members.where((m) => m.parentMid.isEmpty).toList();
+            if (candidates.isNotEmpty) {
+              candidates.sort((a, b) {
+                if (a.isCommon && !b.isCommon) return -1;
+                if (!a.isCommon && b.isCommon) return 1;
+                return compareOlderFirst(a, b);
+              });
+              head = candidates.first;
+            } else if (members.isNotEmpty) {
+              final sortedAll = List<MemberModel>.from(members)..sort(compareOlderFirst);
+              head = sortedAll.first;
+            }
+          }
         }
       }
     }

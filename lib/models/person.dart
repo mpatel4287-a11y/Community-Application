@@ -15,6 +15,7 @@ class Person {
   final String? mid;
   final String? relationToHead;
   final String? spouseId;
+  final bool isCommon;
 
   Person({
     required this.id,
@@ -31,6 +32,7 @@ class Person {
     this.mid,
     this.relationToHead,
     this.spouseId,
+    this.isCommon = false,
   });
 
   bool get isBirthdayToday => birthDate != null && birthDate!.isNotEmpty

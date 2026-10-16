@@ -94,9 +94,10 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
         if (isMainA && !isMainB) return -1;
         if (!isMainA && isMainB) return 1;
 
-        // Elder before Younger
-        if (sfA.isOlder && !sfB.isOlder) return -1;
-        if (!sfA.isOlder && sfB.isOlder) return 1;
+        // Order wise: 1 is oldest, 2 is younger than 1, etc.
+        if (sfA.orderNumber != sfB.orderNumber) {
+          return sfA.orderNumber.compareTo(sfB.orderNumber);
+        }
         
         return sfA.subFamilyName.compareTo(sfB.subFamilyName);
       });
@@ -115,6 +116,7 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
              'docId': sf.id,
              'id': sf.subFamilyId.isEmpty ? 'Main' : sf.subFamilyId,
              'name': sf.subFamilyName,
+             'orderNumber': sf.orderNumber,
              'seniority': sf.seniority,
              'memberCount': members.length,
              'members': members,
@@ -160,6 +162,7 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
           subFamilyId: subFamily['id'],
           subFamilyName: subFamily['name'],
           seniority: subFamily['seniority'] as String?,
+          orderNumber: subFamily['orderNumber'] as int?,
         ),
       ),
     );
@@ -284,47 +287,59 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
                                               color: Colors.grey.shade600,
                                             ),
                                           ),
-                                          if ((subFamily['seniority'] as String?)?.isNotEmpty == true) ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: subFamily['seniority'] == 'older'
-                                                    ? Colors.amber.shade100
-                                                    : Colors.teal.shade100,
-                                                borderRadius: BorderRadius.circular(6),
-                                                border: Border.all(
-                                                  color: subFamily['seniority'] == 'older'
-                                                      ? Colors.amber.shade600
-                                                      : Colors.teal.shade600,
-                                                  width: 1,
-                                                ),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    subFamily['seniority'] == 'older'
-                                                        ? Icons.star_rounded
-                                                        : Icons.child_care_rounded,
-                                                    size: 13,
-                                                    color: subFamily['seniority'] == 'older'
-                                                        ? Colors.amber.shade900
-                                                        : Colors.teal.shade900,
-                                                  ),
-                                                  const SizedBox(width: 3),
-                                                  Text(
-                                                    subFamily['seniority'] == 'older' ? 'Elder Branch (Older)' : 'Junior Branch (Younger)',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: subFamily['seniority'] == 'older'
-                                                          ? Colors.amber.shade900
-                                                          : Colors.teal.shade900,
+                                          if ((subFamily['orderNumber'] as int?) != null || (subFamily['seniority'] as String?)?.isNotEmpty == true) ...[
+                                            Builder(
+                                              builder: (context) {
+                                                final int orderNum = (subFamily['orderNumber'] as int?) ??
+                                                    (subFamily['seniority'] == 'older'
+                                                        ? 1
+                                                        : int.tryParse(subFamily['seniority']?.toString() ?? '') ?? 0);
+                                                if (orderNum <= 0) return const SizedBox.shrink();
+
+                                                return Container(
+                                                  margin: const EdgeInsets.only(left: 8),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: orderNum == 1
+                                                        ? Colors.amber.shade100
+                                                        : Colors.teal.shade100,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(
+                                                      color: orderNum == 1
+                                                          ? Colors.amber.shade600
+                                                          : Colors.teal.shade600,
+                                                      width: 1,
                                                     ),
                                                   ),
-                                                ],
-                                              ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        orderNum == 1
+                                                            ? Icons.star_rounded
+                                                            : Icons.format_list_numbered_rounded,
+                                                        size: 13,
+                                                        color: orderNum == 1
+                                                            ? Colors.amber.shade900
+                                                            : Colors.teal.shade900,
+                                                      ),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        orderNum == 1
+                                                            ? 'Order #1 (Oldest)'
+                                                            : 'Order #$orderNum',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: orderNum == 1
+                                                              ? Colors.amber.shade900
+                                                              : Colors.teal.shade900,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
                                             ),
                                           ],
                                         ],
