@@ -120,6 +120,10 @@ class LanguageService extends ChangeNotifier {
       'married': 'Married',
       'engaged': 'Engaged',
       'spouse_must_be_married': 'Selected spouse must have "Married" status',
+      'late_deceased': 'Late / Deceased (સ્વર્ગસ્થ)',
+      'late_deceased_hint': 'Deceased (Phone, password & other details optional)',
+      'late': 'Late',
+      'date_of_death': 'Date of Death (મૃત્યુ તારીખ)',
       // QR Scanner
       'scan_qr': 'Scan QR Code',
       'scan_member_qr': 'Scan Member QR',
@@ -395,6 +399,10 @@ class LanguageService extends ChangeNotifier {
       'married': 'પરણીત',
       'engaged': 'સગાઈ',
       'spouse_must_be_married': 'પસંદ કરેલ જીવનસાથીની સ્થિતિ "પરણીત" હોવી જોઈએ',
+      'late_deceased': 'સ્વર્ગસ્થ (Late / Deceased)',
+      'late_deceased_hint': 'સ્વર્ગસ્થ (મોબાઇલ નંબર કે પાસવર્ડ જરૂરી નથી)',
+      'late': 'સ્વર્ગસ્થ',
+      'date_of_death': 'મૃત્યુ તારીખ',
       // QR Scanner
       'scan_qr': 'QR કોડ સ્કેન કરો',
       'scan_member_qr': 'સભ્ય QR સ્કેન કરો',

@@ -347,51 +347,84 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                                     ),
                                     const Spacer(),
                                     if (subFamily.orderNumber > 0 || subFamily.seniority.isNotEmpty) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: subFamily.orderNumber == 1
-                                              ? Colors.amber.shade50
-                                              : Colors.teal.shade50,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: subFamily.orderNumber == 1
-                                                ? Colors.amber.shade400
-                                                : Colors.teal.shade400,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              subFamily.orderNumber == 1
-                                                  ? Icons.star_rounded
-                                                  : Icons.format_list_numbered_rounded,
-                                              size: 11,
-                                              color: subFamily.orderNumber == 1
-                                                  ? Colors.amber.shade900
-                                                  : Colors.teal.shade800,
+                                      Builder(
+                                        builder: (context) {
+                                          final int orderNum = subFamily.orderNumber > 0
+                                              ? subFamily.orderNumber
+                                              : (subFamily.seniority == 'older'
+                                                  ? 1
+                                                  : int.tryParse(subFamily.seniority) ?? 0);
+                                          if (orderNum <= 0) return const SizedBox.shrink();
+                                          final bool isFirst = orderNum == 1;
+
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3.5,
                                             ),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              subFamily.orderNumber == 1 ? '#1 (OLDEST)' : '#${subFamily.orderNumber}',
-                                              style: TextStyle(
-                                                fontSize: 8.5,
-                                                color: subFamily.orderNumber == 1
-                                                    ? Colors.amber.shade900
-                                                    : Colors.teal.shade800,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.3,
-                                             ),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: isFirst
+                                                    ? [
+                                                        const Color(0xFFFEF3C7),
+                                                        const Color(0xFFFDE68A),
+                                                      ]
+                                                    : [
+                                                        const Color(0xFFEEF2FF),
+                                                        const Color(0xFFE0E7FF),
+                                                      ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius: BorderRadius.circular(16),
+                                              border: Border.all(
+                                                color: isFirst
+                                                    ? const Color(0xFFF59E0B)
+                                                    : const Color(0xFF818CF8),
+                                                width: 1.1,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: (isFirst
+                                                          ? const Color(0xFFF59E0B)
+                                                          : const Color(0xFF6366F1))
+                                                      .withValues(alpha: 0.15),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 1.5),
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  isFirst
+                                                      ? Icons.workspace_premium_rounded
+                                                      : Icons.account_tree_rounded,
+                                                  size: 12,
+                                                  color: isFirst
+                                                      ? const Color(0xFF92400E)
+                                                      : const Color(0xFF4338CA),
+                                                ),
+                                                const SizedBox(width: 3.5),
+                                                Text(
+                                                  isFirst ? 'Branch #1 (Oldest)' : 'Branch #$orderNum',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: 0.2,
+                                                    color: isFirst
+                                                        ? const Color(0xFF92400E)
+                                                        : const Color(0xFF3730A3),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
                                       ),
-                                      const SizedBox(width: 4),
+                                      const SizedBox(width: 6),
                                     ],
                                     if (!isActive)
                                       Container(
@@ -862,31 +895,62 @@ class _AddSubFamilyScreenState extends State<AddSubFamilyScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                           decoration: BoxDecoration(
-                            color: _orderNumber == 1 ? Colors.amber.shade50 : Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _orderNumber == 1 ? Colors.amber.shade300 : Colors.teal.shade300,
+                            gradient: LinearGradient(
+                              colors: _orderNumber == 1
+                                  ? [
+                                      const Color(0xFFFEF3C7),
+                                      const Color(0xFFFDE68A),
+                                    ]
+                                  : [
+                                      const Color(0xFFEEF2FF),
+                                      const Color(0xFFE0E7FF),
+                                    ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _orderNumber == 1
+                                  ? const Color(0xFFF59E0B)
+                                  : const Color(0xFF818CF8),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_orderNumber == 1
+                                        ? const Color(0xFFF59E0B)
+                                        : const Color(0xFF6366F1))
+                                    .withValues(alpha: 0.12),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1.5),
+                              ),
+                            ],
                           ),
                           child: Row(
                             children: [
                               Icon(
-                                _orderNumber == 1 ? Icons.star_rounded : Icons.format_list_numbered_rounded,
+                                _orderNumber == 1
+                                    ? Icons.workspace_premium_rounded
+                                    : Icons.account_tree_rounded,
                                 size: 18,
-                                color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                                color: _orderNumber == 1
+                                    ? const Color(0xFF92400E)
+                                    : const Color(0xFF4338CA),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _orderNumber == 1
-                                      ? '#1: Oldest / 1st Branch'
-                                      : '#$_orderNumber: Younger than #${_orderNumber - 1}',
+                                      ? 'Branch #1: Oldest / Head Branch'
+                                      : 'Branch #$_orderNumber: Younger than #${_orderNumber - 1}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                                    color: _orderNumber == 1
+                                        ? const Color(0xFF92400E)
+                                        : const Color(0xFF3730A3),
                                   ),
                                 ),
                               ),
@@ -1120,31 +1184,62 @@ class _EditSubFamilyScreenState extends State<EditSubFamilyScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                           decoration: BoxDecoration(
-                            color: _orderNumber == 1 ? Colors.amber.shade50 : Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _orderNumber == 1 ? Colors.amber.shade300 : Colors.teal.shade300,
+                            gradient: LinearGradient(
+                              colors: _orderNumber == 1
+                                  ? [
+                                      const Color(0xFFFEF3C7),
+                                      const Color(0xFFFDE68A),
+                                    ]
+                                  : [
+                                      const Color(0xFFEEF2FF),
+                                      const Color(0xFFE0E7FF),
+                                    ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _orderNumber == 1
+                                  ? const Color(0xFFF59E0B)
+                                  : const Color(0xFF818CF8),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_orderNumber == 1
+                                        ? const Color(0xFFF59E0B)
+                                        : const Color(0xFF6366F1))
+                                    .withValues(alpha: 0.12),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1.5),
+                              ),
+                            ],
                           ),
                           child: Row(
                             children: [
                               Icon(
-                                _orderNumber == 1 ? Icons.star_rounded : Icons.format_list_numbered_rounded,
+                                _orderNumber == 1
+                                    ? Icons.workspace_premium_rounded
+                                    : Icons.account_tree_rounded,
                                 size: 18,
-                                color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                                color: _orderNumber == 1
+                                    ? const Color(0xFF92400E)
+                                    : const Color(0xFF4338CA),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _orderNumber == 1
-                                      ? '#1: Oldest / 1st Branch'
-                                      : '#$_orderNumber: Younger than #${_orderNumber - 1}',
+                                      ? 'Branch #1: Oldest / Head Branch'
+                                      : 'Branch #$_orderNumber: Younger than #${_orderNumber - 1}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: _orderNumber == 1 ? Colors.amber.shade900 : Colors.teal.shade800,
+                                    color: _orderNumber == 1
+                                        ? const Color(0xFF92400E)
+                                        : const Color(0xFF3730A3),
                                   ),
                                 ),
                               ),

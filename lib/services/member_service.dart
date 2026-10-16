@@ -64,6 +64,8 @@ class MemberService {
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
     bool isCommon = false,
+    bool isDeceased = false,
+    String tod = '',
   }) async {
     final age = MemberModel.calculateAge(birthDate);
 
@@ -129,6 +131,8 @@ class MemberService {
       tags: cleanedTags,
       isActive: true,
       isCommon: isCommon || subFamilyDocId.isEmpty,
+      isDeceased: isDeceased,
+      tod: tod.trim(),
       parentMid: parentMid.trim(),
       relationToHead: relationToHead,
       subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead,
@@ -184,6 +188,8 @@ class MemberService {
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
     bool isCommon = false,
+    bool isDeceased = false,
+    String tod = '',
   }) => addMember(
     mainFamilyDocId: mainFamilyDocId,
     subFamilyDocId: subFamilyDocId,
@@ -218,6 +224,8 @@ class MemberService {
     subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead,
     spouseMid: spouseMid,
     isCommon: isCommon,
+    isDeceased: isDeceased,
+    tod: tod,
   );
 
   // ---------------- UPDATE MEMBER ----------------

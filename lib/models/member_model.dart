@@ -53,6 +53,7 @@ class MemberModel {
   final List<String> tags; // admin only, max 15 chars
   final bool isActive;
   final bool isCommon; // Common family elder / parent shared across all sub-families
+  final bool isDeceased; // Late / deceased member (phone, password, contact details optional)
   final String parentMid; // for family tree (parent member ID)
   final String relationToHead; // head | wife | daughter | son | daughter_in_law | grandson | grandsister | none
   final String subFamilyHeadRelationToMainHead; // for joint family linking
@@ -96,6 +97,7 @@ class MemberModel {
     required this.tags,
     required this.isActive,
     this.isCommon = false,
+    this.isDeceased = false,
     required this.parentMid,
     this.relationToHead = 'none',
     this.subFamilyHeadRelationToMainHead = '',
@@ -106,6 +108,7 @@ class MemberModel {
   }) : age = (parseBirthDate(birthDate) != null ? calculateAge(birthDate) : age);
 
   bool get isBirthdayToday => isBirthdayTodayFromDate(birthDate);
+  bool get isLate => isDeceased || tod.isNotEmpty;
 
   static DateTime? parseBirthDate(String birthDateStr) {
     if (birthDateStr.trim().isEmpty) return null;
@@ -236,6 +239,7 @@ class MemberModel {
       'tags': tags,
       'isActive': isActive,
       'isCommon': isCommon,
+      'isDeceased': isDeceased,
       'parentMid': parentMid,
       'relationToHead': relationToHead,
       'subFamilyHeadRelationToMainHead': subFamilyHeadRelationToMainHead,
@@ -291,13 +295,25 @@ class MemberModel {
       tags: List<String>.from(data['tags'] ?? []),
       isActive: data['isActive'] ?? true,
       isCommon: data['isCommon'] == true || data['isCommonElder'] == true,
+      isDeceased: data['isDeceased'] == true || (data['tod'] != null && (data['tod'] as String).trim().isNotEmpty),
       parentMid: data['parentMid'] ?? '',
       relationToHead: data['relationToHead'] ?? 'none',
       subFamilyHeadRelationToMainHead: data['subFamilyHeadRelationToMainHead'] ?? '',
       tod: data['tod'] ?? '',
       spouseMid: data['spouseMid'] ?? '',
       spouseRelation: data['spouseRelation'] ?? 'none',
-      createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
+      createdAt: () {
+        final c = data['createdAt'];
+        if (c is DateTime) return c;
+        if (c != null) {
+          try {
+            return (c as dynamic).toDate() as DateTime;
+          } catch (_) {
+            if (c is String) return DateTime.tryParse(c) ?? DateTime.now();
+          }
+        }
+        return DateTime.now();
+      }(),
     );
   }
 
@@ -336,6 +352,7 @@ class MemberModel {
     List<String>? tags,
     bool? isActive,
     bool? isCommon,
+    bool? isDeceased,
     String? parentMid,
     String? relationToHead,
     String? subFamilyHeadRelationToMainHead,
@@ -378,6 +395,7 @@ class MemberModel {
       tags: tags ?? this.tags,
       isActive: isActive ?? this.isActive,
       isCommon: isCommon ?? this.isCommon,
+      isDeceased: isDeceased ?? this.isDeceased,
       parentMid: parentMid ?? this.parentMid,
       relationToHead: relationToHead ?? this.relationToHead,
       subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead ?? this.subFamilyHeadRelationToMainHead,
@@ -424,6 +442,7 @@ class MemberModel {
       tags: [],
       isActive: true,
       isCommon: false,
+      isDeceased: false,
       parentMid: '',
       relationToHead: 'none',
       subFamilyHeadRelationToMainHead: '',

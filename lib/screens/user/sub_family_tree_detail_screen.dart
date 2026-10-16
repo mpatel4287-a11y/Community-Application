@@ -42,9 +42,9 @@ class SubFamilyTreeDetailScreen extends StatefulWidget {
 
   String get orderDescription {
     final ord = effectiveOrder;
-    if (ord == 1) return 'Sub-Family #1 (Oldest Branch / મોટો પરિવાર)';
-    if (ord == 2) return 'Sub-Family #2 (Younger than #1 / નાનો પરિવાર)';
-    if (ord > 2) return 'Sub-Family #$ord (Younger than #${ord - 1})';
+    if (ord == 1) return 'Branch #1 (Oldest Branch / મોટો પરિવાર)';
+    if (ord == 2) return 'Branch #2 (Younger than #1 / નાનો પરિવાર)';
+    if (ord > 2) return 'Branch #$ord (Younger than #${ord - 1})';
     return '';
   }
 
@@ -156,6 +156,8 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
         parentIds: member.parentMid.isNotEmpty ? [member.parentMid] : [],
         spouseId: member.spouseMid.isNotEmpty ? member.spouseMid : null,
         isCommon: member.isCommon,
+        isDeceased: member.isLate,
+        tod: member.tod.isNotEmpty ? member.tod : null,
       );
 
       personMap[member.mid] = person;
@@ -193,6 +195,9 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
           parentIds: parent.parentIds,
           childrenIds: combinedChildren,
           spouseId: parent.spouseId,
+          isCommon: parent.isCommon,
+          isDeceased: parent.isDeceased,
+          tod: parent.tod,
         );
       }
     }
@@ -493,6 +498,9 @@ class _SubFamilyTreeDetailScreenState extends State<SubFamilyTreeDetailScreen> {
       parentIds: p1.parentIds,
       childrenIds: p1.childrenIds.isNotEmpty ? p1.childrenIds : p2.childrenIds,
       spouseId: spouseKey,
+      isCommon: p1.isCommon,
+      isDeceased: p1.isDeceased,
+      tod: p1.tod,
     );
   }
 

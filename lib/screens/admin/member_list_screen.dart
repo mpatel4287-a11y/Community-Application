@@ -158,6 +158,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   final _nativeHomeCtrl = TextEditingController();
   final _parentMidCtrl = TextEditingController();
   final _dktFamilyIdCtrl = TextEditingController();
+  final _todCtrl = TextEditingController();
   String? _profilePhotoUrl;
   String? _pendingPhotoPath; // Store for upload after member creation
   Uint8List? _pendingPhotoBytes;
@@ -173,6 +174,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   bool _hasFamilyHead = false;
   bool _isCommon = false;
   bool _isMinorNoPhone = false;
+  bool _isDeceased = false;
   List<String> _tags = [];
   List<Map<String, String>> _firms = [];
   List<String> _allFirmNames = [];
@@ -388,12 +390,14 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         facebook: _facebookCtrl.text.trim(),
         tags: _tags,
         parentMid: _parentMidCtrl.text.trim(),
-        password: _passwordCtrl.text.trim().isEmpty ? '123456' : _passwordCtrl.text.trim(),
+        password: _passwordCtrl.text.trim().isEmpty ? (_isDeceased ? 'deceased' : '123456') : _passwordCtrl.text.trim(),
         photoUrl: photoUrl,
         relationToHead: _relationToHead,
         subFamilyHeadRelationToMainHead: _subFamilyHeadRelation,
         spouseMid: _selectedSpouseMid ?? '',
         isCommon: _isCommon,
+        isDeceased: _isDeceased,
+        tod: _todCtrl.text.trim(),
       );
 
       // If a spouse was selected, link them
@@ -531,8 +535,95 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: _isDeceased ? Colors.blueGrey.shade50 : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _isDeceased ? Colors.blueGrey.shade400 : Colors.grey.shade300,
+                                width: _isDeceased ? 1.5 : 1.0,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  value: _isDeceased,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _isDeceased = val;
+                                      if (_isDeceased && _passwordCtrl.text.isEmpty) {
+                                        _passwordCtrl.text = 'deceased';
+                                      }
+                                    });
+                                  },
+                                  title: Row(
+                                    children: [
+                                      const Text('🕊️ ', style: TextStyle(fontSize: 16)),
+                                      Expanded(
+                                        child: Text(
+                                          lang.translate('late_deceased'),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: _isDeceased ? Colors.blueGrey.shade900 : null,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    lang.translate('late_deceased_hint'),
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: _isDeceased ? Colors.blueGrey.shade700 : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  activeColor: Colors.blueGrey.shade700,
+                                  dense: true,
+                                ),
+                                if (_isDeceased) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.blueGrey.shade200),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.info_outline, size: 16, color: Colors.blueGrey.shade700),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'Deceased elder mode: Only Name is required. Phone, password & details are optional.',
+                                                  style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade900),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        _buildTextField(
+                                          _todCtrl,
+                                          '${lang.translate('date_of_death')} (Optional)',
+                                          hint: 'dd/MM/yyyy (e.g. 15/08/2020)',
+                                          prefixIcon: Icons.event_available_rounded,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                           _buildTextField(_fullNameCtrl, '${lang.translate('full_name')} *',
-                              validator: (v) => v == null || v.isEmpty ? lang.translate('required') : null),
+                              validator: (v) => v == null || v.trim().isEmpty ? lang.translate('required') : null),
                           const SizedBox(height: 12),
                           Row(
                             children: [
@@ -574,9 +665,15 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _buildTextField(_birthDateCtrl, 'Birth Date (dd/MM/yyyy) *',
-                                    hint: '15/08/1990',
-                                    validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                                child: _buildTextField(
+                                  _birthDateCtrl,
+                                  _isDeceased ? 'Birth Date (Optional / સ્વર્ગસ્થ)' : 'Birth Date (dd/MM/yyyy) *',
+                                  hint: '15/08/1990',
+                                  validator: (v) {
+                                    if (_isDeceased) return null;
+                                    return (v == null || v.trim().isEmpty) ? 'Required' : null;
+                                  },
+                                ),
                               ),
                             ],
                           ),
@@ -690,10 +787,10 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                               Expanded(
                                 child: _buildTextField(
                                   _phoneCtrl,
-                                  _isMinorNoPhone ? '${lang.translate('phone')} (Optional / સગીર)' : '${lang.translate('phone')} *',
+                                  (_isDeceased || _isMinorNoPhone) ? '${lang.translate('phone')} (Optional / સ્વર્ગસ્થ/સગીર)' : '${lang.translate('phone')} *',
                                   keyboardType: TextInputType.phone,
                                   validator: (v) {
-                                    if (_isMinorNoPhone) return null;
+                                    if (_isDeceased || _isMinorNoPhone) return null;
                                     return (v == null || v.trim().isEmpty) ? 'Required' : null;
                                   },
                                 ),
@@ -785,12 +882,18 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                         children: [
                           _buildTextField(_educationCtrl, lang.translate('education'), hint: 'e.g., B.Tech, MBA'),
                           const SizedBox(height: 12),
-                          _buildTextField(_passwordCtrl, '${lang.translate('member_login_password')} *',
-                              prefixIcon: Icons.lock,
-                              obscureText: true,
-                              validator: (v) => (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v))
+                          _buildTextField(
+                            _passwordCtrl,
+                            _isDeceased ? '${lang.translate('member_login_password')} (Not needed / સ્વર્ગસ્થ)' : '${lang.translate('member_login_password')} *',
+                            prefixIcon: Icons.lock,
+                            obscureText: true,
+                            validator: (v) {
+                              if (_isDeceased) return null;
+                              return (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v))
                                   ? lang.translate('must_be_8_chars')
-                                  : null),
+                                  : null;
+                            },
+                          ),
                           const SizedBox(height: 16),
                           const Divider(),
                           const SizedBox(height: 8),
@@ -1374,6 +1477,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   final _nativeHomeCtrl = TextEditingController();
   final _parentMidCtrl = TextEditingController();
   final _dktFamilyIdCtrl = TextEditingController();
+  final _todCtrl = TextEditingController();
   String? _profilePhotoUrl;
   String? _pendingPhotoPath; // New: Store local path for upload on save
   Uint8List? _pendingPhotoBytes;
@@ -1390,6 +1494,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   bool _alreadyHead = false; // Is THIS member currently the head?
   bool _isCommon = false;
   bool _isMinorNoPhone = false;
+  bool _isDeceased = false;
   List<String> _tags = [];
   List<String> _allFirmNames = [];
   String? _selectedSpouseMid;
@@ -1583,8 +1688,10 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
           'firms': _firms,
           'tags': _tags,
           'isCommon': _isCommon,
+          'isDeceased': _isDeceased,
+          'tod': _todCtrl.text.trim(),
           'parentMid': _parentMidCtrl.text.trim(),
-          'password': _passwordCtrl.text.trim(),
+          'password': _passwordCtrl.text.trim().isEmpty ? (_isDeceased ? 'deceased' : '123456') : _passwordCtrl.text.trim(),
           'familyId': _dktFamilyIdCtrl.text.trim(),
           'photoUrl': photoUrl,
           'relationToHead': _relationToHead,
@@ -1671,6 +1778,8 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
       _alreadyHead = _relationToHead == 'head';
       _isCommon = member.isCommon || (widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty);
       _isMinorNoPhone = member.phone.trim().isEmpty;
+      _isDeceased = member.isLate;
+      _todCtrl.text = member.tod;
       if (_memberMid.isEmpty) {
         _memberMid = MemberModel.generateMid(member.familyId, member.subFamilyId);
       }
@@ -1765,6 +1874,93 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: _isDeceased ? Colors.blueGrey.shade50 : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade50),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _isDeceased ? Colors.blueGrey.shade400 : Colors.grey.shade300,
+                            width: _isDeceased ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            SwitchListTile(
+                              value: _isDeceased,
+                              onChanged: (val) {
+                                setState(() {
+                                  _isDeceased = val;
+                                  if (_isDeceased && _passwordCtrl.text.isEmpty) {
+                                    _passwordCtrl.text = 'deceased';
+                                  }
+                                });
+                              },
+                              title: Row(
+                                children: [
+                                  const Text('🕊️ ', style: TextStyle(fontSize: 16)),
+                                  Expanded(
+                                    child: Text(
+                                      lang.translate('late_deceased'),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: _isDeceased ? Colors.blueGrey.shade900 : null,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                lang.translate('late_deceased_hint'),
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: _isDeceased ? Colors.blueGrey.shade700 : Colors.grey.shade600,
+                                ),
+                              ),
+                              activeColor: Colors.blueGrey.shade700,
+                              dense: true,
+                            ),
+                            if (_isDeceased) ...[
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.blueGrey.shade200),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.info_outline, size: 16, color: Colors.blueGrey.shade700),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Deceased elder mode: Only Name is required. Phone, password & details are optional.',
+                                              style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade900),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _buildTextField(
+                                      _todCtrl,
+                                      '${lang.translate('date_of_death')} (Optional)',
+                                      hint: 'dd/MM/yyyy (e.g. 15/08/2020)',
+                                      prefixIcon: Icons.event_available_rounded,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -1783,7 +1979,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(_fullNameCtrl, '${lang.translate('full_name')} *',
-                          validator: (v) => v == null || v.isEmpty ? lang.translate('required') : null),
+                          validator: (v) => v == null || v.trim().isEmpty ? lang.translate('required') : null),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -1821,9 +2017,15 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _buildTextField(_birthDateCtrl, 'Birth Date (dd/MM/yyyy) *',
-                                hint: '15/08/1990',
-                                validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                            child: _buildTextField(
+                              _birthDateCtrl,
+                              _isDeceased ? 'Birth Date (Optional / સ્વર્ગસ્થ)' : 'Birth Date (dd/MM/yyyy) *',
+                              hint: '15/08/1990',
+                              validator: (v) {
+                                if (_isDeceased) return null;
+                                return (v == null || v.trim().isEmpty) ? 'Required' : null;
+                              },
+                            ),
                           ),
                         ],
                       ),
@@ -1922,10 +2124,10 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                           Expanded(
                             child: _buildTextField(
                               _phoneCtrl,
-                              _isMinorNoPhone ? '${lang.translate('phone')} (Optional / સગીર)' : '${lang.translate('phone')} *',
+                              (_isDeceased || _isMinorNoPhone) ? '${lang.translate('phone')} (Optional / સ્વર્ગસ્થ/સગીર)' : '${lang.translate('phone')} *',
                               keyboardType: TextInputType.phone,
                               validator: (v) {
-                                if (_isMinorNoPhone) return null;
+                                if (_isDeceased || _isMinorNoPhone) return null;
                                 return (v == null || v.trim().isEmpty) ? 'Required' : null;
                               },
                             ),
@@ -1990,12 +2192,18 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                     children: [
                       _buildTextField(_educationCtrl, lang.translate('education'), hint: 'e.g., B.Tech, MBA'),
                       const SizedBox(height: 12),
-                      _buildTextField(_passwordCtrl, '${lang.translate('member_login_password')} *',
-                          prefixIcon: Icons.lock,
-                          obscureText: true,
-                          validator: (v) => (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v))
+                      _buildTextField(
+                        _passwordCtrl,
+                        _isDeceased ? '${lang.translate('member_login_password')} (Not needed / સ્વર્ગસ્થ)' : '${lang.translate('member_login_password')} *',
+                        prefixIcon: Icons.lock,
+                        obscureText: true,
+                        validator: (v) {
+                          if (_isDeceased) return null;
+                          return (v == null || v.length != 8 || !RegExp(r'^[a-zA-Z0-9]+$').hasMatch(v))
                               ? lang.translate('must_be_8_chars')
-                              : null),
+                              : null;
+                        },
+                      ),
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 8),
@@ -2743,6 +2951,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                     final doc = members[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final isActive = data['isActive'] as bool? ?? true;
+                    final isDeceased = data['isDeceased'] == true || (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
 
                     return SlideInAnimation(
                       delay: Duration(milliseconds: 50 * index),
@@ -2928,6 +3137,25 @@ class _MemberListScreenState extends State<MemberListScreen>
                                           ),
                                         ),
                                       ],
+                                    ),
+                                  ),
+                                ],
+                                if (isDeceased) ...[
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blueGrey.shade50,
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: Colors.blueGrey.shade300, width: 0.6),
+                                    ),
+                                    child: Text(
+                                      '🕊️ Late (સ્વ.)',
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        color: Colors.blueGrey.shade800,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ],

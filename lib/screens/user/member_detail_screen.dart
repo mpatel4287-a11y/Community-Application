@@ -1073,6 +1073,34 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
   Widget _buildRoleBadgesAndTags(MemberModel member, bool isDark, ThemeData theme) {
     return Column(
       children: [
+        if (member.isLate)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.blueGrey.shade900 : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isDark ? Colors.blueGrey.shade700 : const Color(0xFFCBD5E1),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🕊️ ', style: TextStyle(fontSize: 16)),
+                Text(
+                  'Late / Deceased (સ્વર્ગસ્થ)',
+                  style: TextStyle(
+                    color: isDark ? Colors.blueGrey.shade100 : const Color(0xFF334155),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
         // Organizational Role Badges (e.g., President - Samaj)
         if (_memberRoles.isNotEmpty)
           Padding(

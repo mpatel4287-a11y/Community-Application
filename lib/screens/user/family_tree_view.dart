@@ -295,45 +295,71 @@ class _FamilyTreeViewState extends State<FamilyTreeView> {
                                                         ? 1
                                                         : int.tryParse(subFamily['seniority']?.toString() ?? '') ?? 0);
                                                 if (orderNum <= 0) return const SizedBox.shrink();
+                                                final bool isFirst = orderNum == 1;
 
                                                 return Container(
                                                   margin: const EdgeInsets.only(left: 8),
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3.5,
+                                                  ),
                                                   decoration: BoxDecoration(
-                                                    color: orderNum == 1
-                                                        ? Colors.amber.shade100
-                                                        : Colors.teal.shade100,
-                                                    borderRadius: BorderRadius.circular(6),
-                                                    border: Border.all(
-                                                      color: orderNum == 1
-                                                          ? Colors.amber.shade600
-                                                          : Colors.teal.shade600,
-                                                      width: 1,
+                                                    gradient: LinearGradient(
+                                                      colors: isFirst
+                                                          ? [
+                                                              const Color(0xFFFEF3C7),
+                                                              const Color(0xFFFDE68A),
+                                                            ]
+                                                          : [
+                                                              const Color(0xFFEEF2FF),
+                                                              const Color(0xFFE0E7FF),
+                                                            ],
+                                                      begin: Alignment.topLeft,
+                                                      end: Alignment.bottomRight,
                                                     ),
+                                                    borderRadius: BorderRadius.circular(16),
+                                                    border: Border.all(
+                                                      color: isFirst
+                                                          ? const Color(0xFFF59E0B)
+                                                          : const Color(0xFF818CF8),
+                                                      width: 1.1,
+                                                    ),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: (isFirst
+                                                                ? const Color(0xFFF59E0B)
+                                                                : const Color(0xFF6366F1))
+                                                            .withValues(alpha: 0.15),
+                                                        blurRadius: 4,
+                                                        offset: const Offset(0, 1.5),
+                                                      ),
+                                                    ],
                                                   ),
                                                   child: Row(
                                                     mainAxisSize: MainAxisSize.min,
+                                                    crossAxisAlignment: CrossAxisAlignment.center,
                                                     children: [
                                                       Icon(
-                                                        orderNum == 1
-                                                            ? Icons.star_rounded
-                                                            : Icons.format_list_numbered_rounded,
-                                                        size: 13,
-                                                        color: orderNum == 1
-                                                            ? Colors.amber.shade900
-                                                            : Colors.teal.shade900,
+                                                        isFirst
+                                                            ? Icons.workspace_premium_rounded
+                                                            : Icons.account_tree_rounded,
+                                                        size: 12,
+                                                        color: isFirst
+                                                            ? const Color(0xFF92400E)
+                                                            : const Color(0xFF4338CA),
                                                       ),
-                                                      const SizedBox(width: 3),
+                                                      const SizedBox(width: 3.5),
                                                       Text(
-                                                        orderNum == 1
-                                                            ? 'Order #1 (Oldest)'
-                                                            : 'Order #$orderNum',
+                                                        isFirst
+                                                            ? 'Branch #1 (Oldest)'
+                                                            : 'Branch #$orderNum',
                                                         style: TextStyle(
                                                           fontSize: 10,
-                                                          fontWeight: FontWeight.bold,
-                                                          color: orderNum == 1
-                                                              ? Colors.amber.shade900
-                                                              : Colors.teal.shade900,
+                                                          fontWeight: FontWeight.w700,
+                                                          letterSpacing: 0.2,
+                                                          color: isFirst
+                                                              ? const Color(0xFF92400E)
+                                                              : const Color(0xFF3730A3),
                                                         ),
                                                       ),
                                                     ],

@@ -57,12 +57,14 @@ class _PersonCardState extends State<PersonCard>
   }
 
   Color get _borderColor {
+    if (widget.person.isDeceased) return const Color(0xFF64748B);
     return widget.person.gender == Gender.male
         ? const Color(0xFF4A90E2)
         : const Color(0xFFE24A90);
   }
 
   Color get _photoBackgroundColor {
+    if (widget.person.isDeceased) return const Color(0xFF64748B);
     return widget.person.gender == Gender.male
         ? const Color(0xFF4A90E2)
         : const Color(0xFFE24A90);
@@ -168,13 +170,19 @@ class _PersonCardState extends State<PersonCard>
   }
 
   Widget _buildName() {
+    final displayName = widget.person.isDeceased
+        ? 'સ્વ. ${widget.person.fullName}'
+        : widget.person.fullName;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (widget.person.isDeceased) ...[
+          const Text('🕊️ ', style: TextStyle(fontSize: 9)),
+        ],
         Flexible(
           child: Text(
-            widget.person.fullName,
+            displayName,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
@@ -197,6 +205,16 @@ class _PersonCardState extends State<PersonCard>
   }
 
   Widget _buildAge() {
+    if (widget.person.isDeceased) {
+      return Text(
+        'Late / સ્વર્ગસ્થ',
+        style: TextStyle(
+          fontSize: 8.5,
+          color: Colors.blueGrey.shade700,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+    }
     return Text(
       'Age: ${widget.person.calculatedAge}',
       style: TextStyle(
