@@ -26,7 +26,8 @@ enum ExportField {
   nativeHome('nativeHome', 'Native Home'),
   education('education', 'Education'),
   address('address', 'Address'),
-  email('email', 'Email');
+  email('email', 'Email'),
+  snapchat('snapchat', 'Snapchat');
 
   final String id;
   final String label;
@@ -109,6 +110,8 @@ enum ExportField {
         return m.address.isNotEmpty ? m.address : '-';
       case ExportField.email:
         return m.email.isNotEmpty ? m.email : '-';
+      case ExportField.snapchat:
+        return m.snapchat.isNotEmpty ? m.snapchat : '-';
     }
   }
 }
@@ -168,7 +171,7 @@ class ExportService {
       for (int i = 0; i < familiesData.length; i++) {
         final fam = familiesData[i];
         final List<MemberModel> rawMembers = fam['members'] as List<MemberModel>? ?? [];
-        final List<MemberModel> members = MemberSortHelper.sortMembers(rawMembers);
+        final List<MemberModel> members = MemberSortHelper.sortOlderToYounger(rawMembers);
 
         // If multiple sub-families, insert a clear section banner row
         if (hasMultipleGroups || fam['subFamilyName'] != null) {
@@ -334,7 +337,7 @@ class ExportService {
             for (int i = 0; i < familiesData.length; i++) {
               final fam = familiesData[i];
               final List<MemberModel> rawMembers = fam['members'] as List<MemberModel>? ?? [];
-              final List<MemberModel> members = MemberSortHelper.sortMembers(rawMembers);
+              final List<MemberModel> members = MemberSortHelper.sortOlderToYounger(rawMembers);
               if (members.isEmpty) continue;
 
               final List<List<String>> subRows = [];

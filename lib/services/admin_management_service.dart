@@ -133,6 +133,8 @@ class AdminManagementService {
   Future<void> updateSubAdminPassword(String newPassword) async {
     await _subAdminRef.set({
       'password': newPassword.trim(),
+      'activeSessionToken': '',
+      'passwordChangedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -141,6 +143,7 @@ class AdminManagementService {
   Future<void> updateMainAdminPassword(String newPassword) async {
     await _mainAdminRef.update({
       'password': newPassword.trim(),
+      'passwordChangedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

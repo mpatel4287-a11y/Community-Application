@@ -23,6 +23,8 @@ import '../admin/admin_update_requests_screen.dart';
 import '../../widgets/full_screen_image_viewer.dart';
 import '../../services/update_request_service.dart';
 import '../../models/member_update_request_model.dart';
+import '../../services/admin_management_service.dart';
+import '../../services/session_watcher_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -393,7 +395,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
                   ],
 
-                  // 5. Support & Legal
+                  // 5. Security & Account
+                  _buildSectionHeader(lang.translate('security')),
+                  _buildCard([
+                    _buildActionTile(
+                      icon: Icons.lock_reset_rounded,
+                      title: lang.translate('change_password'),
+                      subtitle: lang.translate('change_password_subtitle'),
+                      onTap: () => _showChangePasswordDialog(lang),
+                      color: Colors.blueAccent,
+                      isLast: true,
+                    ),
+                  ]),
+
+                  const SizedBox(height: 24),
+
+                  // 6. Support & Legal
                   _buildSectionHeader(lang.translate('support')),
                   _buildCard([
                     _buildActionTile(
@@ -1019,5 +1036,262 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       }
     }
+  }
+
+  Future<void> _showChangePasswordDialog(LanguageService lang) async {
+    final currentPassCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    String? errorMessage;
+    bool isSubmitting = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: !isSubmitting,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.lock_reset_rounded, color: Theme.of(context).colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      lang.translate('change_password'),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.security_update_good_rounded, color: Colors.amber.shade900, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Changing your password will automatically log you out from all active devices.',
+                              style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Current Password
+                    TextField(
+                      controller: currentPassCtrl,
+                      obscureText: obscureCurrent,
+                      decoration: InputDecoration(
+                        labelText: lang.translate('current_password'),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureCurrent ? Icons.visibility_off : Icons.visibility),
+                          onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
+                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // New Password
+                    TextField(
+                      controller: newPassCtrl,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        labelText: lang.translate('new_password'),
+                        prefixIcon: const Icon(Icons.lock_reset),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
+                          onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // Confirm New Password
+                    TextField(
+                      controller: confirmPassCtrl,
+                      obscureText: obscureConfirm,
+                      decoration: InputDecoration(
+                        labelText: lang.translate('confirm_new_password'),
+                        prefixIcon: const Icon(Icons.check_circle_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                          onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                    ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
+                  child: Text(lang.translate('cancel')),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final currentP = currentPassCtrl.text.trim();
+                          final newP = newPassCtrl.text.trim();
+                          final confirmP = confirmPassCtrl.text.trim();
+
+                          if (currentP.isEmpty) {
+                            setDialogState(() => errorMessage = 'Please enter your current password.');
+                            return;
+                          }
+                          if (newP.length < 4) {
+                            setDialogState(() => errorMessage = 'New password must be at least 4 characters long.');
+                            return;
+                          }
+                          if (newP == currentP) {
+                            setDialogState(() => errorMessage = 'New password must be different from current password.');
+                            return;
+                          }
+                          if (newP != confirmP) {
+                            setDialogState(() => errorMessage = 'New passwords do not match.');
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                            errorMessage = null;
+                          });
+
+                          try {
+                            final savedPassword = await SessionManager.getSessionPassword();
+                            final isSuper = await SessionManager.isSuperAdmin();
+                            final isAdmin = await SessionManager.getIsAdmin() == true;
+                            final role = await SessionManager.getRole();
+
+                            // Verify current password against session or member object
+                            if (savedPassword != null && savedPassword.isNotEmpty) {
+                              if (savedPassword != currentP) {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                  errorMessage = 'Current password is incorrect.';
+                                });
+                                return;
+                              }
+                            } else if (_currentUser != null && _currentUser!.password.isNotEmpty) {
+                              if (_currentUser!.password != currentP) {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                  errorMessage = 'Current password is incorrect.';
+                                });
+                                return;
+                              }
+                            }
+
+                            // Perform update based on user role
+                            if (isSuper) {
+                              await AdminManagementService().updateMainAdminPassword(newP);
+                            } else if (isAdmin || role == 'admin') {
+                              await AdminManagementService().updateSubAdminPassword(newP);
+                            } else {
+                              final familyDocId = await SessionManager.getFamilyDocId() ?? _currentUser?.familyDocId ?? '';
+                              final subFamilyDocId = await SessionManager.getSubFamilyDocId() ?? _currentUser?.subFamilyDocId ?? '';
+                              final memberDocId = await SessionManager.getMemberDocId() ?? _currentUser?.id ?? '';
+
+                              if (familyDocId.isEmpty || memberDocId.isEmpty) {
+                                throw Exception('Could not resolve member credentials.');
+                              }
+
+                              await _memberService.updateMember(
+                                mainFamilyDocId: familyDocId,
+                                subFamilyDocId: subFamilyDocId,
+                                memberId: memberDocId,
+                                updates: {'password': newP},
+                              );
+                            }
+
+                            Navigator.pop(dialogCtx);
+
+                            // Stop watcher & clear session on this device
+                            await SessionWatcherService().stopWatching();
+                            await SessionManager.clearSession();
+
+                            if (mounted) {
+                              Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/login', (route) => false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Password changed successfully! You have been logged out from all devices. Please log in with your new password.'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 5),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              isSubmitting = false;
+                              errorMessage = 'Failed to change password: $e';
+                            });
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text(lang.translate('save')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }

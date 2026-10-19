@@ -56,6 +56,7 @@ class MemberService {
     required String whatsapp,
     required String instagram,
     required String facebook,
+    String snapchat = '',
     required List<String> tags,
     required String parentMid,
     required String password,
@@ -125,6 +126,7 @@ class MemberService {
       whatsapp: whatsapp.trim(),
       instagram: instagram.trim(),
       facebook: facebook.trim(),
+      snapchat: snapchat.trim(),
       photoUrl: photoUrl.trim(),
       password: password,
       role: 'member',
@@ -180,6 +182,7 @@ class MemberService {
     required String whatsapp,
     required String instagram,
     required String facebook,
+    String snapchat = '',
     required List<String> tags,
     required String parentMid,
     required String password,
@@ -216,6 +219,7 @@ class MemberService {
     whatsapp: whatsapp,
     instagram: instagram,
     facebook: facebook,
+    snapchat: snapchat,
     tags: tags,
     parentMid: parentMid,
     password: password,
@@ -250,6 +254,8 @@ class MemberService {
 
     if (updates.containsKey('password')) {
       updates['password'] = updates['password'].toString().trim();
+      updates['passwordChangedAt'] = FieldValue.serverTimestamp();
+      updates['activeSessionToken'] = '';
     }
 
     await _getMembersCollection(

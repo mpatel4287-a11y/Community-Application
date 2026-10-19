@@ -17,6 +17,8 @@ class SessionManager {
   static const _keyIsSuperAdmin = 'is_super_admin';
   static const _keyAdminSessionToken = 'admin_session_token';
   static const _keyAdminPermissions = 'admin_permissions';
+  static const _keySessionPassword = 'session_password';
+  static const _keyMemberDocPath = 'member_doc_path';
 
   // SAVE SESSION (Family level)
   static Future<void> saveSession({
@@ -176,6 +178,27 @@ class SessionManager {
     if (isSuper) return true;
     final perms = await getAdminPermissions();
     return perms.contains(module);
+  }
+
+  // ACTIVE SESSION CREDENTIAL VALIDATION
+  static Future<void> saveSessionPassword(String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keySessionPassword, password);
+  }
+
+  static Future<String?> getSessionPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keySessionPassword);
+  }
+
+  static Future<void> setMemberDocPath(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyMemberDocPath, path);
+  }
+
+  static Future<String?> getMemberDocPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyMemberDocPath);
   }
 
   // CLEAR SESSION

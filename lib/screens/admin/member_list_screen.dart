@@ -157,6 +157,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   final _whatsappCtrl = TextEditingController();
   final _instagramCtrl = TextEditingController();
   final _facebookCtrl = TextEditingController();
+  final _snapchatCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _tagsCtrl = TextEditingController();
   final _nativeHomeCtrl = TextEditingController();
@@ -268,6 +269,15 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
     final url = username.startsWith('https://')
         ? username
         : 'https://facebook.com/$username';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    }
+  }
+
+  Future<void> _launchSnapchat() async {
+    final username = _snapchatCtrl.text.trim();
+    final clean = username.startsWith('@') ? username.substring(1) : username;
+    final url = clean.startsWith('http') ? clean : 'https://www.snapchat.com/add/$clean';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     }
@@ -400,6 +410,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         whatsapp: _whatsappCtrl.text.trim(),
         instagram: _instagramCtrl.text.trim(),
         facebook: _facebookCtrl.text.trim(),
+        snapchat: _snapchatCtrl.text.trim(),
         tags: _tags,
         parentMid: _parentMidCtrl.text.trim(),
         password: _passwordCtrl.text.trim().isEmpty ? (_isDeceased ? 'deceased' : '123456') : _passwordCtrl.text.trim(),
@@ -862,6 +873,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                           _buildTextField(_instagramCtrl, lang.translate('instagram'), prefixIcon: Icons.camera_alt_outlined),
                           const SizedBox(height: 12),
                           _buildTextField(_facebookCtrl, lang.translate('facebook'), prefixIcon: Icons.facebook),
+                          const SizedBox(height: 12),
+                          _buildTextField(_snapchatCtrl, lang.translate('snapchat'), prefixIcon: Icons.camera_alt_outlined),
                         ],
                       ),
                     ),
@@ -1556,6 +1569,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   final _whatsappCtrl = TextEditingController();
   final _instagramCtrl = TextEditingController();
   final _facebookCtrl = TextEditingController();
+  final _snapchatCtrl = TextEditingController();
   final _tagsCtrl = TextEditingController();
   final _nativeHomeCtrl = TextEditingController();
   final _parentMidCtrl = TextEditingController();
@@ -1643,6 +1657,15 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
     final url = username.startsWith('https://')
         ? username
         : 'https://facebook.com/$username';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    }
+  }
+
+  Future<void> _launchSnapchat() async {
+    final username = _snapchatCtrl.text.trim();
+    final clean = username.startsWith('@') ? username.substring(1) : username;
+    final url = clean.startsWith('http') ? clean : 'https://www.snapchat.com/add/$clean';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     }
@@ -1769,6 +1792,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
           'whatsapp': _whatsappCtrl.text.trim(),
           'instagram': _instagramCtrl.text.trim(),
           'facebook': _facebookCtrl.text.trim(),
+          'snapchat': _snapchatCtrl.text.trim(),
           'firms': _firms,
           'tags': _tags,
           'isCommon': _isCommon,
@@ -1844,6 +1868,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
       _whatsappCtrl.text = member.whatsapp;
       _instagramCtrl.text = member.instagram;
       _facebookCtrl.text = member.facebook;
+      _snapchatCtrl.text = member.snapchat;
       _passwordCtrl.text = member.password; // Added
       _bloodGroup = member.bloodGroup;
       _gender = member.gender; // Added
@@ -2249,6 +2274,8 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                       _buildTextField(_instagramCtrl, lang.translate('instagram'), prefixIcon: Icons.camera_alt_outlined),
                       const SizedBox(height: 12),
                       _buildTextField(_facebookCtrl, lang.translate('facebook'), prefixIcon: Icons.facebook),
+                      const SizedBox(height: 12),
+                      _buildTextField(_snapchatCtrl, lang.translate('snapchat'), prefixIcon: Icons.camera_alt_outlined),
                       const SizedBox(height: 16),
                       Wrap(
                         alignment: WrapAlignment.spaceEvenly,
@@ -2258,6 +2285,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                           _buildSocialIcon(Icons.message, Colors.teal, 'WhatsApp', _whatsappCtrl, _launchWhatsApp),
                           _buildSocialIcon(Icons.camera_alt, Colors.purple, 'Instagram', _instagramCtrl, _launchInstagram),
                           _buildSocialIcon(Icons.facebook, Colors.blue, 'Facebook', _facebookCtrl, _launchFacebook),
+                          _buildSocialIcon(Icons.camera_alt, Colors.amber.shade700, 'Snapchat', _snapchatCtrl, _launchSnapchat),
                         ],
                       ),
                     ],
@@ -3325,26 +3353,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                                       ),
                                     ),
                                   ),
-                                ],
-                                if ((data['phone'] == null || data['phone'].toString().trim().isEmpty) && ((data['age'] ?? 0) < 18)) ...[
-                                  const SizedBox(height: 2),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.teal.shade50,
-                                      borderRadius: BorderRadius.circular(5),
-                                      border: Border.all(color: Colors.teal.shade300, width: 0.6),
-                                    ),
-                                    child: Text(
-                                      '👶 Minor',
-                                      style: TextStyle(
-                                        fontSize: 8.5,
-                                        color: Colors.teal.shade800,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                 ],
 
                                 const SizedBox(height: 3),
 

@@ -86,6 +86,7 @@ class _CustomExportDialogState extends State<CustomExportDialog> {
     ExportField.education: false,
     ExportField.address: false,
     ExportField.email: false,
+    ExportField.snapchat: false,
   };
 
   @override

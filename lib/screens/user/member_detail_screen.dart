@@ -867,6 +867,8 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                           _buildPremiumSocialRow('Instagram', member.instagram, Icons.camera_alt_outlined),
                         if (member.facebook.isNotEmpty)
                           _buildPremiumSocialRow('Facebook', member.facebook, Icons.facebook_rounded),
+                        if (member.snapchat.isNotEmpty)
+                          _buildPremiumSocialRow('Snapchat', member.snapchat, Icons.camera_alt_outlined),
                       ],
                     ),
 
@@ -1718,6 +1720,8 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
         return Colors.pink;
       case 'facebook':
         return Colors.blue.shade800;
+      case 'snapchat':
+        return Colors.amber.shade700;
       default:
         return Colors.blue.shade900;
     }
@@ -1832,6 +1836,21 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
         
         url = 'https://www.facebook.com/$handle';
         appScheme = 'fb://facewebmodal/f?href=$url';
+        break;
+      case 'snapchat':
+        String handle = trimmedValue;
+        if (handle.startsWith('http://') || handle.startsWith('https://')) {
+          try {
+            final uri = Uri.parse(handle);
+            final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+            if (segments.isNotEmpty) handle = segments.last;
+          } catch (_) {}
+        }
+        if (handle.startsWith('@')) handle = handle.substring(1);
+        handle = handle.split('?').first.trim().replaceAll(' ', '');
+
+        url = 'https://www.snapchat.com/add/$handle';
+        appScheme = 'snapchat://add/$handle';
         break;
       default:
         url = trimmedValue.startsWith('http') ? trimmedValue : 'https://$trimmedValue';

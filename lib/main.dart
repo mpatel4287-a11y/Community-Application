@@ -34,6 +34,7 @@ import 'screens/user/qr_scanner_screen.dart';
 import 'screens/user/member_update_request_screen.dart';
 
 import 'services/session_manager.dart';
+import 'services/session_watcher_service.dart';
 import 'services/theme_service.dart';
 import 'services/language_service.dart';
 import 'package:provider/provider.dart';
@@ -203,6 +204,7 @@ class _AuthGuardState extends State<AuthGuard> {
 
     if (widget.isLoginRoute) {
       // When visiting login route, clear active session to enforce fresh authentication
+      await SessionWatcherService().stopWatching();
       await SessionManager.clearSession();
       if (mounted) {
         setState(() {
@@ -211,6 +213,19 @@ class _AuthGuardState extends State<AuthGuard> {
         });
       }
       return;
+    }
+
+    if (hasSession) {
+      final isValid = await SessionWatcherService().verifySessionOnce();
+      if (!isValid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            SessionWatcherService().forceLogout('Your password was changed. Please log in again.');
+          }
+        });
+        return;
+      }
+      unawaited(SessionWatcherService().startWatching());
     }
 
     if (widget.requireAdmin) {
@@ -277,11 +292,13 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _initDeepLinks();
+    unawaited(SessionWatcherService().startWatching());
   }
 
   @override
   void dispose() {
     _linkSubscription?.cancel();
+    SessionWatcherService().stopWatching();
     super.dispose();
   }
 

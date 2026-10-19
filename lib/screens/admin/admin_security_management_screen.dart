@@ -21,7 +21,9 @@ class _AdminSecurityManagementScreenState
   bool _isLoading = true;
 
   final TextEditingController _subAdminPassCtrl = TextEditingController();
+  final TextEditingController _mainAdminPassCtrl = TextEditingController();
   bool _obscureSubAdminPass = true;
+  bool _obscureMainAdminPass = true;
 
   List<String> _currentPermissions = [];
   bool _isSavingPermissions = false;
@@ -35,6 +37,7 @@ class _AdminSecurityManagementScreenState
   @override
   void dispose() {
     _subAdminPassCtrl.dispose();
+    _mainAdminPassCtrl.dispose();
     super.dispose();
   }
 
@@ -189,6 +192,41 @@ class _AdminSecurityManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error updating password: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateMainAdminPassword() async {
+    final pwd = _mainAdminPassCtrl.text.trim();
+    if (pwd.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Master password must be at least 4 characters long.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _adminService.updateMainAdminPassword(pwd);
+      _mainAdminPassCtrl.clear();
+      if (mounted) {
+        await SessionManager.clearSession();
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Super Admin master password updated! Logged out from all devices. Please log in with your new password.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating master password: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -510,6 +548,56 @@ class _AdminSecurityManagementScreenState
                       ],
                     ),
                     const SizedBox(height: 16),
+
+                    // Change Main Admin (Super Admin) Master Password
+                    const Text(
+                      'Super Admin Master Password (ADM-83288)',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _mainAdminPassCtrl,
+                            obscureText: _obscureMainAdminPass,
+                            decoration: InputDecoration(
+                              hintText: 'Enter new master password',
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureMainAdminPass ? Icons.visibility_off : Icons.visibility,
+                                  size: 20,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _obscureMainAdminPass = !_obscureMainAdminPass),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal.shade800,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: _updateMainAdminPassword,
+                          child: const Text('Update'),
+                        ),
+                      ],
+                    ),
+
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Divider(height: 1),
+                    ),
 
                     // Change 2nd Admin Password
                     const Text(

@@ -3,11 +3,13 @@
 
 // ignore_for_file: constant_identifier_names
 
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/login_response.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'session_manager.dart';
 import 'admin_management_service.dart';
+import 'session_watcher_service.dart';
 
 class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -53,6 +55,9 @@ class AuthService {
             await SessionManager.setIsSuperAdmin(true);
             await SessionManager.setAdminPermissions(AdminManagementService.allPermissionKeys);
             await SessionManager.setAdminSessionToken('');
+            await SessionManager.saveSessionPassword(pwd);
+            await SessionManager.setMemberDocPath('families/$ADMIN_ID');
+            unawaited(SessionWatcherService().startWatching());
 
             return LoginResponse(
               success: true,
@@ -100,6 +105,9 @@ class AuthService {
             await SessionManager.setIsSuperAdmin(false);
             await SessionManager.setAdminPermissions(permissions);
             await SessionManager.setAdminSessionToken(sessionToken);
+            await SessionManager.saveSessionPassword(pwd);
+            await SessionManager.setMemberDocPath('app_config/admin_management');
+            unawaited(SessionWatcherService().startWatching());
 
             return LoginResponse(
               success: true,
@@ -185,6 +193,9 @@ class AuthService {
         subFamilyDocId: memberData['subFamilyDocId'] ?? '',
         memberDocId: memberDoc.id,
       );
+      await SessionManager.saveSessionPassword(pwd);
+      await SessionManager.setMemberDocPath(memberDoc.reference.path);
+      unawaited(SessionWatcherService().startWatching());
 
       // --- NEW: Save FCM Token ---
       try {
@@ -212,6 +223,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    await SessionWatcherService().stopWatching();
     await SessionManager.clear();
   }
 }

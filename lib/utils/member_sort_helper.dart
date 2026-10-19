@@ -10,6 +10,47 @@ import '../models/member_model.dart';
 /// 4. Grandchildren, ordered Older to Younger
 /// 5. Remaining family members, ordered Older to Younger
 class MemberSortHelper {
+  /// Sort a list of [MemberModel] objects strictly from oldest to youngest
+  static List<MemberModel> sortOlderToYounger(List<MemberModel> members) {
+    if (members.length <= 1) return List.from(members);
+
+    int getMemberAge(MemberModel m) {
+      if (m.isDeceased || m.isLate) {
+        if (m.age > 0) return m.age;
+        final parsed = MemberModel.parseBirthDate(m.birthDate);
+        if (parsed != null) return MemberModel.calculateAge(m.birthDate);
+        return 999; // Unknown age deceased elder considered oldest ancestor
+      }
+      if (m.age > 0) return m.age;
+      final parsed = MemberModel.parseBirthDate(m.birthDate);
+      if (parsed != null) {
+        return MemberModel.calculateAge(m.birthDate);
+      }
+      return 0;
+    }
+
+    int compareOlderFirst(MemberModel a, MemberModel b) {
+      final ageA = getMemberAge(a);
+      final ageB = getMemberAge(b);
+      if (ageA != ageB) {
+        return ageB.compareTo(ageA); // Higher age (older) first
+      }
+      final dateA = MemberModel.parseBirthDate(a.birthDate);
+      final dateB = MemberModel.parseBirthDate(b.birthDate);
+      if (dateA != null && dateB != null && !dateA.isAtSameMomentAs(dateB)) {
+        return dateA.compareTo(dateB); // Earlier birth date is older
+      }
+      if ((a.isDeceased || a.isLate) != (b.isDeceased || b.isLate)) {
+        return (a.isDeceased || a.isLate) ? -1 : 1; // Prioritize deceased elder
+      }
+      return a.fullName.compareTo(b.fullName);
+    }
+
+    final sorted = List<MemberModel>.from(members);
+    sorted.sort(compareOlderFirst);
+    return sorted;
+  }
+
   /// Sort a list of [MemberModel] objects
   static List<MemberModel> sortMembers(List<MemberModel> members) {
     if (members.length <= 1) return List.from(members);

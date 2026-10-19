@@ -43,6 +43,7 @@ class MemberModel {
   final String whatsapp;
   final String instagram;
   final String facebook;
+  final String snapchat;
 
   // Media
   final String photoUrl;
@@ -91,6 +92,7 @@ class MemberModel {
     required this.whatsapp,
     required this.instagram,
     required this.facebook,
+    this.snapchat = '',
     required this.photoUrl,
     required this.password, // Added
     required this.role,
@@ -233,6 +235,7 @@ class MemberModel {
       'whatsapp': whatsapp,
       'instagram': instagram,
       'facebook': facebook,
+      'snapchat': snapchat,
       'photoUrl': photoUrl,
       'password': password, // Added
       'role': role,
@@ -289,6 +292,7 @@ class MemberModel {
       whatsapp: data['whatsapp'] ?? '',
       instagram: data['instagram'] ?? '',
       facebook: data['facebook'] ?? '',
+      snapchat: data['snapchat'] ?? '',
       photoUrl: data['photoUrl'] ?? '',
       password: data['password'] ?? '123456', // Added default for existing
       role: data['role'] ?? 'member',
@@ -346,6 +350,7 @@ class MemberModel {
     String? whatsapp,
     String? instagram,
     String? facebook,
+    String? snapchat,
     String? photoUrl,
     String? password, // Added
     String? role,
@@ -389,6 +394,7 @@ class MemberModel {
       whatsapp: whatsapp ?? this.whatsapp,
       instagram: instagram ?? this.instagram,
       facebook: facebook ?? this.facebook,
+      snapchat: snapchat ?? this.snapchat,
       photoUrl: photoUrl ?? this.photoUrl,
       password: password ?? this.password, // Added
       role: role ?? this.role,
@@ -436,6 +442,7 @@ class MemberModel {
       whatsapp: '',
       instagram: '',
       facebook: '',
+      snapchat: '',
       photoUrl: '',
       password: '',
       role: 'member',
