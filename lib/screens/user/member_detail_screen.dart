@@ -23,6 +23,7 @@ import '../admin/member_list_screen.dart';
 import 'member_update_request_screen.dart';
 import '../../widgets/full_screen_image_viewer.dart';
 import '../../widgets/circular_image_cropper_dialog.dart';
+import '../../utils/social_launcher.dart';
 
 // Helper widget to handle profile images with error handling
 class ProfileImage extends StatefulWidget {
@@ -1562,28 +1563,11 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
   String _extractSocialHandle(String platform, String value) {
     String trimmed = value.trim();
     if (trimmed.isEmpty) return '-';
-    
-    // Remove query params if it's a URL
-    if (trimmed.contains('?')) {
-      trimmed = trimmed.split('?').first;
+    if (platform.toLowerCase() == 'whatsapp') {
+      return trimmed;
     }
-    
-    // If it's a URL, pull the path segment as username
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      try {
-        final uri = Uri.parse(trimmed);
-        final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-        if (segments.isNotEmpty) return '@${segments.last}';
-      } catch (_) {}
-    }
-    
-    // Strip trailing slashes and spaces
-    trimmed = trimmed.replaceAll(RegExp(r'/+$'), '').trim();
-    
-    // Strip leading @ so we can re-add it consistently
-    final handle = trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
-    // Replace any remaining spaces (usernames don't have spaces)
-    return '@${handle.replaceAll(' ', '')}';
+    final handle = SocialLauncher.extractUsername(trimmed);
+    return handle.isNotEmpty ? '@$handle' : trimmed;
   }
 
   Widget _buildPremiumFirmRow(Map<String, String> firm) {
@@ -1797,93 +1781,11 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
 
   void _openSocialMedia(String platform, String value) async {
     if (value.trim().isEmpty) return;
-
-    final trimmedValue = value.trim();
-    String url;
-    String? appScheme;
-
-    switch (platform.toLowerCase()) {
-      case 'whatsapp':
-        final cleanPhone = trimmedValue.replaceAll(RegExp(r'[^\d+]'), '');
-        url = 'https://wa.me/$cleanPhone';
-        break;
-      case 'instagram':
-        String handle = trimmedValue;
-        if (handle.startsWith('http://') || handle.startsWith('https://')) {
-          try {
-            final uri = Uri.parse(handle);
-            final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-            if (segments.isNotEmpty) handle = segments.last;
-          } catch (_) {}
-        }
-        if (handle.startsWith('@')) handle = handle.substring(1);
-        handle = handle.split('?').first.trim().replaceAll(' ', '');
-        
-        url = 'https://www.instagram.com/$handle/';
-        appScheme = 'instagram://user?username=$handle';
-        break;
-      case 'facebook':
-        String handle = trimmedValue;
-        if (handle.startsWith('http://') || handle.startsWith('https://')) {
-          try {
-            final uri = Uri.parse(handle);
-            final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-            if (segments.isNotEmpty) handle = segments.last;
-          } catch (_) {}
-        }
-        if (handle.startsWith('@')) handle = handle.substring(1);
-        handle = handle.split('?').first.trim().replaceAll(' ', '');
-        
-        url = 'https://www.facebook.com/$handle';
-        appScheme = 'fb://facewebmodal/f?href=$url';
-        break;
-      case 'snapchat':
-        String handle = trimmedValue;
-        if (handle.startsWith('http://') || handle.startsWith('https://')) {
-          try {
-            final uri = Uri.parse(handle);
-            final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-            if (segments.isNotEmpty) handle = segments.last;
-          } catch (_) {}
-        }
-        if (handle.startsWith('@')) handle = handle.substring(1);
-        handle = handle.split('?').first.trim().replaceAll(' ', '');
-
-        url = 'https://www.snapchat.com/add/$handle';
-        appScheme = 'snapchat://add/$handle';
-        break;
-      default:
-        url = trimmedValue.startsWith('http') ? trimmedValue : 'https://$trimmedValue';
-    }
-
-    final webUri = Uri.parse(url);
-    
-    try {
-      if (appScheme != null) {
-        final appUri = Uri.parse(appScheme);
-        // Try native app scheme first
-        final launched = await launchUrl(appUri, mode: LaunchMode.externalApplication);
-        if (launched) return;
-      }
-
-      // Fallback to web URL with external application choice (let OS decide)
-      final launched = await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      if (!launched && mounted) {
-        // Absolute fallback: system browser
-        await launchUrl(webUri, mode: LaunchMode.platformDefault);
-      }
-    } catch (e) {
-      debugPrint('Error launching $platform: $e');
-      // Final attempt: platform default
-      try {
-        await launchUrl(webUri, mode: LaunchMode.platformDefault);
-      } catch (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not open $platform profile.')),
-          );
-        }
-      }
+    final success = await SocialLauncher.open(platform, value);
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open $platform profile.')),
+      );
     }
   }
 

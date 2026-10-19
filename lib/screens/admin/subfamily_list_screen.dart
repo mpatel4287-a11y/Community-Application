@@ -676,7 +676,7 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (_isAdmin)
+                  if (_isAdmin || _userRole == 'manager')
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -736,7 +736,56 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
     required MemberModel? member,
     required bool isFather,
   }) {
+    final bool canEdit = _isAdmin || _userRole == 'manager';
+
     if (member == null) {
+      if (!canEdit) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300, width: 1.2),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isFather ? Icons.person_rounded : Icons.person_2_rounded,
+                    size: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Not added',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
       return Material(
         color: Colors.transparent,
         child: InkWell(
@@ -813,89 +862,97 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
 
     if (isLate) {
       // Deceased / Late member rectangle box:
-      // Includes dedicated edit option as requested
+      final lateCardContent = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Text('🕊️', style: TextStyle(fontSize: 11)),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (canEdit)
+                  InkWell(
+                    onTap: () => _onEditParent(member),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_outlined, size: 10.5, color: Color(0xFF334155)),
+                          SizedBox(width: 3),
+                          Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Late ${member.fullName}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF334155),
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      // Normal users: completely non-clickable, no edit button
+      if (!canEdit) {
+        return lateCardContent;
+      }
+
+      // Admins & Managers: clickable to edit
       return Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () => _onEditParent(member),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    const Text('🕊️', style: TextStyle(fontSize: 11)),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => _onEditParent(member),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE2E8F0),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.edit_outlined, size: 10.5, color: Color(0xFF334155)),
-                            SizedBox(width: 3),
-                            Text(
-                              'Edit',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF334155),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Late ${member.fullName}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          child: lateCardContent,
         ),
       );
     }
@@ -970,41 +1027,43 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  InkWell(
-                    onTap: () => _onEditParent(member),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: isFather ? const Color(0xFFDBEAFE) : const Color(0xFFFFE4E6),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isFather ? const Color(0xFF93C5FD) : const Color(0xFFFECDD3),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.edit_outlined,
-                            size: 10.5,
-                            color: isFather ? const Color(0xFF1D4ED8) : const Color(0xFFBE123C),
+                  if (canEdit) ...[
+                    InkWell(
+                      onTap: () => _onEditParent(member),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: isFather ? const Color(0xFFDBEAFE) : const Color(0xFFFFE4E6),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isFather ? const Color(0xFF93C5FD) : const Color(0xFFFECDD3),
+                            width: 0.8,
                           ),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Edit',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.bold,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 10.5,
                               color: isFather ? const Color(0xFF1D4ED8) : const Color(0xFFBE123C),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 3),
+                            Text(
+                              'Edit',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: isFather ? const Color(0xFF1D4ED8) : const Color(0xFFBE123C),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
+                    const SizedBox(width: 4),
+                  ],
                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 10,
@@ -1052,27 +1111,17 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
   }
 
   void _onEditParent(MemberModel member) {
-    if (_isAdmin || _userRole == 'manager') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EditMemberScreen(
-            memberId: member.id,
-            familyDocId: widget.mainFamilyDocId,
-            subFamilyDocId: '',
-          ),
+    if (!(_isAdmin || _userRole == 'manager')) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditMemberScreen(
+          memberId: member.id,
+          familyDocId: widget.mainFamilyDocId,
+          subFamilyDocId: '',
         ),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MemberUpdateRequestScreen(
-            targetMember: member,
-          ),
-        ),
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildCompactAction({

@@ -21,6 +21,7 @@ import '../../widgets/animation_utils.dart';
 import '../user/member_detail_screen.dart';
 import '../../widgets/circular_image_cropper_dialog.dart';
 import '../../utils/member_sort_helper.dart';
+import '../../utils/social_launcher.dart';
 
 // Placeholder for AddMemberScreen
 class AddMemberScreen extends StatefulWidget {
@@ -248,39 +249,19 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   }
 
   Future<void> _launchWhatsApp() async {
-    final url = 'https://wa.me/${_whatsappCtrl.text.trim()}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('whatsapp', _whatsappCtrl.text);
   }
 
   Future<void> _launchInstagram() async {
-    final username = _instagramCtrl.text.trim();
-    final url = username.startsWith('https://')
-        ? username
-        : 'https://instagram.com/$username';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('instagram', _instagramCtrl.text);
   }
 
   Future<void> _launchFacebook() async {
-    final username = _facebookCtrl.text.trim();
-    final url = username.startsWith('https://')
-        ? username
-        : 'https://facebook.com/$username';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('facebook', _facebookCtrl.text);
   }
 
   Future<void> _launchSnapchat() async {
-    final username = _snapchatCtrl.text.trim();
-    final clean = username.startsWith('@') ? username.substring(1) : username;
-    final url = clean.startsWith('http') ? clean : 'https://www.snapchat.com/add/$clean';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('snapchat', _snapchatCtrl.text);
   }
 
   Future<void> _launchMap(String mapUrl) async {
@@ -1636,39 +1617,19 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   }
 
   Future<void> _launchWhatsApp() async {
-    final url = 'https://wa.me/${_whatsappCtrl.text.trim()}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('whatsapp', _whatsappCtrl.text);
   }
 
   Future<void> _launchInstagram() async {
-    final username = _instagramCtrl.text.trim();
-    final url = username.startsWith('https://')
-        ? username
-        : 'https://instagram.com/$username';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('instagram', _instagramCtrl.text);
   }
 
   Future<void> _launchFacebook() async {
-    final username = _facebookCtrl.text.trim();
-    final url = username.startsWith('https://')
-        ? username
-        : 'https://facebook.com/$username';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('facebook', _facebookCtrl.text);
   }
 
   Future<void> _launchSnapchat() async {
-    final username = _snapchatCtrl.text.trim();
-    final clean = username.startsWith('@') ? username.substring(1) : username;
-    final url = clean.startsWith('http') ? clean : 'https://www.snapchat.com/add/$clean';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
+    await SocialLauncher.open('snapchat', _snapchatCtrl.text);
   }
 
   Widget _buildSocialIcon(IconData icon, Color color, String label, TextEditingController controller, VoidCallback onPressed) {
