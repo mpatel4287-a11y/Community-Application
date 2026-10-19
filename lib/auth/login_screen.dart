@@ -200,6 +200,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // Community Name on top of Lord Ganesh image
+                      FadeInAnimation(
+                        delay: const Duration(milliseconds: 50),
+                        child: Text(
+                          lang.translate('ramanagara_patidar_samaj'),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.6,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       // Logo or Icon with animation
                       ScaleAnimation(
                         delay: const Duration(milliseconds: 100),
