@@ -70,6 +70,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
   String _gender = 'male';
   String _relationToHead = 'none';
   bool _isDeceased = false;
+  bool _isPublic = true;
   String _selectedBloodGroup = '';
   String _selectedMarriageStatus = '';
 
@@ -200,6 +201,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
     _spouseMidController.text = m.spouseMid;
     _relationToHead = m.relationToHead.isNotEmpty ? m.relationToHead.toLowerCase() : 'none';
     _isDeceased = m.isDeceased;
+    _isPublic = m.isPublic;
     _todController.text = m.tod;
 
     final bg = m.bloodGroup.trim().toUpperCase();
@@ -348,6 +350,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
         if (_emailController.text.trim().isNotEmpty) updates['email'] = _emailController.text.trim();
         if (_addressController.text.trim().isNotEmpty) updates['address'] = _addressController.text.trim();
         if (_googleMapLinkController.text.trim().isNotEmpty) updates['googleMapLink'] = _googleMapLinkController.text.trim();
+        updates['isPublic'] = _isPublic;
 
         // Social
         if (_instagramController.text.trim().isNotEmpty) updates['instagram'] = _instagramController.text.trim();
@@ -381,6 +384,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
         if (_emailController.text.trim().isNotEmpty) updates['email'] = _emailController.text.trim();
         if (_addressController.text.trim().isNotEmpty) updates['address'] = _addressController.text.trim();
         if (_googleMapLinkController.text.trim().isNotEmpty) updates['googleMapLink'] = _googleMapLinkController.text.trim();
+        updates['isPublic'] = _isPublic;
       } else if (_selectedCategory == 'social_media') {
         defaultTitle = 'Social Media Handles Update';
         if (_whatsappController.text.trim().isNotEmpty) updates['whatsapp'] = _whatsappController.text.trim();
@@ -1033,6 +1037,23 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
               labelText: 'Google Maps Link (Optional)',
               prefixIcon: Icon(Icons.map_outlined),
               border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            decoration: BoxDecoration(
+              color: _isPublic ? Colors.teal.shade50 : (isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade50),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _isPublic ? Colors.teal.shade300 : (isDark ? Colors.white12 : Colors.grey.shade200)),
+            ),
+            child: SwitchListTile(
+              value: _isPublic,
+              onChanged: (val) => setState(() => _isPublic = val),
+              title: const Text('Public Profile Visibility / સાર્વજનિક પ્રોફાઇલ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              subtitle: const Text('Show phone number and basic details to Explore Mode visitors', style: TextStyle(fontSize: 11)),
+              secondary: Icon(Icons.public_rounded, color: _isPublic ? Colors.teal.shade700 : Colors.grey),
+              activeColor: Colors.teal.shade700,
+              dense: true,
             ),
           ),
         ],

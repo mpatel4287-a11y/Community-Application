@@ -61,6 +61,7 @@ class MemberModel {
   final String tod; // Date of Death (dd/MM/yyyy)
   final String spouseMid; // for husband/wife connection
   final String spouseRelation; // wife_of | husband_of | none
+  final bool isPublic; // public profile visibility for visitors
   final DateTime createdAt;
 
   MemberModel({
@@ -106,6 +107,7 @@ class MemberModel {
     this.tod = '',
     this.spouseMid = '',
     this.spouseRelation = 'none',
+    this.isPublic = true,
     required this.createdAt,
   }) : age = (parseBirthDate(birthDate) != null ? calculateAge(birthDate) : age);
 
@@ -249,6 +251,7 @@ class MemberModel {
       'tod': tod,
       'spouseMid': spouseMid,
       'spouseRelation': spouseRelation,
+      'isPublic': isPublic,
       'createdAt': createdAt,
     };
 
@@ -306,6 +309,7 @@ class MemberModel {
       tod: data['tod'] ?? '',
       spouseMid: data['spouseMid'] ?? '',
       spouseRelation: data['spouseRelation'] ?? 'none',
+      isPublic: data['isPublic'] ?? true,
       createdAt: () {
         final c = data['createdAt'];
         if (c is DateTime) return c;
@@ -364,6 +368,7 @@ class MemberModel {
     String? spouseMid,
     String? spouseRelation,
     String? tod,
+    bool? isPublic,
   }) {
     return MemberModel(
       id: id ?? this.id,
@@ -408,6 +413,7 @@ class MemberModel {
       tod: tod ?? this.tod,
       spouseMid: spouseMid ?? this.spouseMid,
       spouseRelation: spouseRelation ?? this.spouseRelation,
+      isPublic: isPublic ?? this.isPublic,
       createdAt: createdAt,
     );
   }

@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/session_manager.dart';
 import '../services/language_service.dart';
 import '../services/biometric_service.dart';
+import '../services/session_watcher_service.dart';
 import '../widgets/animation_utils.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -137,6 +138,39 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _enterVisitorMode() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await SessionWatcherService().stopWatching();
+      await SessionManager.clear();
+      await SessionManager.setVisitorMode(true);
+      await SessionManager.saveSession(
+        familyDocId: 'visitor_guest',
+        familyId: 0,
+        isAdmin: false,
+        role: 'visitor',
+        familyName: 'Visitor Guest',
+        memberId: 'VISITOR',
+      );
+
+      if (mounted) {
+        setState(() => _loading = false);
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to enter visitor mode: $e';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageService>(context);
@@ -163,12 +197,60 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top Language Switcher Bar (prevents any floating stack overlap)
+            // Top Language Switcher & Visitor Explore Bar (prevents any floating stack overlap)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Animated Visitor Explore Mode Button
+                  PulseAnimation(
+                    duration: const Duration(milliseconds: 1600),
+                    minScale: 0.96,
+                    maxScale: 1.04,
+                    child: InkWell(
+                      onTap: _enterVisitorMode,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.teal.shade700,
+                              Theme.of(context).colorScheme.primary,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.explore_outlined, color: Colors.amber, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              lang.currentLanguage == 'gu' ? 'મુલાકાતી મોડ' : 'Explore Mode',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 10),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Language Switcher
                   TextButton.icon(
                     onPressed: () {
                       final newLang = lang.currentLanguage == 'en' ? 'gu' : 'en';
@@ -200,6 +282,100 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // Animated Visitor Mode Quick-Access Banner
+                      FadeInAnimation(
+                        delay: const Duration(milliseconds: 30),
+                        child: PulseAnimation(
+                          duration: const Duration(milliseconds: 2200),
+                          minScale: 0.98,
+                          maxScale: 1.02,
+                          child: InkWell(
+                            onTap: _enterVisitorMode,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.amber.shade50.withOpacity(0.9),
+                                    Colors.orange.shade50.withOpacity(0.9),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.orange.shade300,
+                                  width: 1.2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.orange.withOpacity(0.15),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade700,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              lang.currentLanguage == 'gu'
+                                                  ? '✨ મુલાકાતી તરીકે અન્વેષણ કરો'
+                                                  : '✨ Explore as Visitor',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                color: Colors.orange.shade900,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.shade700,
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'GUEST',
+                                                style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          lang.currentLanguage == 'gu'
+                                              ? 'નોન-કમ્યુનિટી મુલાકાતીઓ માટે જાહેર માહિતી'
+                                              : 'View public directory, families & businesses',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.brown.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_forward_ios_rounded, color: Colors.orange.shade800, size: 14),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                       // Community Name on top of Lord Ganesh image
                       FadeInAnimation(
                         delay: const Duration(milliseconds: 50),

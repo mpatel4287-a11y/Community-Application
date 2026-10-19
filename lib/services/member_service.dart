@@ -65,6 +65,7 @@ class MemberService {
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
     bool isCommon = false,
+    bool isPublic = true,
     bool isDeceased = false,
     String tod = '',
   }) async {
@@ -133,6 +134,7 @@ class MemberService {
       tags: cleanedTags,
       isActive: true,
       isCommon: isCommon || subFamilyDocId.isEmpty,
+      isPublic: isPublic,
       isDeceased: isDeceased,
       tod: tod.trim(),
       parentMid: parentMid.trim(),
@@ -191,6 +193,7 @@ class MemberService {
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
     bool isCommon = false,
+    bool isPublic = true,
     bool isDeceased = false,
     String tod = '',
   }) => addMember(
@@ -228,6 +231,7 @@ class MemberService {
     subFamilyHeadRelationToMainHead: subFamilyHeadRelationToMainHead,
     spouseMid: spouseMid,
     isCommon: isCommon,
+    isPublic: isPublic,
     isDeceased: isDeceased,
     tod: tod,
   );

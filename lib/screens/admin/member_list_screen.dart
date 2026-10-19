@@ -179,6 +179,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   String _subFamilyHeadRelation = '';
   bool _hasFamilyHead = false;
   bool _isCommon = false;
+  bool _isPublic = true;
   bool _isMinorNoPhone = false;
   bool _isDeceased = false;
   List<String> _tags = [];
@@ -400,6 +401,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         subFamilyHeadRelationToMainHead: _subFamilyHeadRelation,
         spouseMid: _selectedSpouseMid ?? '',
         isCommon: _isCommon,
+        isPublic: _isPublic,
         isDeceased: _isDeceased,
         tod: _todCtrl.text.trim(),
       );
@@ -1186,6 +1188,27 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                               dense: true,
                             ),
                           ),
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: _isPublic ? Colors.teal.shade50 : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _isPublic ? Colors.teal.shade300 : Colors.grey.shade200),
+                            ),
+                            child: SwitchListTile(
+                              value: _isPublic,
+                              onChanged: (val) {
+                                setState(() {
+                                  _isPublic = val;
+                                });
+                              },
+                              title: const Text('Public Profile Visibility / સાર્વજનિક પ્રોફાઇલ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              subtitle: const Text('Allow Explore Mode visitors to view phone number and basic info', style: TextStyle(fontSize: 11)),
+                              secondary: Icon(Icons.public_rounded, color: _isPublic ? Colors.teal.shade700 : Colors.grey),
+                              activeColor: Colors.teal.shade700,
+                              dense: true,
+                            ),
+                          ),
                           DropdownButtonFormField<String>(
                             value: _relationToHead,
                             decoration: InputDecoration(
@@ -1571,6 +1594,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
   bool _hasFamilyHead = false;
   bool _alreadyHead = false; // Is THIS member currently the head?
   bool _isCommon = false;
+  bool _isPublic = true;
   bool _isMinorNoPhone = false;
   bool _isDeceased = false;
   List<String> _tags = [];
@@ -1757,6 +1781,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
           'firms': _firms,
           'tags': _tags,
           'isCommon': _isCommon,
+          'isPublic': _isPublic,
           'isDeceased': _isDeceased,
           'tod': _todCtrl.text.trim(),
           'parentMid': _parentMidCtrl.text.trim(),
@@ -1848,6 +1873,7 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
       _spouseRelation = member.spouseRelation.isEmpty ? 'none' : member.spouseRelation;
       _alreadyHead = _relationToHead == 'head';
       _isCommon = member.isCommon || (widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty);
+      _isPublic = member.isPublic;
       _isMinorNoPhone = member.phone.trim().isEmpty;
       _isDeceased = member.isLate;
       _todCtrl.text = member.tod;
@@ -2548,6 +2574,27 @@ class _EditMemberScreenState extends State<EditMemberScreen> {
                           subtitle: const Text('Check for Father & Mother common across all sub-families (બધા પેટા-પરિવાર માટે સામાન્ય વડીલ)', style: TextStyle(fontSize: 11)),
                           secondary: Icon(Icons.stars_rounded, color: _isCommon ? Colors.amber.shade800 : Colors.grey),
                           activeColor: Colors.amber.shade800,
+                          dense: true,
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: _isPublic ? Colors.teal.shade50 : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _isPublic ? Colors.teal.shade300 : Colors.grey.shade200),
+                        ),
+                        child: SwitchListTile(
+                          value: _isPublic,
+                          onChanged: (val) {
+                            setState(() {
+                              _isPublic = val;
+                            });
+                          },
+                          title: const Text('Public Profile Visibility / સાર્વજનિક પ્રોફાઇલ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          subtitle: const Text('Allow Explore Mode visitors to view phone number and basic info', style: TextStyle(fontSize: 11)),
+                          secondary: Icon(Icons.public_rounded, color: _isPublic ? Colors.teal.shade700 : Colors.grey),
+                          activeColor: Colors.teal.shade700,
                           dense: true,
                         ),
                       ),

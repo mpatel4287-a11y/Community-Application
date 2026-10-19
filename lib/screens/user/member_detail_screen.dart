@@ -202,6 +202,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   String? _familyDocId;
   String? _currentUserRole;
   bool _isAdmin = false;
+  bool _isVisitor = false;
   String _displayYskFamilyId = '';
 
   @override
@@ -228,8 +229,10 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   Future<void> _performLoad() async {
     try {
       MemberModel? member;
+      final isVisitor = await SessionManager.isVisitor();
       final isAdmin = await SessionManager.getIsAdmin() ?? false;
       final userRole = await SessionManager.getRole() ?? 'member';
+      _isVisitor = isVisitor;
 
       // If familyDocId and subFamilyDocId are provided, try the fast path first
       if (widget.familyDocId != null &&
@@ -296,6 +299,14 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
   String _generateShareText() {
     if (_member == null) return '';
     final m = _member!;
+    if (_isVisitor) {
+      final phoneLine = (m.isPublic && m.phone.isNotEmpty) ? 'Phone: ${m.phone}\n' : '';
+      return '''
+${m.fullName} ${m.surname}
+Family: ${m.familyName}
+Age: ${m.age}
+$phoneLine${m.nativeHome.isNotEmpty ? 'Native: ${m.nativeHome}\n' : ''}${m.address.isNotEmpty ? 'Address: ${m.address}\n' : ''}'''.trim();
+    }
     return '''
 ${m.fullName} ${m.surname}
 Member ID: ${m.mid}
@@ -369,46 +380,49 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.person_add_alt_1_rounded, color: Colors.green),
-              title: const Text('Save Contact Info (Add to Phone)'),
-              subtitle: const Text('Export vCard (.vcf) with phone, name & address'),
-              onTap: () {
-                Navigator.pop(context);
-                _saveContactVCard();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.badge_rounded, color: Colors.blue),
-              title: Text(lang.translate('digital_id')),
-              subtitle: const Text('View & download official high-res ID Card'),
-              onTap: () {
-                Navigator.pop(context);
-                if (_member != null) {
-                  Navigator.pushNamed(
-                    context,
-                    '/user/digital-id',
-                    arguments: _member,
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.published_with_changes_rounded, color: Colors.purple),
-              title: const Text('Request Profile / Photo Update'),
-              subtitle: const Text('Submit change or replacement photo to committee'),
-              onTap: () {
-                Navigator.pop(context);
-                if (_member != null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MemberUpdateRequestScreen(targetMember: _member),
-                    ),
-                  );
-                }
-              },
-            ),
+            if (!_isVisitor || (_member != null && _member!.isPublic))
+              ListTile(
+                leading: const Icon(Icons.person_add_alt_1_rounded, color: Colors.green),
+                title: const Text('Save Contact Info (Add to Phone)'),
+                subtitle: const Text('Export vCard (.vcf) with phone, name & address'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _saveContactVCard();
+                },
+              ),
+            if (!_isVisitor) ...[
+              ListTile(
+                leading: const Icon(Icons.badge_rounded, color: Colors.blue),
+                title: Text(lang.translate('digital_id')),
+                subtitle: const Text('View & download official high-res ID Card'),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (_member != null) {
+                    Navigator.pushNamed(
+                      context,
+                      '/user/digital-id',
+                      arguments: _member,
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.published_with_changes_rounded, color: Colors.purple),
+                title: const Text('Request Profile / Photo Update'),
+                subtitle: const Text('Submit change or replacement photo to committee'),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (_member != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MemberUpdateRequestScreen(targetMember: _member),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
             ListTile(
               leading: const Icon(Icons.share, color: Colors.teal),
               title: Text(lang.translate('share')),
@@ -696,7 +710,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
             icon: Icon(Icons.share_outlined, color: theme.colorScheme.primary),
             onPressed: _showShareOptions,
           ),
-          if (_isAdmin || _currentUserRole == 'manager')
+          if (!_isVisitor && (_isAdmin || _currentUserRole == 'manager'))
             IconButton(
               icon: Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
               onPressed: () {
@@ -725,6 +739,33 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               child: Column(
                 children: [
+                  if (_isVisitor) ...[
+                    Container(
+                      margin: const EdgeInsets.only(top: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.visibility_rounded, color: Colors.amber.shade800, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Visitor Mode: Sensitive details are hidden. Showing public profile information.',
+                              style: TextStyle(
+                                color: Colors.amber.shade900,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (member.isLate) ...[
                     // Strictly Name (and death date if entered), hiding all other fields
                     _buildPremiumSection(
@@ -785,12 +826,14 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                         ),
                         _buildPremiumRow(lang.translate('gender'), lang.translate(member.gender.toLowerCase()), Icons.wc_rounded),
                         _buildPremiumRow(lang.translate('age'), '${member.age} ${lang.translate('years')}', Icons.cake_outlined),
-                        _buildPremiumRow(lang.translate('birth_date'), member.birthDate, Icons.calendar_today_rounded),
-                        if (member.bloodGroup.isNotEmpty)
-                          _buildPremiumRow(lang.translate('blood_group'), member.bloodGroup, Icons.bloodtype_outlined),
-                        _buildPremiumRow(lang.translate('marriage_status'), lang.translate(member.marriageStatus.toLowerCase()), Icons.favorite_border_rounded),
-                        if (member.education.isNotEmpty)
-                          _buildPremiumRow(lang.translate('education'), member.education, Icons.school_outlined),
+                        if (!_isVisitor) ...[
+                          _buildPremiumRow(lang.translate('birth_date'), member.birthDate, Icons.calendar_today_rounded),
+                          if (member.bloodGroup.isNotEmpty)
+                            _buildPremiumRow(lang.translate('blood_group'), member.bloodGroup, Icons.bloodtype_outlined),
+                          _buildPremiumRow(lang.translate('marriage_status'), lang.translate(member.marriageStatus.toLowerCase()), Icons.favorite_border_rounded),
+                          if (member.education.isNotEmpty)
+                            _buildPremiumRow(lang.translate('education'), member.education, Icons.school_outlined),
+                        ],
                       ],
                     ),
 
@@ -807,9 +850,11 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                           _buildPremiumRow(lang.translate('mother_name'), member.motherName, Icons.person_pin_rounded),
                         if (member.nativeHome.isNotEmpty)
                           _buildPremiumRow(lang.translate('native_home'), member.nativeHome, Icons.home_rounded),
-                        if (member.gotra.isNotEmpty)
-                          _buildPremiumRow(lang.translate('gotra'), member.gotra, Icons.account_tree_outlined),
-                        _buildPremiumRow('Surdhan', member.surdhan, Icons.auto_awesome_rounded),
+                        if (!_isVisitor) ...[
+                          if (member.gotra.isNotEmpty)
+                            _buildPremiumRow(lang.translate('gotra'), member.gotra, Icons.account_tree_outlined),
+                          _buildPremiumRow('Surdhan', member.surdhan, Icons.auto_awesome_rounded),
+                        ],
                       ],
                     ),
 
@@ -844,8 +889,14 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                       title: lang.translate('contact_info'),
                       icon: Icons.contact_mail_rounded,
                       children: [
-                        _buildPremiumRow(lang.translate('phone'), member.phone, Icons.phone_enabled_rounded),
-                        if (member.email.isNotEmpty)
+                        _buildPremiumRow(
+                          lang.translate('phone'),
+                          _isVisitor && !member.isPublic
+                              ? '•••••••••• (Private / ખાનગી)'
+                              : member.phone,
+                          Icons.phone_enabled_rounded,
+                        ),
+                        if (!_isVisitor && member.email.isNotEmpty)
                           _buildPremiumRow('Email Address', member.email, Icons.alternate_email_rounded),
                         _buildPremiumLocationRow(
                           lang.translate('address'),
@@ -855,23 +906,25 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                       ],
                     ),
 
-                    const SizedBox(height: 20),
-
-                    // Social Presence Block
-                    _buildPremiumSection(
-                      title: 'Social Presence',
-                      icon: Icons.public_rounded,
-                      children: [
-                        if (member.whatsapp.isNotEmpty)
-                          _buildPremiumSocialRow('WhatsApp', member.whatsapp, Icons.chat_bubble_outline_rounded),
-                        if (member.instagram.isNotEmpty)
-                          _buildPremiumSocialRow('Instagram', member.instagram, Icons.camera_alt_outlined),
-                        if (member.facebook.isNotEmpty)
-                          _buildPremiumSocialRow('Facebook', member.facebook, Icons.facebook_rounded),
-                        if (member.snapchat.isNotEmpty)
-                          _buildPremiumSocialRow('Snapchat', member.snapchat, Icons.camera_alt_outlined),
+                    if (!_isVisitor || member.isPublic) ...[
+                      if (member.whatsapp.isNotEmpty || member.instagram.isNotEmpty || member.facebook.isNotEmpty || member.snapchat.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        _buildPremiumSection(
+                          title: 'Social Presence',
+                          icon: Icons.public_rounded,
+                          children: [
+                            if (member.whatsapp.isNotEmpty)
+                              _buildPremiumSocialRow('WhatsApp', member.whatsapp, Icons.chat_bubble_outline_rounded),
+                            if (member.instagram.isNotEmpty)
+                              _buildPremiumSocialRow('Instagram', member.instagram, Icons.camera_alt_outlined),
+                            if (member.facebook.isNotEmpty)
+                              _buildPremiumSocialRow('Facebook', member.facebook, Icons.facebook_rounded),
+                            if (member.snapchat.isNotEmpty)
+                              _buildPremiumSocialRow('Snapchat', member.snapchat, Icons.camera_alt_outlined),
+                          ],
+                        ),
                       ],
-                    ),
+                    ],
 
                     if (member.firms.isNotEmpty) ...[
                       const SizedBox(height: 20),
@@ -926,7 +979,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
             alignment: Alignment.bottomRight,
             children: [
               GestureDetector(
-                onTap: (_isAdmin || _currentUserRole == 'manager')
+                onTap: (!_isVisitor && (_isAdmin || _currentUserRole == 'manager'))
                     ? _promptChangeProfilePhoto
                     : () => _showFullScreenImage(member.photoUrl, member.fullName, member.id),
                 child: Container(
@@ -1235,6 +1288,8 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final cardColor = isDark ? theme.cardColor : Colors.white;
+    final bool canCall = member.phone.isNotEmpty && (!_isVisitor || member.isPublic);
+    final bool canWhatsApp = member.whatsapp.isNotEmpty && (!_isVisitor || member.isPublic);
     
     return Container(
       margin: const EdgeInsets.only(top: 24),
@@ -1254,31 +1309,48 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildPremiumActionButton(
-            onPressed: () => _callPhone(member.phone),
+            onPressed: () {
+              if (_isVisitor && !member.isPublic) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Contact number is private.')),
+                );
+                return;
+              }
+              _callPhone(member.phone);
+            },
             icon: Icons.phone,
             label: 'Call',
             color: const Color(0xFF10B981),
-            enabled: member.phone.isNotEmpty,
-          ),
-          _buildPremiumActionButton(
-            onPressed: () => _openWhatsapp(member.whatsapp),
-            icon: Icons.chat_bubble_rounded,
-            label: 'WhatsApp',
-            color: const Color(0xFF25D366),
-            enabled: member.whatsapp.isNotEmpty,
+            enabled: canCall,
           ),
           _buildPremiumActionButton(
             onPressed: () {
-              Navigator.pushNamed(
-                context,
-                '/user/digital-id',
-                arguments: member,
-              );
+              if (_isVisitor && !member.isPublic) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('WhatsApp contact is private.')),
+                );
+                return;
+              }
+              _openWhatsapp(member.whatsapp);
             },
-            icon: Icons.badge_rounded,
-            label: 'ID Card',
-            color: const Color(0xFF4F46E5),
+            icon: Icons.chat_bubble_rounded,
+            label: 'WhatsApp',
+            color: const Color(0xFF25D366),
+            enabled: canWhatsApp,
           ),
+          if (!_isVisitor)
+            _buildPremiumActionButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/user/digital-id',
+                  arguments: member,
+                );
+              },
+              icon: Icons.badge_rounded,
+              label: 'ID Card',
+              color: const Color(0xFF4F46E5),
+            ),
           _buildPremiumActionButton(
             onPressed: () => _openMap(member.googleMapLink),
             icon: Icons.location_on_rounded,

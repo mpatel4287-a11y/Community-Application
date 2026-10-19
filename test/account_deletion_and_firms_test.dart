@@ -119,4 +119,61 @@ void main() {
       expect(sorted[3].id, 'c2');
     });
   });
+
+  group('Visitor Mode & Member Firms Tests', () {
+    test('MemberModel defaults isPublic to true and serializes/deserializes correctly', () {
+      final defaultMember = MemberModel.empty();
+      expect(defaultMember.isPublic, isTrue);
+
+      final privateMember = defaultMember.copyWith(isPublic: false);
+      expect(privateMember.isPublic, isFalse);
+
+      final map = privateMember.toMap();
+      expect(map['isPublic'], isFalse);
+
+      final reconstructed = MemberModel.fromMap('test_id', map);
+      expect(reconstructed.isPublic, isFalse);
+    });
+
+    test('Aggregates firms correctly from multiple member profiles', () {
+      final m1 = MemberModel.empty().copyWith(
+        id: 'm1',
+        fullName: 'Kiran Patel',
+        firms: [
+          {'name': 'Shree Ganesh Electronics', 'phone': '9876543210', 'mapLink': 'https://maps.google.com/?q=1'},
+          {'name': 'Patel Textiles', 'phone': '9876543211'},
+        ],
+      );
+
+      final m2 = MemberModel.empty().copyWith(
+        id: 'm2',
+        fullName: 'Dinesh Patel',
+        firms: [
+          {'name': 'Shree Ganesh Electronics', 'phone': '9876543210'},
+        ],
+      );
+
+      final livingMembers = [m1, m2];
+      final Map<String, List<String>> firmToMembers = {};
+
+      for (final member in livingMembers) {
+        if (member.isLate) continue;
+        for (final f in member.firms) {
+          final name = (f['name'] ?? '').toString().trim();
+          if (name.isEmpty) continue;
+          final key = name.toLowerCase();
+          firmToMembers.putIfAbsent(key, () => []);
+          if (!firmToMembers[key]!.contains(member.fullName)) {
+            firmToMembers[key]!.add(member.fullName);
+          }
+        }
+      }
+
+      // Should have 2 unique firms
+      expect(firmToMembers.length, 2);
+      expect(firmToMembers['shree ganesh electronics'], containsAll(['Kiran Patel', 'Dinesh Patel']));
+      expect(firmToMembers['patel textiles'], ['Kiran Patel']);
+    });
+  });
 }
+

@@ -754,9 +754,13 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
             if (label == 'spouseMid') label = 'Spouse MID';
             if (label == 'isDeceased') label = 'Late / Deceased';
             if (label == 'tod') label = 'Date of Death';
+            if (label == 'isPublic') label = 'Public Profile (Visitors)';
 
             if (entry.key == 'isDeceased') {
               val = (entry.value == true || entry.value.toString() == 'true') ? 'Yes (Deceased / Late)' : 'No (Living)';
+            }
+            if (entry.key == 'isPublic') {
+              val = (entry.value == true || entry.value.toString() == 'true') ? 'Public (Visible)' : 'Private (Masked)';
             }
 
             return Padding(

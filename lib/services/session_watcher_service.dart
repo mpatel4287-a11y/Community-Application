@@ -19,6 +19,9 @@ class SessionWatcherService {
 
   /// Start watching the active user/admin document in real-time
   Future<void> startWatching() async {
+    final isVisitor = await SessionManager.isVisitor();
+    if (isVisitor) return;
+
     final hasSession = await SessionManager.hasSession();
     if (!hasSession) {
       await stopWatching();
@@ -149,6 +152,9 @@ class SessionWatcherService {
   /// Verify session once synchronously against Firestore
   Future<bool> verifySessionOnce() async {
     try {
+      final isVisitor = await SessionManager.isVisitor();
+      if (isVisitor) return true;
+
       final hasSession = await SessionManager.hasSession();
       if (!hasSession) return false;
 

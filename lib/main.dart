@@ -195,10 +195,11 @@ class _AuthGuardState extends State<AuthGuard> {
   }
 
   Future<void> _evaluateSession() async {
-    final hasSession = await SessionManager.hasSession();
+    final isVisitor = await SessionManager.isVisitor();
+    final hasSession = (await SessionManager.hasSession()) || isVisitor;
     final isAdmin = await SessionManager.getIsAdmin() == true;
     final role = await SessionManager.getRole();
-    final isStaff = isAdmin || role == 'admin' || role == 'manager';
+    final isStaff = !isVisitor && (isAdmin || role == 'admin' || role == 'manager');
 
     if (!mounted) return;
 
@@ -206,6 +207,7 @@ class _AuthGuardState extends State<AuthGuard> {
       // When visiting login route, clear active session to enforce fresh authentication
       await SessionWatcherService().stopWatching();
       await SessionManager.clearSession();
+      await SessionManager.setVisitorMode(false);
       if (mounted) {
         setState(() {
           _isChecking = false;
@@ -215,7 +217,7 @@ class _AuthGuardState extends State<AuthGuard> {
       return;
     }
 
-    if (hasSession) {
+    if (hasSession && !isVisitor) {
       final isValid = await SessionWatcherService().verifySessionOnce();
       if (!isValid) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -229,7 +231,7 @@ class _AuthGuardState extends State<AuthGuard> {
     }
 
     if (widget.requireAdmin) {
-      if (!hasSession || !isStaff) {
+      if (!hasSession || !isStaff || isVisitor) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
         });

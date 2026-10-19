@@ -19,6 +19,7 @@ class SessionManager {
   static const _keyAdminPermissions = 'admin_permissions';
   static const _keySessionPassword = 'session_password';
   static const _keyMemberDocPath = 'member_doc_path';
+  static const _keyIsVisitor = 'is_visitor';
 
   // SAVE SESSION (Family level)
   static Future<void> saveSession({
@@ -94,7 +95,20 @@ class SessionManager {
   // CHECK IF SESSION EXISTS
   static Future<bool> hasSession() async {
     final prefs = await SharedPreferences.getInstance();
+    final isVis = prefs.getBool(_keyIsVisitor) ?? false;
+    if (isVis) return true;
     return prefs.getString(_keyFamilyDocId) != null;
+  }
+
+  // VISITOR / EXPLORE MODE
+  static Future<void> setVisitorMode(bool isVisitor) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsVisitor, isVisitor);
+  }
+
+  static Future<bool> isVisitor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIsVisitor) ?? false;
   }
 
   // LANGUAGE

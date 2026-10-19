@@ -28,6 +28,8 @@ import 'settings_screen.dart';
 import 'user_search_tab.dart'; 
 import '../admin/family_list_screen.dart';
 import '../admin/subfamily_list_screen.dart';
+import '../admin/firms_list_screen.dart';
+import '../../services/session_watcher_service.dart';
 import 'organizational_structure_screen.dart';
 import 'dart:math';
 
@@ -56,6 +58,7 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
 
   MemberModel? _currentUser;
   String? _userRole;
+  bool _isVisitor = false;
   int _selectedIndex = 2; // Default to HOME tab (0=Calendar, 1=Search, 2=Home, 3=Notifications, 4=Profile)
   DateTime? _lastBackPressTime;
 
@@ -76,12 +79,14 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
     setState(() => _loading = true);
 
     try {
+      final isVisitor = await SessionManager.isVisitor();
       final familyDocId = await SessionManager.getFamilyDocId();
       // final familyName = await SessionManager.getFamilyName();
       final memberDocId = await SessionManager.getMemberDocId();
       final subFamilyDocId = await SessionManager.getSubFamilyDocId();
       final role = await SessionManager.getRole();
       
+      _isVisitor = isVisitor;
       _userRole = role;
       _familyDocId = familyDocId;
       // _familyName = familyName;
@@ -332,7 +337,9 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
             const UserNotificationScreen(),
   
             // 4. PROFILE (Settings)
-            const SettingsScreen(),
+            _isVisitor
+                ? _buildVisitorProfileTab(context, lang, isDark)
+                : const SettingsScreen(),
           ],
         ),
         bottomNavigationBar: NavigationBar(
@@ -416,7 +423,9 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                       child: FlexibleSpaceBar(
                         titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
                         title: Text(
-                          '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
+                          _isVisitor
+                              ? 'Ramanagara Patidar Samaj'
+                              : '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
                           style: TextStyle(
                             fontSize: 16, 
                             fontWeight: FontWeight.bold, 
@@ -436,7 +445,9 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                   : FlexibleSpaceBar(
                       titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
                       title: Text(
-                        '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
+                        _isVisitor
+                            ? 'Ramanagara Patidar Samaj'
+                            : '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
                         style: TextStyle(
                           fontSize: 16, 
                           fontWeight: FontWeight.bold, 
@@ -457,49 +468,71 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                     ),
             ),
             actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 16, top: 4),
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedIndex = 4),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Theme.of(context).colorScheme.surface,
-                        backgroundImage: _currentUser?.photoUrl.isNotEmpty == true
-                            ? CachedNetworkImageProvider(_currentUser!.photoUrl)
-                            : null,
-                        child: _currentUser?.photoUrl.isEmpty ?? true
-                            ? Text(
-                                _currentUser?.fullName.isNotEmpty == true 
-                                    ? _currentUser!.fullName[0].toUpperCase() 
-                                    : '?',
-                                style: TextStyle(color: Colors.blue.shade900, fontSize: 14),
-                              )
-                            : null,
-                      ),
-                      if (_currentUser?.isBirthdayToday == true)
-                        Positioned(
-                          right: -3,
-                          bottom: -3,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF6B6B),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.cake_rounded,
-                              size: 11,
-                              color: Colors.white,
+              if (_isVisitor)
+                Padding(
+                  padding: const EdgeInsets.only(right: 16, top: 4),
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await SessionWatcherService().stopWatching();
+                      await SessionManager.clear();
+                      await SessionManager.setVisitorMode(false);
+                      if (mounted) {
+                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                      }
+                    },
+                    icon: const Icon(Icons.login_rounded, size: 16, color: Colors.white),
+                    label: const Text('Log In', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.orange.shade800,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    ),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(right: 16, top: 4),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedIndex = 4),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Theme.of(context).colorScheme.surface,
+                          backgroundImage: _currentUser?.photoUrl.isNotEmpty == true
+                              ? CachedNetworkImageProvider(_currentUser!.photoUrl)
+                              : null,
+                          child: _currentUser?.photoUrl.isEmpty ?? true
+                              ? Text(
+                                  _currentUser?.fullName.isNotEmpty == true 
+                                      ? _currentUser!.fullName[0].toUpperCase() 
+                                      : '?',
+                                  style: TextStyle(color: Colors.blue.shade900, fontSize: 14),
+                                )
+                              : null,
+                        ),
+                        if (_currentUser?.isBirthdayToday == true)
+                          Positioned(
+                            right: -3,
+                            bottom: -3,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF6B6B),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cake_rounded,
+                                size: 11,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
 
@@ -508,6 +541,84 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
             padding: const EdgeInsets.symmetric(vertical: 16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                if (_isVisitor) ...[
+                  FadeInAnimation(
+                    delay: const Duration(milliseconds: 30),
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.amber.shade700,
+                            Colors.orange.shade800,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orange.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  lang.currentLanguage == 'gu' ? 'મુલાકાતી અન્વેષણ મોડ' : 'Visitor Explore Mode',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  lang.currentLanguage == 'gu'
+                                      ? 'સાર્વજનિક ડિરેક્ટરી અને વ્યવસાયો પ્રદર્શિત થાય છે'
+                                      : 'Viewing public directory & community businesses.',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await SessionWatcherService().stopWatching();
+                              await SessionManager.clear();
+                              await SessionManager.setVisitorMode(false);
+                              if (mounted) {
+                                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.orange.shade900,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              elevation: 0,
+                            ),
+                            child: const Text('Log In', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 if (_currentUser?.isBirthdayToday == true) ...[
                   FadeInAnimation(
                     delay: const Duration(milliseconds: 50),
@@ -612,7 +723,10 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
                     lang.translate('firms'),
                     lang.translate('view_firms_subtitle'),
                     Icons.store_outlined,
-                    () => Navigator.pushNamed(context, '/admin/firms'),
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FirmsListScreen()),
+                    ),
                     lang,
                     isDark,
                   ),
@@ -1415,7 +1529,10 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
       padding: const EdgeInsets.all(16),
       borderRadius: 12,
       child: InkWell(
-        onTap: () => Navigator.pushNamed(context, '/admin/firms'),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FirmsListScreen()),
+        ),
         borderRadius: BorderRadius.circular(12),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1445,6 +1562,130 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVisitorProfileTab(BuildContext context, LanguageService lang, bool isDark) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(lang.translate('profile')),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              PulseAnimation(
+                duration: const Duration(milliseconds: 1800),
+                minScale: 0.95,
+                maxScale: 1.05,
+                child: Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade700, Theme.of(context).colorScheme.primary],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.3),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 48),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Visitor Explore Mode',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'મુલાકાતી અન્વેષણ મોડ',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : Colors.black.withOpacity(0.08),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    _buildVisitorFeatureRow(Icons.visibility_outlined, 'Browsing public families and member contacts'),
+                    const SizedBox(height: 10),
+                    _buildVisitorFeatureRow(Icons.business_outlined, 'Accessing community business directory & firms'),
+                    const SizedBox(height: 10),
+                    _buildVisitorFeatureRow(Icons.lock_outline_rounded, 'Private data (DOB, blood group, matrimony) is protected'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Are you a Ramanagara Patidar Samaj member?\nSign in to manage your profile and access full services.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await SessionWatcherService().stopWatching();
+                    await SessionManager.clear();
+                    await SessionManager.setVisitorMode(false);
+                    if (mounted) {
+                      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                    }
+                  },
+                  icon: const Icon(Icons.login_rounded),
+                  label: const Text('Log In with Community Account', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVisitorFeatureRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 13),
           ),
         ),
       ],
