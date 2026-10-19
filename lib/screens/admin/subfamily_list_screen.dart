@@ -10,6 +10,7 @@ import 'member_list_screen.dart';
 import '../../services/session_manager.dart';
 import '../user/family_tree_view.dart';
 import '../user/member_detail_screen.dart';
+import '../user/member_update_request_screen.dart';
 import '../../models/member_model.dart';
 
 
@@ -812,62 +813,94 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
 
     if (isLate) {
       // Deceased / Late member rectangle box:
-      // "and if late then just show late in front of name thats it"
-      // "and for late show only name feild rest of other things just hide and nothing should happen when click on rectangle box"
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+      // Includes dedicated edit option as requested
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
+          onTap: () => _onEditParent(member),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('🕊️', style: TextStyle(fontSize: 11)),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
+                Row(
+                  children: [
+                    const Text('🕊️', style: TextStyle(fontSize: 11)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    InkWell(
+                      onTap: () => _onEditParent(member),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFCBD5E1), width: 0.8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit_outlined, size: 10.5, color: Color(0xFF334155)),
+                            SizedBox(width: 3),
+                            Text(
+                              'Edit',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Late ${member.fullName}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF334155),
+                    height: 1.25,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Late ${member.fullName}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF334155),
-                height: 1.25,
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
 
     // Active / Alive member rectangle box:
-    // "and if not late then when we click on that rectangle father box it should show all details as usual"
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -937,6 +970,41 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  InkWell(
+                    onTap: () => _onEditParent(member),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: isFather ? const Color(0xFFDBEAFE) : const Color(0xFFFFE4E6),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isFather ? const Color(0xFF93C5FD) : const Color(0xFFFECDD3),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 10.5,
+                            color: isFather ? const Color(0xFF1D4ED8) : const Color(0xFFBE123C),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: isFather ? const Color(0xFF1D4ED8) : const Color(0xFFBE123C),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 10,
@@ -981,6 +1049,30 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
         ),
       ),
     );
+  }
+
+  void _onEditParent(MemberModel member) {
+    if (_isAdmin || _userRole == 'manager') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EditMemberScreen(
+            memberId: member.id,
+            familyDocId: widget.mainFamilyDocId,
+            subFamilyDocId: '',
+          ),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MemberUpdateRequestScreen(
+            targetMember: member,
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildCompactAction({

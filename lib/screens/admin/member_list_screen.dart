@@ -2824,6 +2824,9 @@ class _MemberListScreenState extends State<MemberListScreen>
   String _selectedTag = '';
   String? _userRole;
   bool _isAdmin = false;
+  bool get _isCommon =>
+      !widget.isGlobal &&
+      (widget.subFamilyDocId == null || widget.subFamilyDocId!.isEmpty);
 
   @override
   void initState() {
@@ -3095,7 +3098,7 @@ class _MemberListScreenState extends State<MemberListScreen>
                   final data = doc.data() as Map<String, dynamic>;
                   final isDeceased = data['isDeceased'] == true ||
                       (data['tod'] != null && data['tod'].toString().trim().isNotEmpty);
-                  if (isDeceased) return false;
+                  if (!_isCommon && isDeceased) return false;
 
                   final role = data['role'] ?? 'member';
                   
