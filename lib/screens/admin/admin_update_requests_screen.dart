@@ -174,9 +174,11 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
                 _buildCategoryChip('all', 'All Types', Icons.dashboard_outlined),
                 _buildCategoryChip('account_deletion', 'Deletion Requests', Icons.person_remove_outlined),
                 _buildCategoryChip('photo_update', 'Photo', Icons.camera_alt_outlined),
-                _buildCategoryChip('contact_info', 'Contact', Icons.phone_outlined),
                 _buildCategoryChip('personal_details', 'Personal', Icons.badge_outlined),
+                _buildCategoryChip('contact_info', 'Contact', Icons.phone_outlined),
+                _buildCategoryChip('social_media', 'Social', Icons.share_outlined),
                 _buildCategoryChip('business_info', 'Business', Icons.business_outlined),
+                _buildCategoryChip('lineage_info', 'Lineage', Icons.account_tree_outlined),
                 _buildCategoryChip('general', 'Other', Icons.description_outlined),
               ],
             ),
@@ -533,6 +535,21 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
         label = 'Personal';
         color = Colors.purple;
         break;
+      case 'all':
+        icon = Icons.tune_rounded;
+        label = 'Full Profile';
+        color = const Color(0xFF0F766E);
+        break;
+      case 'social_media':
+        icon = Icons.share_rounded;
+        label = 'Social';
+        color = Colors.pink;
+        break;
+      case 'lineage_info':
+        icon = Icons.account_tree_rounded;
+        label = 'Lineage';
+        color = Colors.deepPurple;
+        break;
       case 'business_info':
         icon = Icons.business;
         label = 'Business';
@@ -664,6 +681,50 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
           const Text('Requested Field Changes:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           ...entries.map((entry) {
+            if (entry.key == 'firms') {
+              final list = entry.value is List ? (entry.value as List) : [];
+              if (list.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Business Firms (${list.length}):',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 4),
+                    ...list.asMap().entries.map((fEntry) {
+                      final fIdx = fEntry.key;
+                      final fMap = fEntry.value is Map ? (fEntry.value as Map) : {};
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '#${fIdx + 1} ${fMap['name'] ?? ''}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            if ((fMap['phone'] ?? '').toString().isNotEmpty)
+                              Text('Phone: ${fMap['phone']}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                            if ((fMap['mapLink'] ?? '').toString().isNotEmpty)
+                              Text('Map: ${fMap['mapLink']}', style: TextStyle(fontSize: 11, color: Colors.blue.shade700)),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              );
+            }
+
             String label = entry.key;
             String val = entry.value.toString();
 
@@ -672,17 +733,31 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
             if (label == 'surname') label = 'Surname';
             if (label == 'fatherName') label = 'Father Name';
             if (label == 'motherName') label = 'Mother Name';
+            if (label == 'gender') label = 'Gender';
             if (label == 'birthDate') label = 'Birth Date';
             if (label == 'bloodGroup') label = 'Blood Group';
             if (label == 'marriageStatus') label = 'Marriage Status';
             if (label == 'nativeHome') label = 'Native Home';
             if (label == 'gotra') label = 'Gotra';
+            if (label == 'surdhan') label = 'Surdhan';
             if (label == 'phone') label = 'Phone Number';
             if (label == 'whatsapp') label = 'WhatsApp';
             if (label == 'email') label = 'Email';
             if (label == 'address') label = 'Address';
             if (label == 'googleMapLink') label = 'Map Link';
             if (label == 'education') label = 'Education';
+            if (label == 'instagram') label = 'Instagram';
+            if (label == 'facebook') label = 'Facebook';
+            if (label == 'snapchat') label = 'Snapchat';
+            if (label == 'relationToHead') label = 'Relation to Head';
+            if (label == 'parentMid') label = 'Parent MID';
+            if (label == 'spouseMid') label = 'Spouse MID';
+            if (label == 'isDeceased') label = 'Late / Deceased';
+            if (label == 'tod') label = 'Date of Death';
+
+            if (entry.key == 'isDeceased') {
+              val = (entry.value == true || entry.value.toString() == 'true') ? 'Yes (Deceased / Late)' : 'No (Living)';
+            }
 
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 3),
@@ -690,7 +765,7 @@ class _AdminUpdateRequestsScreenState extends State<AdminUpdateRequestsScreen> w
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    width: 110,
+                    width: 120,
                     child: Text(
                       '$label:',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
@@ -1156,7 +1231,31 @@ class _AdminReviewSheetState extends State<_AdminReviewSheet> {
   late TextEditingController _adminNoteController;
   String _selectedBloodGroup = '';
   String _selectedMarriageStatus = '';
+  String _gender = '';
+  String _relationToHead = '';
+  bool _isDeceased = false;
+  bool _hasDeceasedField = false;
+  bool _hasFirmsField = false;
+  List<Map<String, String>> _firms = [];
   bool _includePhoto = true;
+
+  final List<Map<String, String>> _relationOptions = [
+    {'value': 'none', 'label': 'None'},
+    {'value': 'head', 'label': 'Head of Family'},
+    {'value': 'wife', 'label': 'Wife'},
+    {'value': 'husband', 'label': 'Husband'},
+    {'value': 'son', 'label': 'Son'},
+    {'value': 'daughter', 'label': 'Daughter'},
+    {'value': 'son_in_law', 'label': 'Son in Law'},
+    {'value': 'daughter_in_law', 'label': 'Daughter in Law'},
+    {'value': 'grandson', 'label': 'Grandson'},
+    {'value': 'granddaughter', 'label': 'Granddaughter'},
+    {'value': 'father', 'label': 'Father'},
+    {'value': 'mother', 'label': 'Mother'},
+    {'value': 'brother', 'label': 'Brother'},
+    {'value': 'sister', 'label': 'Sister'},
+    {'value': 'other', 'label': 'Other'},
+  ];
 
   @override
   void initState() {
@@ -1169,6 +1268,27 @@ class _AdminReviewSheetState extends State<_AdminReviewSheet> {
         _selectedBloodGroup = value.toString();
       } else if (key == 'marriageStatus') {
         _selectedMarriageStatus = value.toString();
+      } else if (key == 'gender') {
+        _gender = value.toString().toLowerCase();
+      } else if (key == 'relationToHead') {
+        _relationToHead = value.toString().toLowerCase();
+      } else if (key == 'isDeceased') {
+        _hasDeceasedField = true;
+        _isDeceased = value == true || value.toString().toLowerCase() == 'true';
+      } else if (key == 'firms') {
+        _hasFirmsField = true;
+        if (value is List) {
+          _firms = value.map((e) {
+            if (e is Map) {
+              return {
+                'name': (e['name'] ?? '').toString(),
+                'phone': (e['phone'] ?? '').toString(),
+                'mapLink': (e['mapLink'] ?? '').toString(),
+              };
+            }
+            return {'name': '', 'phone': '', 'mapLink': ''};
+          }).toList();
+        }
       } else if (key != 'photo_update_requested') {
         _controllers[key] = TextEditingController(text: value.toString());
       }
@@ -1319,9 +1439,17 @@ class _AdminReviewSheetState extends State<_AdminReviewSheet> {
                         ],
 
                         // Field Controllers (Admin can edit any field before applying!)
-                        if (_controllers.isNotEmpty || _selectedBloodGroup.isNotEmpty || _selectedMarriageStatus.isNotEmpty) ...[
+                        if (_controllers.isNotEmpty ||
+                            _selectedBloodGroup.isNotEmpty ||
+                            _selectedMarriageStatus.isNotEmpty ||
+                            _gender.isNotEmpty ||
+                            _relationToHead.isNotEmpty ||
+                            _hasDeceasedField ||
+                            _hasFirmsField ||
+                            _firms.isNotEmpty) ...[
                           const Text('Review & Adjust Field Values:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           const SizedBox(height: 12),
+
                           ..._controllers.entries.map((entry) {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
@@ -1335,6 +1463,39 @@ class _AdminReviewSheetState extends State<_AdminReviewSheet> {
                               ),
                             );
                           }),
+
+                          // Gender Dropdown
+                          if (_gender.isNotEmpty || widget.request.fieldUpdates.containsKey('gender')) ...[
+                            DropdownButtonFormField<String>(
+                              value: _gender == 'female' ? 'female' : 'male',
+                              decoration: const InputDecoration(
+                                labelText: 'Gender',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'male', child: Text('Male')),
+                                DropdownMenuItem(value: 'female', child: Text('Female')),
+                              ],
+                              onChanged: (v) => setState(() => _gender = v ?? 'male'),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // Relation to Head Dropdown
+                          if (_relationToHead.isNotEmpty || widget.request.fieldUpdates.containsKey('relationToHead')) ...[
+                            DropdownButtonFormField<String>(
+                              value: _relationOptions.any((r) => r['value'] == _relationToHead) ? _relationToHead : 'none',
+                              decoration: const InputDecoration(
+                                labelText: 'Relation to Head',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                              ),
+                              items: _relationOptions.map((r) {
+                                return DropdownMenuItem(value: r['value'], child: Text(r['label']!));
+                              }).toList(),
+                              onChanged: (v) => setState(() => _relationToHead = v ?? 'none'),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
 
                           // Blood Group Dropdown
                           if (_selectedBloodGroup.isNotEmpty) ...[
@@ -1363,6 +1524,124 @@ class _AdminReviewSheetState extends State<_AdminReviewSheet> {
                             ),
                             const SizedBox(height: 12),
                           ],
+
+                          // Late / Deceased Toggle
+                          if (_hasDeceasedField) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: _isDeceased ? Colors.red.withOpacity(0.08) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _isDeceased ? Colors.red.withOpacity(0.3) : Colors.grey.withOpacity(0.3)),
+                              ),
+                              child: SwitchListTile(
+                                title: const Text('Mark as Late / Deceased (સ્વર્ગસ્થ)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                subtitle: const Text('Disables phone & login access for this member', style: TextStyle(fontSize: 11)),
+                                value: _isDeceased,
+                                activeColor: Colors.red,
+                                onChanged: (val) => setState(() => _isDeceased = val),
+                              ),
+                            ),
+                          ],
+
+                          // Business Firms Section
+                          if (_hasFirmsField || _firms.isNotEmpty) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Business Firms:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      TextButton.icon(
+                                        onPressed: () => setState(() {
+                                          _firms.add({'name': '', 'phone': '', 'mapLink': ''});
+                                        }),
+                                        icon: const Icon(Icons.add, size: 16),
+                                        label: const Text('Add Firm'),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ..._firms.asMap().entries.map((fEntry) {
+                                    final fIdx = fEntry.key;
+                                    final f = fEntry.value;
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text('Firm #${fIdx + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                                                onPressed: () => setState(() => _firms.removeAt(fIdx)),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          TextFormField(
+                                            initialValue: f['name'],
+                                            decoration: const InputDecoration(
+                                              labelText: 'Firm Name',
+                                              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                            ),
+                                            onChanged: (v) => _firms[fIdx]['name'] = v,
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: TextFormField(
+                                                  initialValue: f['phone'],
+                                                  decoration: const InputDecoration(
+                                                    labelText: 'Contact Phone',
+                                                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+                                                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                                  ),
+                                                  onChanged: (v) => _firms[fIdx]['phone'] = v,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: TextFormField(
+                                                  initialValue: f['mapLink'],
+                                                  decoration: const InputDecoration(
+                                                    labelText: 'Map Link',
+                                                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+                                                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                                  ),
+                                                  onChanged: (v) => _firms[fIdx]['mapLink'] = v,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
 
                         // Admin Note input
@@ -1390,6 +1669,25 @@ class _AdminReviewSheetState extends State<_AdminReviewSheet> {
                               });
                               if (_selectedBloodGroup.isNotEmpty) finalUpdates['bloodGroup'] = _selectedBloodGroup;
                               if (_selectedMarriageStatus.isNotEmpty) finalUpdates['marriageStatus'] = _selectedMarriageStatus;
+                              if (_gender.isNotEmpty) finalUpdates['gender'] = _gender;
+                              if (_relationToHead.isNotEmpty) finalUpdates['relationToHead'] = _relationToHead;
+                              if (_hasDeceasedField) {
+                                finalUpdates['isDeceased'] = _isDeceased;
+                                if (!_isDeceased) finalUpdates['tod'] = '';
+                              }
+                              if (_hasFirmsField || _firms.isNotEmpty) {
+                                finalUpdates['firms'] = _firms
+                                    .where((f) =>
+                                        (f['name'] ?? '').trim().isNotEmpty ||
+                                        (f['phone'] ?? '').trim().isNotEmpty ||
+                                        (f['mapLink'] ?? '').trim().isNotEmpty)
+                                    .map((f) => {
+                                          'name': (f['name'] ?? '').trim(),
+                                          'phone': (f['phone'] ?? '').trim(),
+                                          'mapLink': (f['mapLink'] ?? '').trim(),
+                                        })
+                                    .toList();
+                              }
 
                               widget.onApprove(
                                 finalUpdates,
@@ -1431,15 +1729,26 @@ class _AdminReviewSheetState extends State<_AdminReviewSheet> {
     if (key == 'surname') return 'Surname';
     if (key == 'fatherName') return 'Father Name';
     if (key == 'motherName') return 'Mother Name';
+    if (key == 'gender') return 'Gender';
     if (key == 'birthDate') return 'Birth Date';
     if (key == 'nativeHome') return 'Native Home';
     if (key == 'gotra') return 'Gotra';
+    if (key == 'surdhan') return 'Surdhan';
     if (key == 'phone') return 'Phone Number';
     if (key == 'whatsapp') return 'WhatsApp';
     if (key == 'email') return 'Email';
     if (key == 'address') return 'Residential Address';
     if (key == 'googleMapLink') return 'Google Maps Link';
     if (key == 'education') return 'Education';
+    if (key == 'instagram') return 'Instagram';
+    if (key == 'facebook') return 'Facebook';
+    if (key == 'snapchat') return 'Snapchat';
+    if (key == 'relationToHead') return 'Relation to Head';
+    if (key == 'parentMid') return 'Parent MID';
+    if (key == 'spouseMid') return 'Spouse MID';
+    if (key == 'isDeceased') return 'Late / Deceased';
+    if (key == 'tod') return 'Date of Death';
+    if (key == 'firms') return 'Business Firms';
     return key;
   }
 }

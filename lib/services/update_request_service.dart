@@ -155,6 +155,28 @@ class UpdateRequestService {
       // Remove internal helper keys
       memberUpdates.remove('photo_update_requested');
 
+      // Ensure firms is stored as clean List<Map<String, String>>
+      if (memberUpdates.containsKey('firms') && memberUpdates['firms'] != null) {
+        if (memberUpdates['firms'] is List) {
+          memberUpdates['firms'] = (memberUpdates['firms'] as List).map((item) {
+            if (item is Map) {
+              return {
+                'name': (item['name'] ?? '').toString().trim(),
+                'phone': (item['phone'] ?? '').toString().trim(),
+                'mapLink': (item['mapLink'] ?? '').toString().trim(),
+              };
+            }
+            return {'name': '', 'phone': '', 'mapLink': ''};
+          }).toList();
+        }
+      }
+
+      // Ensure isDeceased is stored as boolean
+      if (memberUpdates.containsKey('isDeceased')) {
+        memberUpdates['isDeceased'] = memberUpdates['isDeceased'] == true ||
+            memberUpdates['isDeceased'].toString().toLowerCase() == 'true';
+      }
+
       // 1. Update the actual member document in Firestore
       if (memberUpdates.isNotEmpty && request.memberId.isNotEmpty && request.familyDocId.isNotEmpty) {
         await _memberService.updateMember(

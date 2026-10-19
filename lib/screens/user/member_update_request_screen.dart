@@ -36,7 +36,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
   bool _isSubmitting = false;
 
   // Selected request category
-  String _selectedCategory = 'photo_update'; // 'photo_update', 'contact_info', 'personal_details', 'business_info', 'general'
+  String _selectedCategory = 'all'; // 'all', 'personal_details', 'contact_info', 'social_media', 'business_info', 'lineage_info', 'photo_update', 'general'
 
   // Photo Update State
   XFile? _pickedImage;
@@ -58,15 +58,42 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
   final _nativeHomeController = TextEditingController();
   final _gotraController = TextEditingController();
   final _educationController = TextEditingController();
-  final _firmNameController = TextEditingController();
-  final _firmPhoneController = TextEditingController();
+  final _surdhanController = TextEditingController();
   final _birthDateController = TextEditingController();
+  final _instagramController = TextEditingController();
+  final _facebookController = TextEditingController();
+  final _snapchatController = TextEditingController();
+  final _parentMidController = TextEditingController();
+  final _spouseMidController = TextEditingController();
+  final _todController = TextEditingController();
 
+  String _gender = 'male';
+  String _relationToHead = 'none';
+  bool _isDeceased = false;
   String _selectedBloodGroup = '';
   String _selectedMarriageStatus = '';
 
+  List<Map<String, String>> _firms = [];
+
   final List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
   final List<String> _marriageStatuses = ['unmarried', 'married', 'widowed', 'divorced'];
+  final List<Map<String, String>> _relationOptions = [
+    {'value': 'none', 'label': 'None'},
+    {'value': 'head', 'label': 'Head of Family'},
+    {'value': 'wife', 'label': 'Wife'},
+    {'value': 'husband', 'label': 'Husband'},
+    {'value': 'son', 'label': 'Son'},
+    {'value': 'daughter', 'label': 'Daughter'},
+    {'value': 'son_in_law', 'label': 'Son in Law'},
+    {'value': 'daughter_in_law', 'label': 'Daughter in Law'},
+    {'value': 'grandson', 'label': 'Grandson'},
+    {'value': 'granddaughter', 'label': 'Granddaughter'},
+    {'value': 'father', 'label': 'Father'},
+    {'value': 'mother', 'label': 'Mother'},
+    {'value': 'brother', 'label': 'Brother'},
+    {'value': 'sister', 'label': 'Sister'},
+    {'value': 'other', 'label': 'Other'},
+  ];
 
   @override
   void initState() {
@@ -92,9 +119,14 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
     _nativeHomeController.dispose();
     _gotraController.dispose();
     _educationController.dispose();
-    _firmNameController.dispose();
-    _firmPhoneController.dispose();
+    _surdhanController.dispose();
     _birthDateController.dispose();
+    _instagramController.dispose();
+    _facebookController.dispose();
+    _snapchatController.dispose();
+    _parentMidController.dispose();
+    _spouseMidController.dispose();
+    _todController.dispose();
     super.dispose();
   }
 
@@ -158,15 +190,32 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
     _nativeHomeController.text = m.nativeHome;
     _gotraController.text = m.gotra;
     _educationController.text = m.education;
+    _surdhanController.text = m.surdhan;
     _birthDateController.text = m.birthDate;
+    _gender = m.gender.toLowerCase() == 'female' ? 'female' : 'male';
+    _instagramController.text = m.instagram;
+    _facebookController.text = m.facebook;
+    _snapchatController.text = m.snapchat;
+    _parentMidController.text = m.parentMid;
+    _spouseMidController.text = m.spouseMid;
+    _relationToHead = m.relationToHead.isNotEmpty ? m.relationToHead.toLowerCase() : 'none';
+    _isDeceased = m.isDeceased;
+    _todController.text = m.tod;
+
     final bg = m.bloodGroup.trim().toUpperCase();
     _selectedBloodGroup = _bloodGroups.contains(bg) ? bg : 'B+';
     final ms = m.marriageStatus.trim().toLowerCase();
     _selectedMarriageStatus = _marriageStatuses.contains(ms) ? ms : 'unmarried';
 
-    if (m.firms.isNotEmpty) {
-      _firmNameController.text = m.firms.first['name'] ?? '';
-      _firmPhoneController.text = m.firms.first['phone'] ?? '';
+    _firms = m.firms
+        .map((f) => {
+              'name': f['name'] ?? '',
+              'phone': f['phone'] ?? '',
+              'mapLink': f['mapLink'] ?? '',
+            })
+        .toList();
+    if (_firms.isEmpty) {
+      _firms.add({'name': '', 'phone': '', 'mapLink': ''});
     }
   }
 
@@ -264,7 +313,65 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
       final Map<String, dynamic> updates = {};
       String defaultTitle = 'Profile Update Request';
 
-      if (_selectedCategory == 'photo_update') {
+      final cleanedFirms = _firms
+          .where((f) =>
+              (f['name'] ?? '').trim().isNotEmpty ||
+              (f['phone'] ?? '').trim().isNotEmpty ||
+              (f['mapLink'] ?? '').trim().isNotEmpty)
+          .map((f) => {
+                'name': (f['name'] ?? '').trim(),
+                'phone': (f['phone'] ?? '').trim(),
+                'mapLink': (f['mapLink'] ?? '').trim(),
+              })
+          .toList();
+
+      if (_selectedCategory == 'all') {
+        defaultTitle = 'Full Profile Update Request';
+
+        // Personal
+        if (_fullNameController.text.trim().isNotEmpty) updates['fullName'] = _fullNameController.text.trim();
+        if (_surnameController.text.trim().isNotEmpty) updates['surname'] = _surnameController.text.trim();
+        if (_fatherNameController.text.trim().isNotEmpty) updates['fatherName'] = _fatherNameController.text.trim();
+        if (_motherNameController.text.trim().isNotEmpty) updates['motherName'] = _motherNameController.text.trim();
+        updates['gender'] = _gender;
+        if (_birthDateController.text.trim().isNotEmpty) updates['birthDate'] = _birthDateController.text.trim();
+        if (_selectedBloodGroup.isNotEmpty) updates['bloodGroup'] = _selectedBloodGroup;
+        if (_selectedMarriageStatus.isNotEmpty) updates['marriageStatus'] = _selectedMarriageStatus;
+        if (_nativeHomeController.text.trim().isNotEmpty) updates['nativeHome'] = _nativeHomeController.text.trim();
+        if (_gotraController.text.trim().isNotEmpty) updates['gotra'] = _gotraController.text.trim();
+        if (_educationController.text.trim().isNotEmpty) updates['education'] = _educationController.text.trim();
+        if (_surdhanController.text.trim().isNotEmpty) updates['surdhan'] = _surdhanController.text.trim();
+
+        // Contact
+        if (_phoneController.text.trim().isNotEmpty) updates['phone'] = _phoneController.text.trim();
+        if (_whatsappController.text.trim().isNotEmpty) updates['whatsapp'] = _whatsappController.text.trim();
+        if (_emailController.text.trim().isNotEmpty) updates['email'] = _emailController.text.trim();
+        if (_addressController.text.trim().isNotEmpty) updates['address'] = _addressController.text.trim();
+        if (_googleMapLinkController.text.trim().isNotEmpty) updates['googleMapLink'] = _googleMapLinkController.text.trim();
+
+        // Social
+        if (_instagramController.text.trim().isNotEmpty) updates['instagram'] = _instagramController.text.trim();
+        if (_facebookController.text.trim().isNotEmpty) updates['facebook'] = _facebookController.text.trim();
+        if (_snapchatController.text.trim().isNotEmpty) updates['snapchat'] = _snapchatController.text.trim();
+
+        // Business
+        updates['firms'] = cleanedFirms;
+
+        // Lineage
+        updates['relationToHead'] = _relationToHead;
+        if (_parentMidController.text.trim().isNotEmpty) updates['parentMid'] = _parentMidController.text.trim();
+        if (_spouseMidController.text.trim().isNotEmpty) updates['spouseMid'] = _spouseMidController.text.trim();
+        updates['isDeceased'] = _isDeceased;
+        if (_isDeceased && _todController.text.trim().isNotEmpty) {
+          updates['tod'] = _todController.text.trim();
+        } else if (!_isDeceased) {
+          updates['tod'] = '';
+        }
+
+        if (_pickedImage != null) {
+          updates['photo_update_requested'] = true;
+        }
+      } else if (_selectedCategory == 'photo_update') {
         defaultTitle = 'Profile Photo Replacement Request';
         updates['photo_update_requested'] = true;
       } else if (_selectedCategory == 'contact_info') {
@@ -274,27 +381,39 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
         if (_emailController.text.trim().isNotEmpty) updates['email'] = _emailController.text.trim();
         if (_addressController.text.trim().isNotEmpty) updates['address'] = _addressController.text.trim();
         if (_googleMapLinkController.text.trim().isNotEmpty) updates['googleMapLink'] = _googleMapLinkController.text.trim();
+      } else if (_selectedCategory == 'social_media') {
+        defaultTitle = 'Social Media Handles Update';
+        if (_whatsappController.text.trim().isNotEmpty) updates['whatsapp'] = _whatsappController.text.trim();
+        if (_instagramController.text.trim().isNotEmpty) updates['instagram'] = _instagramController.text.trim();
+        if (_facebookController.text.trim().isNotEmpty) updates['facebook'] = _facebookController.text.trim();
+        if (_snapchatController.text.trim().isNotEmpty) updates['snapchat'] = _snapchatController.text.trim();
       } else if (_selectedCategory == 'personal_details') {
         defaultTitle = 'Personal Details Correction';
         if (_fullNameController.text.trim().isNotEmpty) updates['fullName'] = _fullNameController.text.trim();
         if (_surnameController.text.trim().isNotEmpty) updates['surname'] = _surnameController.text.trim();
         if (_fatherNameController.text.trim().isNotEmpty) updates['fatherName'] = _fatherNameController.text.trim();
         if (_motherNameController.text.trim().isNotEmpty) updates['motherName'] = _motherNameController.text.trim();
+        updates['gender'] = _gender;
         if (_birthDateController.text.trim().isNotEmpty) updates['birthDate'] = _birthDateController.text.trim();
         if (_selectedBloodGroup.isNotEmpty) updates['bloodGroup'] = _selectedBloodGroup;
         if (_selectedMarriageStatus.isNotEmpty) updates['marriageStatus'] = _selectedMarriageStatus;
         if (_nativeHomeController.text.trim().isNotEmpty) updates['nativeHome'] = _nativeHomeController.text.trim();
         if (_gotraController.text.trim().isNotEmpty) updates['gotra'] = _gotraController.text.trim();
         if (_educationController.text.trim().isNotEmpty) updates['education'] = _educationController.text.trim();
+        if (_surdhanController.text.trim().isNotEmpty) updates['surdhan'] = _surdhanController.text.trim();
       } else if (_selectedCategory == 'business_info') {
         defaultTitle = 'Business & Firm Details Update';
-        if (_firmNameController.text.trim().isNotEmpty) {
-          updates['firms'] = [
-            {
-              'name': _firmNameController.text.trim(),
-              'phone': _firmPhoneController.text.trim(),
-            }
-          ];
+        updates['firms'] = cleanedFirms;
+      } else if (_selectedCategory == 'lineage_info') {
+        defaultTitle = 'Family Lineage & Relations Update';
+        updates['relationToHead'] = _relationToHead;
+        if (_parentMidController.text.trim().isNotEmpty) updates['parentMid'] = _parentMidController.text.trim();
+        if (_spouseMidController.text.trim().isNotEmpty) updates['spouseMid'] = _spouseMidController.text.trim();
+        updates['isDeceased'] = _isDeceased;
+        if (_isDeceased && _todController.text.trim().isNotEmpty) {
+          updates['tod'] = _todController.text.trim();
+        } else if (!_isDeceased) {
+          updates['tod'] = '';
         }
       } else {
         defaultTitle = _titleController.text.trim().isNotEmpty
@@ -441,14 +560,30 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
             const SizedBox(height: 20),
 
             // Dynamic Form based on selected category
-            if (_selectedCategory == 'photo_update')
+            if (_selectedCategory == 'all') ...[
+              _buildPhotoUpdateSection(theme, isDark),
+              const SizedBox(height: 18),
+              _buildPersonalDetailsSection(theme, isDark),
+              const SizedBox(height: 18),
+              _buildContactInfoSection(theme, isDark),
+              const SizedBox(height: 18),
+              _buildSocialMediaSection(theme, isDark),
+              const SizedBox(height: 18),
+              _buildBusinessSection(theme, isDark),
+              const SizedBox(height: 18),
+              _buildFamilyLineageSection(theme, isDark),
+            ] else if (_selectedCategory == 'photo_update')
               _buildPhotoUpdateSection(theme, isDark)
             else if (_selectedCategory == 'contact_info')
               _buildContactInfoSection(theme, isDark)
+            else if (_selectedCategory == 'social_media')
+              _buildSocialMediaSection(theme, isDark)
             else if (_selectedCategory == 'personal_details')
               _buildPersonalDetailsSection(theme, isDark)
             else if (_selectedCategory == 'business_info')
               _buildBusinessSection(theme, isDark)
+            else if (_selectedCategory == 'lineage_info')
+              _buildFamilyLineageSection(theme, isDark)
             else
               _buildGeneralRequestSection(theme, isDark),
 
@@ -588,11 +723,14 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
 
   Widget _buildCategoryChips(ThemeData theme) {
     final categories = [
-      {'id': 'photo_update', 'label': '📸 Profile Photo', 'icon': Icons.camera_alt_outlined},
-      {'id': 'contact_info', 'label': '📞 Contact & Address', 'icon': Icons.phone_outlined},
+      {'id': 'all', 'label': '⭐ All Fields (Full Profile)', 'icon': Icons.tune_rounded},
       {'id': 'personal_details', 'label': '👤 Personal Details', 'icon': Icons.badge_outlined},
-      {'id': 'business_info', 'label': '💼 Business / Firm', 'icon': Icons.business_outlined},
-      {'id': 'general', 'label': '📝 Other Correction', 'icon': Icons.description_outlined},
+      {'id': 'contact_info', 'label': '📞 Contact & Address', 'icon': Icons.phone_outlined},
+      {'id': 'social_media', 'label': '🌐 Social Handles', 'icon': Icons.share_rounded},
+      {'id': 'business_info', 'label': '💼 Business & Firms', 'icon': Icons.business_outlined},
+      {'id': 'lineage_info', 'label': '🌳 Family & Lineage', 'icon': Icons.account_tree_outlined},
+      {'id': 'photo_update', 'label': '📸 Profile Photo', 'icon': Icons.camera_alt_outlined},
+      {'id': 'general', 'label': '📝 Other / Notes', 'icon': Icons.description_outlined},
     ];
 
     return SingleChildScrollView(
@@ -914,7 +1052,13 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Personal & Lineage Corrections', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              const Icon(Icons.badge_outlined, color: Color(0xFF0F766E), size: 20),
+              const SizedBox(width: 8),
+              const Text('Personal Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -923,6 +1067,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
                   controller: _fullNameController,
                   decoration: const InputDecoration(
                     labelText: 'First & Middle Name',
+                    prefixIcon: Icon(Icons.person_outline),
                     border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
                   ),
                 ),
@@ -968,16 +1113,37 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
+                  value: _gender == 'female' ? 'female' : 'male',
+                  decoration: const InputDecoration(
+                    labelText: 'Gender',
+                    prefixIcon: Icon(Icons.wc_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'male', child: Text('Male')),
+                    DropdownMenuItem(value: 'female', child: Text('Female')),
+                  ],
+                  onChanged: (v) => setState(() => _gender = v ?? 'male'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
                   value: _bloodGroups.contains(_selectedBloodGroup) ? _selectedBloodGroup : 'B+',
                   decoration: const InputDecoration(
                     labelText: 'Blood Group',
+                    prefixIcon: Icon(Icons.bloodtype_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
                   ),
                   items: _bloodGroups.map((bg) => DropdownMenuItem(value: bg, child: Text(bg))).toList(),
                   onChanged: (v) => setState(() => _selectedBloodGroup = v ?? 'B+'),
                 ),
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _marriageStatuses.contains(_selectedMarriageStatus) ? _selectedMarriageStatus : 'unmarried',
@@ -989,32 +1155,137 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
                   onChanged: (v) => setState(() => _selectedMarriageStatus = v ?? 'unmarried'),
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _birthDateController,
+                  decoration: const InputDecoration(
+                    labelText: 'Birth Date (DD/MM/YYYY)',
+                    prefixIcon: Icon(Icons.cake_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _nativeHomeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Native Home / Village',
+                    prefixIcon: Icon(Icons.home_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _gotraController,
+                  decoration: const InputDecoration(
+                    labelText: 'Gotra',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _educationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Education',
+                    prefixIcon: Icon(Icons.school_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _surdhanController,
+                  decoration: const InputDecoration(
+                    labelText: 'Surdhan (સૂરધન)',
+                    prefixIcon: Icon(Icons.temple_hindu_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4. SOCIAL MEDIA FORM
+  Widget _buildSocialMediaSection(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.share_rounded, color: Color(0xFF0F766E), size: 20),
+              const SizedBox(width: 8),
+              const Text('Social Media Handles & Links', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Keep your social profiles updated for Samaj member connectivity.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 16),
           TextFormField(
-            controller: _birthDateController,
+            controller: _whatsappController,
+            keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              labelText: 'Birth Date (DD/MM/YYYY)',
-              prefixIcon: Icon(Icons.cake_outlined),
+              labelText: 'WhatsApp Number',
+              prefixIcon: Icon(Icons.chat_bubble_outline_rounded, color: Colors.green),
+              hintText: 'e.g., 9876543210',
               border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
             ),
           ),
           const SizedBox(height: 14),
           TextFormField(
-            controller: _nativeHomeController,
+            controller: _instagramController,
             decoration: const InputDecoration(
-              labelText: 'Native Home / Village',
-              prefixIcon: Icon(Icons.home_outlined),
+              labelText: 'Instagram Profile / Username',
+              prefixIcon: Icon(Icons.camera_alt_outlined, color: Colors.purple),
+              hintText: 'e.g., your_username or https://instagram.com/username',
               border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
             ),
           ),
           const SizedBox(height: 14),
           TextFormField(
-            controller: _educationController,
+            controller: _facebookController,
             decoration: const InputDecoration(
-              labelText: 'Education / Qualification',
-              prefixIcon: Icon(Icons.school_outlined),
+              labelText: 'Facebook Profile / Username',
+              prefixIcon: Icon(Icons.facebook, color: Colors.blue),
+              hintText: 'e.g., profile name or facebook profile link',
+              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _snapchatController,
+            decoration: const InputDecoration(
+              labelText: 'Snapchat ID / Username',
+              prefixIcon: Icon(Icons.chat_outlined, color: Colors.amber),
+              hintText: 'e.g., snapchat_username or snapchat.com/add/username',
               border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
             ),
           ),
@@ -1023,7 +1294,7 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
     );
   }
 
-  // 4. BUSINESS INFO FORM
+  // 5. BUSINESS & FIRMS FORM (MULTI-FIRMS)
   Widget _buildBusinessSection(ThemeData theme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1035,32 +1306,291 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Business & Firm Profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.business_outlined, color: Color(0xFF0F766E), size: 20),
+                  SizedBox(width: 8),
+                  Text('Business & Firm Profiles', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  _firms.add({'name': '', 'phone': '', 'mapLink': ''});
+                }),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Firm'),
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFF0F766E)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'List one or more community businesses or professional offices.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
           const SizedBox(height: 16),
-          TextFormField(
-            controller: _firmNameController,
-            decoration: const InputDecoration(
-              labelText: 'Business / Firm Name',
-              prefixIcon: Icon(Icons.store_outlined),
-              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+          if (_firms.isEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  const Text('No business firms added yet.'),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => setState(() {
+                      _firms.add({'name': '', 'phone': '', 'mapLink': ''});
+                    }),
+                    icon: const Icon(Icons.add_business_rounded, size: 18),
+                    label: const Text('Add Business Firm'),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _firmPhoneController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Business Contact Number',
-              prefixIcon: Icon(Icons.phone_in_talk_outlined),
-              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+          ] else ...[
+            ..._firms.asMap().entries.map((entry) {
+              final index = entry.key;
+              final firm = entry.value;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Business Firm #${index + 1}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F766E)),
+                        ),
+                        if (_firms.length > 1)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                            onPressed: () => setState(() => _firms.removeAt(index)),
+                            tooltip: 'Remove this firm',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      initialValue: firm['name'],
+                      decoration: const InputDecoration(
+                        labelText: 'Business / Firm Name',
+                        prefixIcon: Icon(Icons.storefront_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      onChanged: (val) => _firms[index]['name'] = val,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: firm['phone'],
+                            keyboardType: TextInputType.phone,
+                            decoration: const InputDecoration(
+                              labelText: 'Contact Phone',
+                              prefixIcon: Icon(Icons.phone_in_talk_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                            onChanged: (val) => _firms[index]['phone'] = val,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            initialValue: firm['mapLink'],
+                            decoration: const InputDecoration(
+                              labelText: 'Map Link (Optional)',
+                              prefixIcon: Icon(Icons.map_outlined),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                            onChanged: (val) => _firms[index]['mapLink'] = val,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 6),
+            Center(
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() {
+                  _firms.add({'name': '', 'phone': '', 'mapLink': ''});
+                }),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Another Business Firm'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0F766E),
+                  side: const BorderSide(color: Color(0xFF0F766E)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  // 5. GENERAL REQUEST FORM
+  // 6. FAMILY LINEAGE & RELATIONS FORM
+  Widget _buildFamilyLineageSection(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_tree_outlined, color: Color(0xFF0F766E), size: 20),
+              const SizedBox(width: 8),
+              const Text('Family Tree & Lineage Relations', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Link this member to parents, spouse, and their relationship hierarchy in the family tree.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 16),
+
+          // Relation to Head
+          DropdownButtonFormField<String>(
+            value: _relationOptions.any((r) => r['value'] == _relationToHead) ? _relationToHead : 'none',
+            decoration: const InputDecoration(
+              labelText: 'Relationship to Family Head',
+              prefixIcon: Icon(Icons.group_outlined),
+              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            ),
+            items: _relationOptions.map((r) {
+              return DropdownMenuItem<String>(
+                value: r['value'],
+                child: Text(r['label']!),
+              );
+            }).toList(),
+            onChanged: (v) => setState(() => _relationToHead = v ?? 'none'),
+          ),
+          const SizedBox(height: 14),
+
+          // Parent MID Selection / Input
+          if (_familyMembers.isNotEmpty) ...[
+            DropdownButtonFormField<String>(
+              value: _familyMembers.any((m) => m.mid == _parentMidController.text.trim())
+                  ? _parentMidController.text.trim()
+                  : (_parentMidController.text.trim().isEmpty ? '' : null),
+              decoration: const InputDecoration(
+                labelText: 'Select Parent (Parent MID)',
+                prefixIcon: Icon(Icons.escalator_warning_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('None / Not Assigned')),
+                ..._familyMembers.where((m) => m.id != _selectedMember?.id).map((m) {
+                  return DropdownMenuItem<String>(
+                    value: m.mid,
+                    child: Text('${m.fullName} (${m.mid})'),
+                  );
+                }),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => _parentMidController.text = val);
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+          TextFormField(
+            controller: _parentMidController,
+            decoration: const InputDecoration(
+              labelText: 'Parent Member ID (MID)',
+              prefixIcon: Icon(Icons.badge_outlined),
+              hintText: 'e.g., F01-S01-001',
+              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Spouse MID Selection / Input
+          TextFormField(
+            controller: _spouseMidController,
+            decoration: const InputDecoration(
+              labelText: 'Spouse Member ID (MID) (Optional)',
+              prefixIcon: Icon(Icons.favorite_outline),
+              hintText: 'e.g., F01-S01-002',
+              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Late / Deceased Toggle
+          Container(
+            decoration: BoxDecoration(
+              color: _isDeceased ? Colors.red.withOpacity(0.08) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _isDeceased ? Colors.red.withOpacity(0.3) : Colors.grey.withOpacity(0.3)),
+            ),
+            child: SwitchListTile(
+              title: const Text(
+                'Mark as Late / Deceased Member (સ્વર્ગસ્થ)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              subtitle: const Text(
+                'For deceased family members, contact numbers & login access are disabled.',
+                style: TextStyle(fontSize: 12),
+              ),
+              value: _isDeceased,
+              activeColor: Colors.red,
+              onChanged: (val) => setState(() => _isDeceased = val),
+            ),
+          ),
+
+          if (_isDeceased) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _todController,
+              decoration: const InputDecoration(
+                labelText: 'Date / Time of Death (TOD) (DD/MM/YYYY)',
+                prefixIcon: Icon(Icons.event_busy_outlined, color: Colors.red),
+                hintText: 'e.g., 15/08/2020',
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // 7. GENERAL REQUEST FORM
   Widget _buildGeneralRequestSection(ThemeData theme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1247,6 +1777,10 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
               ],
             ),
           ],
+          if (req.fieldUpdates.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildFieldUpdatesPreview(req.fieldUpdates, isDark),
+          ],
           if (req.description.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -1273,6 +1807,83 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
             'Submitted on ${req.createdAt.day}/${req.createdAt.month}/${req.createdAt.year}',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFieldUpdatesPreview(Map<String, dynamic> fieldUpdates, bool isDark) {
+    final entries = fieldUpdates.entries.where((e) => e.key != 'photo_update_requested').toList();
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Requested Changes:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          ...entries.map((entry) {
+            if (entry.key == 'firms') {
+              final list = entry.value is List ? (entry.value as List) : [];
+              if (list.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  '• Business Firms (${list.length}): ${list.map((f) => (f is Map ? f['name'] : '')).where((n) => n.toString().isNotEmpty).join(', ')}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              );
+            }
+
+            String label = entry.key;
+            if (label == 'fullName') label = 'Full Name';
+            if (label == 'surname') label = 'Surname';
+            if (label == 'fatherName') label = 'Father Name';
+            if (label == 'motherName') label = 'Mother Name';
+            if (label == 'gender') label = 'Gender';
+            if (label == 'birthDate') label = 'Birth Date';
+            if (label == 'bloodGroup') label = 'Blood Group';
+            if (label == 'marriageStatus') label = 'Marital Status';
+            if (label == 'nativeHome') label = 'Native Village';
+            if (label == 'gotra') label = 'Gotra';
+            if (label == 'education') label = 'Education';
+            if (label == 'surdhan') label = 'Surdhan';
+            if (label == 'phone') label = 'Phone Number';
+            if (label == 'whatsapp') label = 'WhatsApp';
+            if (label == 'email') label = 'Email';
+            if (label == 'address') label = 'Address';
+            if (label == 'googleMapLink') label = 'Map Link';
+            if (label == 'instagram') label = 'Instagram';
+            if (label == 'facebook') label = 'Facebook';
+            if (label == 'snapchat') label = 'Snapchat';
+            if (label == 'relationToHead') label = 'Relation to Head';
+            if (label == 'parentMid') label = 'Parent MID';
+            if (label == 'spouseMid') label = 'Spouse MID';
+            if (label == 'isDeceased') label = 'Late / Deceased';
+            if (label == 'tod') label = 'Date of Death';
+
+            String val = entry.value.toString();
+            if (entry.key == 'isDeceased') {
+              val = (entry.value == true || entry.value.toString() == 'true') ? 'Yes (Deceased)' : 'No (Living)';
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• $label: ', style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                  Expanded(child: Text(val, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
