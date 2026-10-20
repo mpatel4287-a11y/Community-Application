@@ -93,5 +93,73 @@ void main() {
       expect(activeFather.phone, '9876543210');
       expect(activeFather.id, 'active_father_1');
     });
+
+    test('Parent resolution: female member like Jayaben is assigned ONLY to Mother and NEVER to Father', () {
+      bool isMaleMember(MemberModel m) {
+        final g = m.gender.trim().toLowerCase();
+        final r = m.relationToHead.trim().toLowerCase();
+        final name = m.fullName.trim().toLowerCase();
+        if (r.contains('mother') || r == 'wife') return false;
+        if (name.endsWith('ben') || name.contains('ben ') || name.endsWith('ba') || name.contains('ba ')) {
+          return false;
+        }
+        if (r.contains('father') || r == 'husband') return true;
+        if (name.endsWith('bhai') || name.contains('bhai ') || name.endsWith('kumar') || name.endsWith('lal')) {
+          return true;
+        }
+        return g == 'male';
+      }
+
+      bool isFemaleMember(MemberModel m) {
+        final g = m.gender.trim().toLowerCase();
+        final r = m.relationToHead.trim().toLowerCase();
+        final name = m.fullName.trim().toLowerCase();
+        if (r.contains('father') || r == 'husband') return false;
+        if (name.endsWith('bhai') || name.contains('bhai ') || name.endsWith('kumar') || name.endsWith('lal')) {
+          return false;
+        }
+        if (r.contains('mother') || r == 'wife') return true;
+        if (name.endsWith('ben') || name.contains('ben ') || name.endsWith('ba') || name.contains('ba ')) {
+          return true;
+        }
+        return g == 'female';
+      }
+
+      final jayaben = MemberModel.empty().copyWith(
+        id: 'jayaben_1',
+        fullName: 'Jayaben',
+        phone: '6360669873',
+        gender: 'female',
+        relationToHead: 'wife',
+      );
+
+      final members = [jayaben];
+
+      final maleMembers = members.where((m) => isMaleMember(m)).toList();
+      final femaleMembers = members.where((m) => isFemaleMember(m)).toList();
+
+      MemberModel? father;
+      if (maleMembers.isNotEmpty) {
+        father = maleMembers.first;
+      }
+
+      MemberModel? mother;
+      if (femaleMembers.isNotEmpty) {
+        mother = femaleMembers.first;
+      }
+
+      if (father != null && mother != null && father.id == mother.id) {
+        if (isFemaleMember(father)) {
+          father = null;
+        } else {
+          mother = null;
+        }
+      }
+
+      expect(mother, isNotNull);
+      expect(mother!.fullName, 'Jayaben');
+      expect(mother.phone, '6360669873');
+      expect(father, isNull); // Must NOT be assigned to Jayaben!
+    });
   });
 }

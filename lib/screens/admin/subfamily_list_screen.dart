@@ -617,44 +617,95 @@ class _SubFamilyListScreenState extends State<SubFamilyListScreen> {
     );
   }
 
+  bool _isMaleMember(MemberModel m) {
+    final g = m.gender.trim().toLowerCase();
+    final r = m.relationToHead.trim().toLowerCase();
+    final name = m.fullName.trim().toLowerCase();
+
+    // Explicit female indicators take precedence
+    if (r.contains('mother') || r == 'wife') return false;
+    if (name.endsWith('ben') || name.contains('ben ') || name.endsWith('ba') || name.contains('ba ')) {
+      return false;
+    }
+
+    // Explicit male indicators
+    if (r.contains('father') || r == 'husband') return true;
+    if (name.endsWith('bhai') || name.contains('bhai ') || name.endsWith('kumar') || name.endsWith('lal')) {
+      return true;
+    }
+
+    return g == 'male';
+  }
+
+  bool _isFemaleMember(MemberModel m) {
+    final g = m.gender.trim().toLowerCase();
+    final r = m.relationToHead.trim().toLowerCase();
+    final name = m.fullName.trim().toLowerCase();
+
+    // Explicit male indicators take precedence
+    if (r.contains('father') || r == 'husband') return false;
+    if (name.endsWith('bhai') || name.contains('bhai ') || name.endsWith('kumar') || name.endsWith('lal')) {
+      return false;
+    }
+
+    // Explicit female indicators
+    if (r.contains('mother') || r == 'wife') return true;
+    if (name.endsWith('ben') || name.contains('ben ') || name.endsWith('ba') || name.contains('ba ')) {
+      return true;
+    }
+
+    return g == 'female';
+  }
+
   Widget _buildParentsSection() {
     return StreamBuilder<List<MemberModel>>(
       stream: _memberService.streamSubFamilyMembers(widget.mainFamilyDocId, ''),
       builder: (context, snapshot) {
         final members = snapshot.data ?? [];
 
-        // 1. Identify Father
+        final maleMembers = members.where((m) => _isMaleMember(m)).toList();
+        final femaleMembers = members.where((m) => _isFemaleMember(m)).toList();
+
+        // 1. Identify Father (strictly male elder)
         MemberModel? father;
-        try {
-          father = members.firstWhere(
+        if (maleMembers.isNotEmpty) {
+          father = maleMembers.firstWhere(
             (m) =>
-                m.gender.toLowerCase() == 'male' &&
-                (m.relationToHead.toLowerCase().contains('father') ||
-                    m.relationToHead.toLowerCase() == 'head'),
+                m.relationToHead.toLowerCase().contains('father') ||
+                m.relationToHead.toLowerCase() == 'head',
+            orElse: () => maleMembers.first,
           );
-        } catch (_) {
-          try {
-            father = members.firstWhere((m) => m.gender.toLowerCase() == 'male');
-          } catch (_) {
-            if (members.isNotEmpty) father = members.first;
+        }
+
+        // 2. Identify Mother (strictly female elder)
+        MemberModel? mother;
+        if (femaleMembers.isNotEmpty) {
+          if (father != null && father.spouseMid.isNotEmpty) {
+            mother = femaleMembers.firstWhere(
+              (m) => m.mid == father!.spouseMid,
+              orElse: () => femaleMembers.firstWhere(
+                (m) =>
+                    m.relationToHead.toLowerCase().contains('mother') ||
+                    m.relationToHead.toLowerCase() == 'wife',
+                orElse: () => femaleMembers.first,
+              ),
+            );
+          } else {
+            mother = femaleMembers.firstWhere(
+              (m) =>
+                  m.relationToHead.toLowerCase().contains('mother') ||
+                  m.relationToHead.toLowerCase() == 'wife',
+              orElse: () => femaleMembers.first,
+            );
           }
         }
 
-        // 2. Identify Mother
-        MemberModel? mother;
-        try {
-          mother = members.firstWhere(
-            (m) =>
-                m.gender.toLowerCase() == 'female' &&
-                (m.relationToHead.toLowerCase().contains('mother') ||
-                    m.relationToHead.toLowerCase() == 'wife'),
-          );
-        } catch (_) {
-          try {
-            mother = members.firstWhere((m) => m.gender.toLowerCase() == 'female');
-          } catch (_) {
-            final remaining = members.where((m) => m.id != father?.id).toList();
-            if (remaining.isNotEmpty) mother = remaining.first;
+        // Absolute guarantee: Father and Mother can NEVER be the same person!
+        if (father != null && mother != null && father.id == mother.id) {
+          if (_isFemaleMember(father)) {
+            father = null;
+          } else {
+            mother = null;
           }
         }
 
