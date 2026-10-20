@@ -62,6 +62,7 @@ class MemberModel {
   final String spouseMid; // for husband/wife connection
   final String spouseRelation; // wife_of | husband_of | none
   final bool isPublic; // public profile visibility for visitors
+  final Map<String, bool> privateVisibility; // granular field visibility in explore/private mode
   final DateTime createdAt;
 
   MemberModel({
@@ -107,9 +108,21 @@ class MemberModel {
     this.tod = '',
     this.spouseMid = '',
     this.spouseRelation = 'none',
-    this.isPublic = true,
+    this.isPublic = false,
+    this.privateVisibility = const {
+      'phone': false,
+      'address': false,
+      'firms': true,
+      'social': false,
+      'email': false,
+    },
     required this.createdAt,
   }) : age = (parseBirthDate(birthDate) != null ? calculateAge(birthDate) : age);
+
+  bool canVisitorSee(String field) {
+    if (isPublic) return true;
+    return privateVisibility[field] ?? false;
+  }
 
   bool get isBirthdayToday => isBirthdayTodayFromDate(birthDate);
   bool get isLate => isDeceased || tod.isNotEmpty;
@@ -252,6 +265,7 @@ class MemberModel {
       'spouseMid': spouseMid,
       'spouseRelation': spouseRelation,
       'isPublic': isPublic,
+      'privateVisibility': privateVisibility,
       'createdAt': createdAt,
     };
 
@@ -309,7 +323,26 @@ class MemberModel {
       tod: data['tod'] ?? '',
       spouseMid: data['spouseMid'] ?? '',
       spouseRelation: data['spouseRelation'] ?? 'none',
-      isPublic: data['isPublic'] ?? true,
+      isPublic: data['isPublic'] ?? false,
+      privateVisibility: () {
+        final pv = data['privateVisibility'];
+        if (pv is Map) {
+          return {
+            'phone': pv['phone'] == true,
+            'address': pv['address'] == true,
+            'firms': pv['firms'] != false,
+            'social': pv['social'] == true,
+            'email': pv['email'] == true,
+          };
+        }
+        return const {
+          'phone': false,
+          'address': false,
+          'firms': true,
+          'social': false,
+          'email': false,
+        };
+      }(),
       createdAt: () {
         final c = data['createdAt'];
         if (c is DateTime) return c;
@@ -369,6 +402,7 @@ class MemberModel {
     String? spouseRelation,
     String? tod,
     bool? isPublic,
+    Map<String, bool>? privateVisibility,
   }) {
     return MemberModel(
       id: id ?? this.id,
@@ -414,6 +448,7 @@ class MemberModel {
       spouseMid: spouseMid ?? this.spouseMid,
       spouseRelation: spouseRelation ?? this.spouseRelation,
       isPublic: isPublic ?? this.isPublic,
+      privateVisibility: privateVisibility ?? this.privateVisibility,
       createdAt: createdAt,
     );
   }
@@ -461,6 +496,14 @@ class MemberModel {
       subFamilyHeadRelationToMainHead: '',
       spouseMid: '',
       spouseRelation: 'none',
+      isPublic: false,
+      privateVisibility: const {
+        'phone': false,
+        'address': false,
+        'firms': true,
+        'social': false,
+        'email': false,
+      },
       createdAt: DateTime.now(),
     );
   }

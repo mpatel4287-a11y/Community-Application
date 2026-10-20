@@ -300,12 +300,13 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
     if (_member == null) return '';
     final m = _member!;
     if (_isVisitor) {
-      final phoneLine = (m.isPublic && m.phone.isNotEmpty) ? 'Phone: ${m.phone}\n' : '';
+      final phoneLine = (m.canVisitorSee('phone') && m.phone.isNotEmpty) ? 'Phone: ${m.phone}\n' : '';
+      final addressLine = (m.canVisitorSee('address') && m.address.isNotEmpty) ? 'Address: ${m.address}\n' : '';
       return '''
 ${m.fullName} ${m.surname}
 Family: ${m.familyName}
 Age: ${m.age}
-$phoneLine${m.nativeHome.isNotEmpty ? 'Native: ${m.nativeHome}\n' : ''}${m.address.isNotEmpty ? 'Address: ${m.address}\n' : ''}'''.trim();
+$phoneLine${m.nativeHome.isNotEmpty ? 'Native: ${m.nativeHome}\n' : ''}$addressLine'''.trim();
     }
     return '''
 ${m.fullName} ${m.surname}
@@ -380,7 +381,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            if (!_isVisitor || (_member != null && _member!.isPublic))
+            if (!_isVisitor || (_member != null && _member!.canVisitorSee('phone')))
               ListTile(
                 leading: const Icon(Icons.person_add_alt_1_rounded, color: Colors.green),
                 title: const Text('Save Contact Info (Add to Phone)'),
@@ -873,7 +874,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                               : member.familyId,
                           Icons.vpn_key_rounded,
                         ),
-                        if (member.parentMid.isNotEmpty)
+                        if (_isAdmin && member.parentMid.isNotEmpty)
                           _buildPremiumRow(lang.translate('parent_mid'), member.parentMid, Icons.link_rounded),
                         if (member.spouseMid.isNotEmpty && member.marriageStatus.toLowerCase() == 'married')
                           _buildPremiumSpouseRow(lang, member.spouseMid),
@@ -891,22 +892,24 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                       children: [
                         _buildPremiumRow(
                           lang.translate('phone'),
-                          _isVisitor && !member.isPublic
+                          _isVisitor && !member.canVisitorSee('phone')
                               ? '•••••••••• (Private / ખાનગી)'
                               : member.phone,
                           Icons.phone_enabled_rounded,
                         ),
-                        if (!_isVisitor && member.email.isNotEmpty)
+                        if (member.email.isNotEmpty && (!_isVisitor || member.canVisitorSee('email')))
                           _buildPremiumRow('Email Address', member.email, Icons.alternate_email_rounded),
                         _buildPremiumLocationRow(
                           lang.translate('address'),
-                          member.address,
-                          member.googleMapLink,
+                          _isVisitor && !member.canVisitorSee('address')
+                              ? '•••••••••• (Private / ખાનગી)'
+                              : member.address,
+                          (_isVisitor && !member.canVisitorSee('address')) ? '' : member.googleMapLink,
                         ),
                       ],
                     ),
 
-                    if (!_isVisitor || member.isPublic) ...[
+                    if (!_isVisitor || member.canVisitorSee('social')) ...[
                       if (member.whatsapp.isNotEmpty || member.instagram.isNotEmpty || member.facebook.isNotEmpty || member.snapchat.isNotEmpty) ...[
                         const SizedBox(height: 20),
                         _buildPremiumSection(
@@ -926,7 +929,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
                       ],
                     ],
 
-                    if (member.firms.isNotEmpty) ...[
+                    if (member.firms.isNotEmpty && (!_isVisitor || member.canVisitorSee('firms'))) ...[
                       const SizedBox(height: 20),
                       _buildPremiumSection(
                         title: 'Firms & Business',
@@ -1288,8 +1291,8 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final cardColor = isDark ? theme.cardColor : Colors.white;
-    final bool canCall = member.phone.isNotEmpty && (!_isVisitor || member.isPublic);
-    final bool canWhatsApp = member.whatsapp.isNotEmpty && (!_isVisitor || member.isPublic);
+    final bool canCall = member.phone.isNotEmpty && (!_isVisitor || member.canVisitorSee('phone'));
+    final bool canWhatsApp = member.whatsapp.isNotEmpty && (!_isVisitor || member.canVisitorSee('phone') || member.canVisitorSee('social'));
     
     return Container(
       margin: const EdgeInsets.only(top: 24),
@@ -1310,7 +1313,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
         children: [
           _buildPremiumActionButton(
             onPressed: () {
-              if (_isVisitor && !member.isPublic) {
+              if (_isVisitor && !member.canVisitorSee('phone')) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Contact number is private.')),
                 );
@@ -1325,7 +1328,7 @@ ${m.bloodGroup.isNotEmpty ? 'Blood Group: ${m.bloodGroup}' : ''}
           ),
           _buildPremiumActionButton(
             onPressed: () {
-              if (_isVisitor && !member.isPublic) {
+              if (_isVisitor && !member.canVisitorSee('social') && !member.canVisitorSee('phone')) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('WhatsApp contact is private.')),
                 );

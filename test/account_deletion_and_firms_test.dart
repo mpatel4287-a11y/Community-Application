@@ -121,18 +121,38 @@ void main() {
   });
 
   group('Visitor Mode & Member Firms Tests', () {
-    test('MemberModel defaults isPublic to true and serializes/deserializes correctly', () {
+    test('MemberModel defaults isPublic to false and serializes/deserializes privateVisibility correctly', () {
       final defaultMember = MemberModel.empty();
-      expect(defaultMember.isPublic, isTrue);
+      expect(defaultMember.isPublic, isFalse);
+      expect(defaultMember.canVisitorSee('phone'), isFalse);
+      expect(defaultMember.canVisitorSee('address'), isFalse);
+      expect(defaultMember.canVisitorSee('firms'), isTrue);
 
-      final privateMember = defaultMember.copyWith(isPublic: false);
-      expect(privateMember.isPublic, isFalse);
+      final publicMember = defaultMember.copyWith(isPublic: true);
+      expect(publicMember.isPublic, isTrue);
+      expect(publicMember.canVisitorSee('phone'), isTrue);
 
-      final map = privateMember.toMap();
+      final customPrivate = defaultMember.copyWith(
+        privateVisibility: {
+          'phone': true,
+          'address': false,
+          'firms': true,
+          'social': true,
+          'email': false,
+        },
+      );
+      expect(customPrivate.canVisitorSee('phone'), isTrue);
+      expect(customPrivate.canVisitorSee('social'), isTrue);
+      expect(customPrivate.canVisitorSee('address'), isFalse);
+
+      final map = customPrivate.toMap();
       expect(map['isPublic'], isFalse);
+      expect(map['privateVisibility']['phone'], isTrue);
 
       final reconstructed = MemberModel.fromMap('test_id', map);
       expect(reconstructed.isPublic, isFalse);
+      expect(reconstructed.canVisitorSee('phone'), isTrue);
+      expect(reconstructed.canVisitorSee('social'), isTrue);
     });
 
     test('Aggregates firms correctly from multiple member profiles', () {

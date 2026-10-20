@@ -412,56 +412,42 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
           // 1. App Bar with Profile Quick Link (Shortened)
           SliverAppBar(
             automaticallyImplyLeading: false,
-            expandedHeight: 60.0,
+            expandedHeight: 56.0,
             floating: false,
             pinned: true,
+            titleSpacing: 16.0,
             backgroundColor: Colors.transparent, // Let flexible space handle the background
+            title: Text(
+              _isVisitor
+                  ? 'Ramanagara Patidar Samaj'
+                  : '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
             flexibleSpace: ClipRect(
               child: kIsWeb
                   ? BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-                      child: FlexibleSpaceBar(
-                        titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
-                        title: Text(
-                          _isVisitor
-                              ? 'Ramanagara Patidar Samaj'
-                              : '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
-                          style: TextStyle(
-                            fontSize: 16, 
-                            fontWeight: FontWeight.bold, 
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        background: Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
-                            border: Border(
-                              bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
-                            ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+                          border: Border(
+                            bottom: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
                           ),
                         ),
                       ),
                     )
-                  : FlexibleSpaceBar(
-                      titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
-                      title: Text(
-                        _isVisitor
-                            ? 'Ramanagara Patidar Samaj'
-                            : '${lang.translate('welcome')}, ${_currentUser?.fullName.split(' ')[0] ?? 'User'}${_currentUser?.isBirthdayToday == true ? ' 🎂' : ''}',
-                        style: TextStyle(
-                          fontSize: 16, 
-                          fontWeight: FontWeight.bold, 
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      background: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
-                          border: Border(
-                            bottom: BorderSide(
-                              color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
-                              width: 1,
-                            ),
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
+                            width: 1,
                           ),
                         ),
                       ),
@@ -470,22 +456,26 @@ class _EnhancedUserDashboardState extends State<EnhancedUserDashboard> {
             actions: [
               if (_isVisitor)
                 Padding(
-                  padding: const EdgeInsets.only(right: 16, top: 4),
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      await SessionWatcherService().stopWatching();
-                      await SessionManager.clear();
-                      await SessionManager.setVisitorMode(false);
-                      if (mounted) {
-                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-                      }
-                    },
-                    icon: const Icon(Icons.login_rounded, size: 16, color: Colors.white),
-                    label: const Text('Log In', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.orange.shade800,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        await SessionWatcherService().stopWatching();
+                        await SessionManager.clear();
+                        await SessionManager.setVisitorMode(false);
+                        if (mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                        }
+                      },
+                      icon: const Icon(Icons.login_rounded, size: 14, color: Colors.white),
+                      label: const Text('Log In', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.orange.shade800,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                     ),
                   ),
                 )

@@ -179,7 +179,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   String _subFamilyHeadRelation = '';
   bool _hasFamilyHead = false;
   bool _isCommon = false;
-  bool _isPublic = true;
+  bool _isPublic = false;
   bool _isMinorNoPhone = false;
   bool _isDeceased = false;
   List<String> _tags = [];

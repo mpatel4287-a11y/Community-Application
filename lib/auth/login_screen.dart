@@ -203,49 +203,44 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Animated Visitor Explore Mode Button
-                  PulseAnimation(
-                    duration: const Duration(milliseconds: 1600),
-                    minScale: 0.96,
-                    maxScale: 1.04,
-                    child: InkWell(
-                      onTap: _enterVisitorMode,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.teal.shade700,
-                              Theme.of(context).colorScheme.primary,
-                            ],
+                  // Normal Visitor Explore Mode Button
+                  InkWell(
+                    onTap: _enterVisitorMode,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.teal.shade700,
+                            Theme.of(context).colorScheme.primary,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.explore_outlined, color: Colors.amber, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            lang.currentLanguage == 'gu' ? 'મુલાકાતી મોડ' : 'Explore Mode',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.explore_outlined, color: Colors.amber, size: 16),
-                            const SizedBox(width: 6),
-                            Text(
-                              lang.currentLanguage == 'gu' ? 'મુલાકાતી મોડ' : 'Explore Mode',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 10),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 10),
+                        ],
                       ),
                     ),
                   ),
@@ -282,16 +277,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Animated Visitor Mode Quick-Access Banner
-                      FadeInAnimation(
-                        delay: const Duration(milliseconds: 30),
-                        child: PulseAnimation(
-                          duration: const Duration(milliseconds: 2200),
-                          minScale: 0.98,
-                          maxScale: 1.02,
-                          child: InkWell(
-                            onTap: _enterVisitorMode,
-                            borderRadius: BorderRadius.circular(16),
+                      // Visitor Mode Quick-Access Banner
+                      InkWell(
+                        onTap: _enterVisitorMode,
+                        borderRadius: BorderRadius.circular(16),
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 16),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -374,8 +363,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                        ),
-                      ),
                       // Community Name on top of Lord Ganesh image
                       FadeInAnimation(
                         delay: const Duration(milliseconds: 50),

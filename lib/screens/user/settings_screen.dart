@@ -395,7 +395,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 24),
                   ],
 
-                  // 5. Security & Account
+                  // 5. Privacy & Explore Mode (for all users & members)
+                  if (_currentUser != null) ...[
+                    _buildSectionHeader(
+                      lang.currentLanguage == 'gu'
+                          ? 'ગોપનીયતા અને મુલાકાતી મોડ સેટિંગ્સ'
+                          : 'Privacy & Explore Mode Settings',
+                    ),
+                    _buildCard([
+                      // Master Public / Private Switch
+                      _buildSwitchTile(
+                        icon: (_currentUser?.isPublic ?? false)
+                            ? Icons.public
+                            : Icons.lock_outline_rounded,
+                        title: lang.currentLanguage == 'gu'
+                            ? 'સાર્વજનિક પ્રોફાઇલ (Public Profile)'
+                            : 'Public Profile (સાર્વજનિક પ્રોફાઇલ)',
+                        subtitle: (_currentUser?.isPublic ?? false)
+                            ? (lang.currentLanguage == 'gu'
+                                ? 'તમારું ખાતું પબ્લિક છે. મુલાકાતીઓ બધી વિગતો જોઈ શકે છે.'
+                                : 'Account is Public. Visitors can view full details.')
+                            : (lang.currentLanguage == 'gu'
+                                ? 'તમારું ખાતું ખાનગી છે (Default Private). નીચેની પસંદ કરેલી વિગતો જ દેખાશે.'
+                                : 'Account is Private by default. Only selected fields below are visible to visitors.'),
+                        value: _currentUser?.isPublic ?? false,
+                        onChanged: (val) => _updateAccountPrivacy(val),
+                        color: (_currentUser?.isPublic ?? false) ? Colors.teal : Colors.blueGrey,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            lang.currentLanguage == 'gu'
+                                ? 'ખાનગી મોડમાં મુલાકાતીઓને કઈ વિગતો બતાવવી:'
+                                : 'What fields to show in Private / Explore Mode:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      _buildSwitchTile(
+                        icon: Icons.phone_android_rounded,
+                        title: lang.currentLanguage == 'gu'
+                            ? 'મોબાઇલ નંબર (Mobile Number)'
+                            : 'Mobile Number',
+                        subtitle: lang.currentLanguage == 'gu'
+                            ? 'મુલાકાતીઓને કૉલ કરવા અને નંબર જોવાની મંજૂરી આપો'
+                            : 'Allow visitors to see and call your phone number',
+                        value: _currentUser?.privateVisibility['phone'] ?? false,
+                        onChanged: (val) => _updatePrivateVisibilityField('phone', val),
+                        color: Colors.green,
+                      ),
+                      _buildSwitchTile(
+                        icon: Icons.home_rounded,
+                        title: lang.currentLanguage == 'gu'
+                            ? 'રહેણાંક સરનામું (Address)'
+                            : 'Residential Address',
+                        subtitle: lang.currentLanguage == 'gu'
+                            ? 'સરનામું અને ગૂગલ મેપ લિંક મુલાકાતીઓને બતાવો'
+                            : 'Show address and map link to visitors',
+                        value: _currentUser?.privateVisibility['address'] ?? false,
+                        onChanged: (val) => _updatePrivateVisibilityField('address', val),
+                        color: Colors.orange,
+                      ),
+                      _buildSwitchTile(
+                        icon: Icons.business_center_rounded,
+                        title: lang.currentLanguage == 'gu'
+                            ? 'પેઢી અને વ્યવસાય (Firms & Business)'
+                            : 'Firms & Business',
+                        subtitle: lang.currentLanguage == 'gu'
+                            ? 'પેઢી ડિરેક્ટરી અને પ્રોફાઇલમાં તમારી કંપની બતાવો'
+                            : 'Show your firms in directory and profile',
+                        value: _currentUser?.privateVisibility['firms'] ?? true,
+                        onChanged: (val) => _updatePrivateVisibilityField('firms', val),
+                        color: Colors.indigo,
+                      ),
+                      _buildSwitchTile(
+                        icon: Icons.share_rounded,
+                        title: lang.currentLanguage == 'gu'
+                            ? 'સોશિયલ મીડિયા (Social Links)'
+                            : 'Social Links (Instagram, Snapchat, FB)',
+                        subtitle: lang.currentLanguage == 'gu'
+                            ? 'પ્રોફાઇલ પર સોશિયલ લિંક્સ મુલાકાતીઓ માટે ખુલ્લી રાખો'
+                            : 'Show WhatsApp, Instagram, Snapchat on profile',
+                        value: _currentUser?.privateVisibility['social'] ?? false,
+                        onChanged: (val) => _updatePrivateVisibilityField('social', val),
+                        color: Colors.pinkAccent,
+                      ),
+                      _buildSwitchTile(
+                        icon: Icons.alternate_email_rounded,
+                        title: lang.currentLanguage == 'gu'
+                            ? 'ઈમેઇલ (Email Address)'
+                            : 'Email Address',
+                        subtitle: lang.currentLanguage == 'gu'
+                            ? 'મુલાકાતીઓને ઈમેઇલ સરનામું દર્શાવો'
+                            : 'Allow visitors to view email address',
+                        value: _currentUser?.privateVisibility['email'] ?? false,
+                        onChanged: (val) => _updatePrivateVisibilityField('email', val),
+                        color: Colors.deepPurple,
+                        isLast: true,
+                      ),
+                    ]),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // 6. Security & Account
                   _buildSectionHeader(lang.translate('security')),
                   _buildCard([
                     _buildActionTile(
@@ -1035,6 +1143,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
           );
         }
       }
+    }
+  }
+
+  Future<void> _updateAccountPrivacy(bool isPublic) async {
+    if (_currentUser == null) return;
+    setState(() {
+      _currentUser = _currentUser!.copyWith(isPublic: isPublic);
+    });
+
+    try {
+      await _memberService.updateMember(
+        mainFamilyDocId: _currentUser!.familyDocId,
+        subFamilyDocId: _currentUser!.subFamilyDocId,
+        memberId: _currentUser!.id,
+        updates: {'isPublic': isPublic},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isPublic
+                ? 'Account set to Public (સાર્વજનિક)'
+                : 'Account set to Private (ખાનગી)'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: isPublic ? Colors.teal : Colors.blueGrey,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating privacy: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update privacy: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _updatePrivateVisibilityField(String field, bool value) async {
+    if (_currentUser == null) return;
+    final updatedVisibility = Map<String, bool>.from(_currentUser!.privateVisibility);
+    updatedVisibility[field] = value;
+
+    setState(() {
+      _currentUser = _currentUser!.copyWith(privateVisibility: updatedVisibility);
+    });
+
+    try {
+      await _memberService.updateMember(
+        mainFamilyDocId: _currentUser!.familyDocId,
+        subFamilyDocId: _currentUser!.subFamilyDocId,
+        memberId: _currentUser!.id,
+        updates: {'privateVisibility': updatedVisibility},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Visibility preferences saved'),
+            duration: Duration(milliseconds: 1500),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating visibility setting: $e');
     }
   }
 

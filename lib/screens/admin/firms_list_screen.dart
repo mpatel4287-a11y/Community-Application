@@ -224,6 +224,7 @@ class _FirmsListScreenState extends State<FirmsListScreen> {
               // 2. Aggregate from living members' firm entries
               for (final member in allMembers) {
                 if (member.isLate) continue; // Exclude late/deceased members
+                if (_isVisitor && !member.canVisitorSee('firms')) continue;
                 for (final f in member.firms) {
                   final rawName = (f['name'] ?? '').toString().trim();
                   if (rawName.isEmpty) continue;

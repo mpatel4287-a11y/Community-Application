@@ -65,7 +65,7 @@ class MemberService {
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
     bool isCommon = false,
-    bool isPublic = true,
+    bool isPublic = false,
     bool isDeceased = false,
     String tod = '',
   }) async {
@@ -193,7 +193,7 @@ class MemberService {
     String subFamilyHeadRelationToMainHead = '',
     String spouseMid = '',
     bool isCommon = false,
-    bool isPublic = true,
+    bool isPublic = false,
     bool isDeceased = false,
     String tod = '',
   }) => addMember(

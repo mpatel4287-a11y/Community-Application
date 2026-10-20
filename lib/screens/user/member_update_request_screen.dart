@@ -1521,45 +1521,6 @@ class _MemberUpdateRequestScreenState extends State<MemberUpdateRequestScreen>
           ),
           const SizedBox(height: 14),
 
-          // Parent MID Selection / Input
-          if (_familyMembers.isNotEmpty) ...[
-            DropdownButtonFormField<String>(
-              value: _familyMembers.any((m) => m.mid == _parentMidController.text.trim())
-                  ? _parentMidController.text.trim()
-                  : (_parentMidController.text.trim().isEmpty ? '' : null),
-              decoration: const InputDecoration(
-                labelText: 'Select Parent (Parent MID)',
-                prefixIcon: Icon(Icons.escalator_warning_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-              ),
-              items: [
-                const DropdownMenuItem(value: '', child: Text('None / Not Assigned')),
-                ..._familyMembers.where((m) => m.id != _selectedMember?.id).map((m) {
-                  return DropdownMenuItem<String>(
-                    value: m.mid,
-                    child: Text('${m.fullName} (${m.mid})'),
-                  );
-                }),
-              ],
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _parentMidController.text = val);
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-          TextFormField(
-            controller: _parentMidController,
-            decoration: const InputDecoration(
-              labelText: 'Parent Member ID (MID)',
-              prefixIcon: Icon(Icons.badge_outlined),
-              hintText: 'e.g., F01-S01-001',
-              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-            ),
-          ),
-          const SizedBox(height: 14),
-
           // Spouse MID Selection / Input
           TextFormField(
             controller: _spouseMidController,
